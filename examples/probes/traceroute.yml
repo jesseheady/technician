@@ -1,0 +1,5 @@
+- name: Google DNS
+  host: 8.8.8.8
+  max_hops: 30
+  count: 3
+  schedule: "0 */5 * * * *"

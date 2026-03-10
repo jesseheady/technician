@@ -1,0 +1,76 @@
+groups:
+  - name: technician_recording
+    rules:
+      - record: technician:probe_down_fraction
+        expr: |
+          count by (name, type) (technician_probe_up == 0)
+          / count by (name, type) (technician_probe_up)
+
+      - record: technician:probe_uptime_daily
+        expr: |
+          avg_over_time((
+            sum by (name, type) (technician_probe_up)
+            / count by (name, type) (technician_probe_up)
+            > bool 0.5
+          )[1d:])
+
+      - record: technician:browser_lcp_p95
+        expr: quantile(0.95, technician_browser_lcp_ms) by (name)
+
+  - name: technician_alerts
+    rules:
+      - alert: ProbeDown
+        expr: technician_probe_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Probe {{ $labels.name }} is down"
+          description: "Probe {{ $labels.name }} ({{ $labels.type }}) from site {{ $labels.site_code }} has been down for 5 minutes."
+
+      - alert: HighLCP
+        expr: technician_browser_lcp_ms > 2500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High LCP for {{ $labels.name }}"
+          description: "LCP for {{ $labels.name }} is {{ $value }}ms (good ≤2500ms)."
+
+      - alert: HighINP
+        expr: technician_browser_inp_ms > 200
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High INP for {{ $labels.name }}"
+          description: "INP (Interaction to Next Paint) for {{ $labels.name }} is {{ $value }}ms (good ≤200ms)."
+
+      - alert: BudgetViolation
+        expr: technician_budget_violation == 1
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Budget violation for {{ $labels.name }}"
+          description: "Metric {{ $labels.metric }} for probe {{ $labels.name }} exceeds budget."
+
+      - alert: HighTTFB
+        expr: technician_http_ttfb_seconds > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TTFB for {{ $labels.name }}"
+          description: "TTFB for {{ $labels.name }} is {{ $value }}s."
+
+      - alert: HighErrorRate
+        expr: |
+          sum by (name) (technician_probe_up == 0)
+          / count by (name) (technician_probe_up) > 0.5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} are failing."

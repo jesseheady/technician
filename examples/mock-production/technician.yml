@@ -1,0 +1,28 @@
+# Mock production config: run Technician locally probing localhost mock endpoints.
+# Start a mock HTTP server on 8080 first, e.g.:
+#   python3 -c "from http.server import HTTPServer, BaseHTTPRequestHandler; ..."
+# Then: technician worker --config examples/mock-production/technician.yml
+
+service: technician
+hostname: localhost
+
+sites:
+  - code: local
+    city: Local
+    country: XX
+    geohash: local
+    provider: mock
+
+metrics:
+  prometheus:
+    listen: ":9394"
+  otel:
+    endpoint: ""
+
+artifacts:
+  driver: local
+  path: /tmp/technician/artifacts
+  retention: 24h
+
+playwright:
+  mode: local

@@ -1,0 +1,14 @@
+- probe: "*"
+  thresholds:
+    duration: 5000
+  alert_on: exceed
+
+# Core Web Vitals: LCP ≤2.5s, INP ≤200ms, CLS ≤0.1
+- probe: Example Website
+  thresholds:
+    ttfb: 800
+    lcp: 2500
+    inp: 200
+    cls: 0.1
+    duration: 3000
+  alert_on: exceed

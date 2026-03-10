@@ -1,0 +1,155 @@
+package exporter
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/monkeyWzr/technician/internal/probe"
+)
+
+// BlackboxHandler implements a /probe endpoint compatible with
+// Prometheus blackbox_exporter's probe interface.
+type BlackboxHandler struct {
+	probers map[string]probe.Prober
+}
+
+func NewBlackboxHandler() *BlackboxHandler {
+	return &BlackboxHandler{
+		probers: map[string]probe.Prober{
+			"http_2xx": probe.NewHTTPProber(),
+			"smtp":     probe.NewSMTPProber(),
+		},
+	}
+}
+
+func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	target := r.URL.Query().Get("target")
+	module := r.URL.Query().Get("module")
+	if target == "" {
+		http.Error(w, "missing target parameter", http.StatusBadRequest)
+		return
+	}
+	if module == "" {
+		module = "http_2xx"
+	}
+
+	prober, ok := h.probers[module]
+	if !ok {
+		http.Error(w, fmt.Sprintf("unknown module: %s", module), http.StatusBadRequest)
+		return
+	}
+
+	probeCfg := buildProbeConfig(target, module)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	result := prober.Run(ctx, probeCfg, nil)
+	duration := time.Since(start)
+
+	registry := prometheus.NewRegistry()
+
+	probeSuccess := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "probe_success",
+		Help: "Whether the probe was successful",
+	})
+	probeDuration := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "probe_duration_seconds",
+		Help: "Total probe duration in seconds",
+	})
+
+	registry.MustRegister(probeSuccess, probeDuration)
+
+	if result.Success {
+		probeSuccess.Set(1)
+	} else {
+		probeSuccess.Set(0)
+	}
+	probeDuration.Set(duration.Seconds())
+
+	if result.StatusCode > 0 {
+		httpStatus := prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "probe_http_status_code",
+			Help: "HTTP response status code",
+		})
+		registry.MustRegister(httpStatus)
+		httpStatus.Set(float64(result.StatusCode))
+	}
+
+	if result.DNSDuration > 0 {
+		dns := prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "probe_dns_lookup_time_seconds",
+			Help: "DNS lookup duration",
+		})
+		registry.MustRegister(dns)
+		dns.Set(result.DNSDuration.Seconds())
+	}
+
+	if result.TLSDuration > 0 {
+		tls := prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "probe_tls_duration_seconds",
+			Help: "TLS handshake duration",
+		})
+		registry.MustRegister(tls)
+		tls.Set(result.TLSDuration.Seconds())
+	}
+
+	promhttp.HandlerFor(registry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
+
+	slog.Debug("Blackbox probe completed",
+		"target", target,
+		"module", module,
+		"success", result.Success,
+		"duration", duration,
+	)
+}
+
+func buildProbeConfig(target, module string) *config.ProbeConfig {
+	switch module {
+	case "smtp":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeSMTP,
+			Timeout: 30 * time.Second,
+			SMTP: &config.SMTPProbeConfig{
+				Host: target,
+				Port: 25,
+			},
+		}
+	default:
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeHTTP,
+			Timeout: 30 * time.Second,
+			HTTP: &config.HTTPProbeConfig{
+				URL:            target,
+				Method:         "GET",
+				ExpectedStatus: 200,
+			},
+		}
+	}
+}
+
+// DebugHandler returns probe config for a module as JSON (useful for debugging).
+func DebugHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		target := r.URL.Query().Get("target")
+		module := r.URL.Query().Get("module")
+		if module == "" {
+			module = "http_2xx"
+		}
+
+		cfg := buildProbeConfig(target, module)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cfg)
+	}
+}

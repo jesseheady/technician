@@ -1,0 +1,4 @@
+- name: Gmail SMTP
+  host: smtp.gmail.com
+  port: 587
+  schedule: "0 */5 * * * *"
