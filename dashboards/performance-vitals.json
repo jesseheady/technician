@@ -29,6 +29,28 @@
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "refresh": 2
+      },
+      {
+        "name": "network",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_browser_lcp_ms, network)",
+        "query": { "query": "label_values(technician_browser_lcp_ms, network)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_browser_lcp_ms{network=~\"$network\"}, device)",
+        "query": { "query": "label_values(technician_browser_lcp_ms{network=~\"$network\"}, device)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
       }
     ]
   },
@@ -41,7 +63,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -70,7 +92,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_inp_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_browser_inp_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -99,7 +121,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -128,7 +150,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_cls{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_browser_cls{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -157,8 +179,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -191,8 +213,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_inp_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_browser_inp_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -225,8 +247,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -259,8 +281,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_browser_cls{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_browser_cls{site_code=~\"$site_code\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -278,6 +300,151 @@
             ]
           },
           "custom.thresholdsStyle": { "mode": "dashed" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 100,
+      "title": "Desktop vs Mobile",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "collapsed": false
+    },
+    {
+      "id": 101,
+      "title": "LCP: Desktop vs Mobile",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", network=\"\"}",
+          "legendFormat": "{{name}} (desktop)",
+          "refId": "A"
+        },
+        {
+          "expr": "technician_browser_lcp_ms{site_code=~\"$site_code\", network=~\"4g|3g|slow-3g\"}",
+          "legendFormat": "{{name}} ({{network}} / {{device}})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 5, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          },
+          "custom.thresholdsStyle": { "mode": "dashed" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 102,
+      "title": "TTFB: Desktop vs Mobile",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", network=\"\"}",
+          "legendFormat": "{{name}} (desktop)",
+          "refId": "A"
+        },
+        {
+          "expr": "technician_browser_ttfb_ms{site_code=~\"$site_code\", network=~\"4g|3g|slow-3g\"}",
+          "legendFormat": "{{name}} ({{network}} / {{device}})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 5, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 600 },
+              { "color": "red", "value": 1800 }
+            ]
+          },
+          "custom.thresholdsStyle": { "mode": "dashed" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 103,
+      "title": "Total Transfer: Desktop vs Mobile",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_browser_total_transfer_bytes{site_code=~\"$site_code\", network=\"\"}",
+          "legendFormat": "{{name}} (desktop)",
+          "refId": "A"
+        },
+        {
+          "expr": "technician_browser_total_transfer_bytes{site_code=~\"$site_code\", network=~\"4g|3g|slow-3g\"}",
+          "legendFormat": "{{name}} ({{network}} / {{device}})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decbytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 5, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 104,
+      "title": "DOM Complete: Desktop vs Mobile",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_browser_dom_complete_ms{site_code=~\"$site_code\", network=\"\"}",
+          "legendFormat": "{{name}} (desktop)",
+          "refId": "A"
+        },
+        {
+          "expr": "technician_browser_dom_complete_ms{site_code=~\"$site_code\", network=~\"4g|3g|slow-3g\"}",
+          "legendFormat": "{{name}} ({{network}} / {{device}})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 5, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
         }
       },
       "options": {

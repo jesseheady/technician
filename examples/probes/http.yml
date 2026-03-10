@@ -1,9 +1,27 @@
-- name: Example Website
-  url: https://example.com
+# ── jesseheady.com (S3 + CloudFront) ──────────────────────────────
+- name: jesseheady.com
+  group: Marketing
+  url: https://jesseheady.com
   expected_status: 200
   schedule: "*/30 * * * * *"
 
+- name: jesseheady.com/feed
+  group: Marketing
+  url: https://jesseheady.com/feed.xml
+  expected_status: 200
+  timeout: 10s
+  schedule: "0 */2 * * * *"
+
+- name: jesseheady.com/robots
+  group: Marketing
+  url: https://jesseheady.com/robots.txt
+  expected_status: 200
+  timeout: 5s
+  schedule: "0 */5 * * * *"
+
+# ── Generic examples ─────────────────────────────────────────────
 - name: Example API Health
+  group: Third Party
   url: https://jsonplaceholder.typicode.com/posts/1
   expected_status: 200
   timeout: 5s

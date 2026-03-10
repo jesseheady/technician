@@ -51,22 +51,33 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	args := []string{
-		p.RunnerPath,
-		"--script", pcfg.Script,
+	runnerConfig := map[string]interface{}{
+		"script": pcfg.Script,
 	}
 	if pcfg.BaseURL != "" {
-		args = append(args, "--base-url", pcfg.BaseURL)
+		runnerConfig["base_url"] = pcfg.BaseURL
 	}
 	if pcfg.Video {
-		args = append(args, "--video")
+		runnerConfig["video"] = true
 	}
 	if pcfg.Authenticator != "" {
-		args = append(args, "--authenticator", pcfg.Authenticator)
+		runnerConfig["authenticator"] = pcfg.Authenticator
+	}
+	if pcfg.Network != "" {
+		runnerConfig["network"] = pcfg.Network
+	}
+	if pcfg.Device != "" {
+		runnerConfig["device"] = pcfg.Device
+	}
+
+	configJSON, err := json.Marshal(runnerConfig)
+	if err != nil {
+		result.Error = fmt.Sprintf("marshaling runner config: %v", err)
+		return result
 	}
 
 	start := time.Now()
-	cmd := exec.CommandContext(ctx, "node", args...)
+	cmd := exec.CommandContext(ctx, "node", p.RunnerPath, string(configJSON))
 	output, err := cmd.Output()
 	result.Duration = time.Since(start)
 
@@ -91,6 +102,13 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 	result.HARData = pwOutput.HAR
 	result.VideoPath = pwOutput.VideoPath
 	result.ResourceCount = pwOutput.ResourceCount
+
+	if pcfg.Network != "" {
+		result.Labels["network"] = pcfg.Network
+	}
+	if pcfg.Device != "" {
+		result.Labels["device"] = pcfg.Device
+	}
 
 	if pwOutput.Error != "" {
 		result.Error = pwOutput.Error

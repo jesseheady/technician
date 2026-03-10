@@ -10,6 +10,7 @@ import (
 type Result struct {
 	Name      string
 	Type      config.ProbeType
+	Group     string
 	Success   bool
 	Duration  time.Duration
 	Error     string

@@ -1,0 +1,24 @@
+- name: "jesseheady.com (desktop)"
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://jesseheady.com"
+  schedule: "*/5 * * * *"
+  timeout: 120s
+
+- name: "jesseheady.com (mobile 4g)"
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://jesseheady.com"
+  network: "4g"
+  device: "iPhone 14"
+  schedule: "*/5 * * * *"
+  timeout: 120s
+
+- name: "jesseheady.com (mobile 3g)"
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://jesseheady.com"
+  network: "3g"
+  device: "iPhone 14"
+  schedule: "*/5 * * * *"
+  timeout: 120s
