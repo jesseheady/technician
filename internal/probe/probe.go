@@ -1,0 +1,88 @@
+package probe
+
+import (
+	"context"
+	"time"
+
+	"github.com/jesseheady/technician/internal/config"
+)
+
+type Result struct {
+	Name      string
+	Type      config.ProbeType
+	Success   bool
+	Duration  time.Duration
+	Error     string
+	Timestamp time.Time
+
+	// HTTP-specific
+	StatusCode    int
+	DNSDuration   time.Duration
+	TLSDuration   time.Duration
+	ConnDuration  time.Duration
+	TTFBDuration  time.Duration
+	TransferDuration time.Duration
+	ResponseBytes int64
+
+	// Browser-specific (Playwright)
+	WebVitals    *WebVitals
+	HARData      *HARData
+	VideoPath    string
+	ResourceCount int
+
+	// Traceroute-specific
+	Hops []TracerouteHop
+
+	// Extra metadata
+	Labels map[string]string
+}
+
+type WebVitals struct {
+	TTFB        float64 `json:"ttfb"`
+	FCP         float64 `json:"fcp"`   // First Contentful Paint (optional; Core Web Vitals are LCP, INP, CLS)
+	LCP         float64 `json:"lcp"`   // Largest Contentful Paint – good ≤2.5s
+	CLS         float64 `json:"cls"`   // Cumulative Layout Shift – good ≤0.1
+	INP         float64 `json:"inp"`   // Interaction to Next Paint – good ≤200ms
+	DOMComplete float64 `json:"dom_complete"`
+}
+
+type HARData struct {
+	Entries []HAREntry `json:"entries"`
+	TotalTransferBytes int64 `json:"total_transfer_bytes"`
+}
+
+type HAREntry struct {
+	URL          string  `json:"url"`
+	ResourceType string  `json:"resource_type"`
+	Duration     float64 `json:"duration"`
+	TransferSize int64   `json:"transfer_size"`
+	ResponseSize int64   `json:"response_size"`
+	Status       int     `json:"status"`
+}
+
+type TracerouteHop struct {
+	Hop     int     `json:"hop"`
+	Host    string  `json:"host"`
+	IP      string  `json:"ip"`
+	ASN     int     `json:"asn"`
+	AvgMs   float64 `json:"avg_ms"`
+	LossPercent float64 `json:"loss_percent"`
+}
+
+type Prober interface {
+	Type() config.ProbeType
+	Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result
+}
+
+func NewResult(name string, probeType config.ProbeType, site *config.Site) *Result {
+	r := &Result{
+		Name:      name,
+		Type:      probeType,
+		Timestamp: time.Now(),
+		Labels:    make(map[string]string),
+	}
+	if site != nil {
+		r.Labels = site.Labels()
+	}
+	return r
+}

@@ -1,0 +1,277 @@
+{
+  "uid": "technician-http-timing",
+  "title": "Technician: HTTP Timing Breakdown",
+  "tags": ["technician", "synthetic-monitoring"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "site_code",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_http_dns_ms, site_code)",
+        "query": { "query": "label_values(technician_http_dns_ms, site_code)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "probe",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_http_dns_ms{site_code=~\"$site_code\"}, probe)",
+        "query": { "query": "label_values(technician_http_dns_ms{site_code=~\"$site_code\"}, probe)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Timing Breakdown (Stacked)",
+      "type": "barchart",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_dns_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "DNS - {{probe}}",
+          "refId": "A"
+        },
+        {
+          "expr": "technician_http_tls_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "TLS - {{probe}}",
+          "refId": "B"
+        },
+        {
+          "expr": "technician_http_connect_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "Connect - {{probe}}",
+          "refId": "C"
+        },
+        {
+          "expr": "technician_http_ttfb_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "TTFB - {{probe}}",
+          "refId": "D"
+        },
+        {
+          "expr": "technician_http_transfer_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "Transfer - {{probe}}",
+          "refId": "E"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 80 },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "stacking": "normal",
+        "barWidth": 0.8,
+        "groupWidth": 0.7
+      }
+    },
+    {
+      "id": 2,
+      "title": "DNS Lookup Time",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_dns_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "TLS Handshake Time",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_tls_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "TCP Connect Time",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_connect_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Time to First Byte (TTFB)",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_ttfb_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Transfer Time",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_transfer_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Response Size",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_response_bytes{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decbytes",
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1048576 },
+              { "color": "red", "value": 5242880 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "auto" }
+    },
+    {
+      "id": 8,
+      "title": "HTTP Response Status Codes",
+      "type": "table",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_http_status_code{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              { "id": "displayName", "value": "Status Code" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 300 }, { "color": "orange", "value": 400 }, { "color": "red", "value": 500 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": { "probe": "Probe", "site_code": "Site" }
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

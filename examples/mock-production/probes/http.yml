@@ -1,0 +1,6 @@
+# Point at mock HTTP server on localhost:8080
+- name: Mock Local Health
+  url: http://localhost:8080/
+  expected_status: 200
+  schedule: "*/30 * * * * *"
+  timeout: 10s

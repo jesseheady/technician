@@ -1,0 +1,22 @@
+# Binaries
+technician
+/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+/tmp/
+*.har
+*.webm
+
+# Environment
+.env
+.env.*

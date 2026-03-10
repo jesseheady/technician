@@ -1,0 +1,41 @@
+services:
+  technician:
+    build: .
+    ports:
+      - "9394:9394"
+    volumes:
+      - ./examples/technician.yml:/etc/technician/technician.yml:ro
+      - ./examples/probes:/etc/technician/probes:ro
+    environment:
+      - SITE_CODE=local
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+      - ./prometheus/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./prometheus/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,34 @@
+service: technician
+hostname: monitor.example.com
+
+sites:
+  # For local/docker development; use SITE_CODE=local so labels stay distinct from real regions
+  - code: local
+    city: Local
+    country: US
+    geohash: local
+    provider: docker
+  - code: us-east-1
+    city: N. Virginia
+    country: US
+    geohash: dqcjq
+    provider: aws
+  - code: us-west-2
+    city: Oregon
+    country: US
+    geohash: c20y
+    provider: aws
+
+metrics:
+  prometheus:
+    listen: ":9394"
+  otel:
+    endpoint: ""
+
+artifacts:
+  driver: local
+  path: /tmp/technician/artifacts
+  retention: 72h
+
+playwright:
+  mode: local

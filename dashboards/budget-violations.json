@@ -1,0 +1,232 @@
+{
+  "uid": "technician-budget-violations",
+  "title": "Technician: Budget Violations",
+  "tags": ["technician", "synthetic-monitoring"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "site_code",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_budget_violation, site_code)",
+        "query": { "query": "label_values(technician_budget_violation, site_code)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "probe",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, probe)",
+        "query": { "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, probe)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Current Violation Count",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "count(technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1)",
+          "legendFormat": "Violations",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "noValue": "0"
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" }
+    },
+    {
+      "id": 2,
+      "title": "Violations by Metric",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1",
+          "legendFormat": "{{metric_name}} ({{probe}} @ {{site_code}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "PASS", "color": "green" }, "1": { "text": "FAIL", "color": "red" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "name" }
+    },
+    {
+      "id": 3,
+      "title": "Budget Status (Pass/Fail by Probe)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "max by (probe, site_code) (technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"})",
+          "legendFormat": "{{probe}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "PASS", "color": "green" }, "1": { "text": "FAIL", "color": "red" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    },
+    {
+      "id": 4,
+      "title": "Budget Violations Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "legendFormat": "{{metric_name}} ({{probe}} @ {{site_code}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "pointSize": 5,
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "color": { "mode": "palette-classic" },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "PASS" }, "1": { "text": "FAIL" } } }
+          ]
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "All Current Violations",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "technician_budget_threshold{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "technician_budget_actual{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value #A" },
+            "properties": [
+              { "id": "displayName", "value": "Violated" },
+              { "id": "mappings", "value": [{ "type": "value", "options": { "1": { "text": "YES", "color": "red" } } }] },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #B" },
+            "properties": [{ "id": "displayName", "value": "Threshold" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #C" },
+            "properties": [{ "id": "displayName", "value": "Actual" }]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": { "probe": "Probe", "site_code": "Site", "metric_name": "Metric", "budget_name": "Budget" }
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

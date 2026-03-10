@@ -1,0 +1,10 @@
+- name: Example Website
+  url: https://example.com
+  expected_status: 200
+  schedule: "*/30 * * * * *"
+
+- name: Example API Health
+  url: https://jsonplaceholder.typicode.com/posts/1
+  expected_status: 200
+  timeout: 5s
+  schedule: "*/30 * * * * *"

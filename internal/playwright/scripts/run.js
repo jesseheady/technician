@@ -1,0 +1,262 @@
+#!/usr/bin/env node
+
+/**
+ * Technician Playwright Runner Harness
+ *
+ * Spawned by the Go orchestrator to run Playwright probe scripts.
+ * Outputs structured JSON to stdout.
+ *
+ * Usage: node run.js '{"script": "/path/to/probe.js", "base_url": "...", "video": true}'
+ */
+
+const { chromium } = require('playwright');
+const path = require('path');
+const fs = require('fs');
+const { performance } = require('perf_hooks');
+
+async function main() {
+  const configStr = process.argv[2];
+  if (!configStr) {
+    outputError('No config provided');
+    process.exit(1);
+  }
+
+  let config;
+  try {
+    config = JSON.parse(configStr);
+  } catch (e) {
+    outputError(`Invalid config JSON: ${e.message}`);
+    process.exit(1);
+  }
+
+  const startTime = performance.now();
+  const logs = [];
+  const log = (msg) => logs.push(msg);
+
+  let browser;
+  let context;
+  let page;
+
+  try {
+    // Launch browser
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    // Create context with HAR recording
+    const contextOpts = {
+      recordHar: { path: '/tmp/technician-har.har', mode: 'full' },
+    };
+
+    if (config.video) {
+      contextOpts.recordVideo = {
+        dir: '/tmp/technician-videos/',
+        size: { width: 1280, height: 720 },
+      };
+    }
+
+    if (config.base_url) {
+      contextOpts.baseURL = config.base_url;
+    }
+
+    // Handle authenticator (load storage state)
+    if (config.authenticator) {
+      const statePath = path.resolve(config.authenticator);
+      if (fs.existsSync(statePath)) {
+        contextOpts.storageState = statePath;
+        log(`Loaded storage state from ${statePath}`);
+      }
+    }
+
+    context = await browser.newContext(contextOpts);
+    page = await context.newPage();
+
+    // Load and run the probe script
+    const scriptPath = path.resolve(config.script);
+    log(`Running script: ${scriptPath}`);
+
+    const probeModule = require(scriptPath);
+    const probeFn = probeModule.default || probeModule;
+
+    if (typeof probeFn !== 'function') {
+      throw new Error(`Probe script must export a function, got ${typeof probeFn}`);
+    }
+
+    const probeContext = {
+      base_url: config.base_url || '',
+      credentials: {},
+      log,
+    };
+
+    await probeFn(page, probeContext);
+
+    // Collect Web Vitals
+    const vitals = await collectWebVitals(page);
+    log('Collected Web Vitals');
+
+    // Get video path
+    let videoPath = '';
+    if (config.video) {
+      const video = page.video();
+      if (video) {
+        videoPath = await video.path();
+      }
+    }
+
+    // Close context to finalize HAR
+    await context.close();
+    context = null;
+
+    // Parse HAR
+    let har = null;
+    let resourceCount = 0;
+    try {
+      const harData = fs.readFileSync('/tmp/technician-har.har', 'utf8');
+      const harJson = JSON.parse(harData);
+      const entries = harJson.log.entries || [];
+      resourceCount = entries.length;
+
+      let totalTransfer = 0;
+      const harEntries = entries.map((entry) => {
+        const transferSize = entry.response.bodySize > 0
+          ? entry.response.bodySize
+          : entry.response.content.size || 0;
+        totalTransfer += transferSize;
+
+        return {
+          url: entry.request.url,
+          resource_type: classifyMime(entry.response.content.mimeType || ''),
+          duration: entry.time,
+          transfer_size: transferSize,
+          response_size: entry.response.content.size || 0,
+          status: entry.response.status,
+        };
+      });
+
+      har = {
+        entries: harEntries,
+        total_transfer_bytes: totalTransfer,
+      };
+    } catch (e) {
+      log(`HAR parsing failed: ${e.message}`);
+    }
+
+    const durationMs = performance.now() - startTime;
+
+    output({
+      success: true,
+      duration_ms: durationMs,
+      vitals,
+      har,
+      video_path: videoPath,
+      resource_count: resourceCount,
+      logs,
+    });
+  } catch (e) {
+    const durationMs = performance.now() - startTime;
+    output({
+      success: false,
+      duration_ms: durationMs,
+      error: e.message,
+      logs,
+    });
+  } finally {
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
+  }
+}
+
+async function collectWebVitals(page) {
+  const fallback = { ttfb: 0, fcp: 0, lcp: 0, cls: 0, inp: 0, dom_complete: 0 };
+  try {
+    // Core Web Vitals (LCP, CLS) + TTFB, FCP, dom_complete via web-vitals + Performance API
+    const withLcpCls = await page.evaluate(async () => {
+      const nav = performance.getEntriesByType('navigation')[0] || {};
+      const paint = performance.getEntriesByType('paint');
+      const fcpEntry = paint.find((p) => p.name === 'first-contentful-paint');
+      const ttfb = nav.responseStart || 0;
+      const fcp = fcpEntry ? fcpEntry.startTime : 0;
+      const dom_complete = nav.domComplete || 0;
+
+      try {
+        const { onLCP, onCLS } = await import('https://unpkg.com/web-vitals@4?module');
+        const result = { ttfb, fcp, dom_complete, lcp: 0, cls: 0 };
+        await Promise.race([
+          Promise.all([
+            new Promise((resolve) => {
+              onLCP((m) => {
+                result.lcp = m.value;
+                resolve();
+              });
+            }),
+            new Promise((resolve) => {
+              onCLS((m) => {
+                result.cls = m.value;
+                resolve();
+              });
+            }),
+          ]),
+          new Promise((r) => setTimeout(r, 8000)),
+        ]);
+        return result;
+      } catch {
+        return { ttfb, fcp, dom_complete, lcp: 0, cls: 0 };
+      }
+    });
+
+    // INP requires at least one interaction; trigger a click then read INP
+    await page.click('body', { timeout: 2000 }).catch(() => {});
+    await new Promise((r) => setTimeout(r, 600));
+
+    const inp = await page.evaluate(async () => {
+      try {
+        const { onINP } = await import('https://unpkg.com/web-vitals@4?module');
+        return new Promise((resolve) => {
+          const done = (m) => {
+            resolve(m.value);
+          };
+          onINP(done);
+          setTimeout(() => resolve(0), 2000);
+        });
+      } catch {
+        return 0;
+      }
+    });
+
+    return {
+      ...withLcpCls,
+      inp: typeof inp === 'number' ? inp : 0,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function classifyMime(mime) {
+  if (!mime) return 'other';
+  if (mime.includes('html')) return 'document';
+  if (mime.includes('javascript') || mime.includes('ecmascript')) return 'script';
+  if (mime.includes('css')) return 'stylesheet';
+  if (mime.includes('image')) return 'image';
+  if (mime.includes('font') || mime.includes('woff') || mime.includes('ttf')) return 'font';
+  if (mime.includes('json') || mime.includes('xml')) return 'xhr';
+  return 'other';
+}
+
+function output(data) {
+  process.stdout.write(JSON.stringify(data));
+}
+
+function outputError(msg) {
+  output({ success: false, error: msg, duration_ms: 0 });
+}
+
+main().catch((e) => {
+  outputError(`Unhandled error: ${e.message}`);
+  process.exit(1);
+});

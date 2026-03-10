@@ -1,0 +1,32 @@
+name: Canary Synthetic Check
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "URL to probe"
+        required: true
+        type: string
+
+jobs:
+  synthetic-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    container:
+      image: ghcr.io/${{ github.repository }}/technician:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run canary probes
+        run: technician validate --config canary.yml --budget budgets.yml --output gha
+        env:
+          CANARY_URL: ${{ inputs.target_url || github.event.deployment.environment_url }}
+
+      - name: Upload HAR artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-results
+          path: /tmp/technician/artifacts/
+          retention-days: 7
