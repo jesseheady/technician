@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jesseheady/technician/internal/exporter"
 	"github.com/jesseheady/technician/internal/metrics"
 	"github.com/jesseheady/technician/internal/scheduler"
+	"github.com/jesseheady/technician/internal/status"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +59,12 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	dataDir := os.Getenv("TECHNICIAN_DATA_DIR")
+	if dataDir == "" {
+		dataDir = "/var/lib/technician"
+	}
+	store := status.NewStore(cfg.Service, cfg.ResolveSite(siteCode), filepath.Join(dataDir, "status.json"))
+
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
 	mux.Handle("/probe", exporter.NewBlackboxHandler())
@@ -64,6 +72,8 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+	mux.Handle("/api/", status.Handler(store))
+	mux.Handle("/", status.Handler(store))
 
 	server := &http.Server{
 		Addr:    cfg.Metrics.Prometheus.Listen,
@@ -71,15 +81,16 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	}
 
 	go func() {
-		slog.Info("Starting metrics server", "addr", cfg.Metrics.Prometheus.Listen)
+		slog.Info("Starting server", "addr", cfg.Metrics.Prometheus.Listen)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Metrics server error", "error", err)
+			slog.Error("Server error", "error", err)
 		}
 	}()
 
-	// Drain results (log them)
+	// Drain results: store + log
 	go func() {
 		for result := range sched.Results() {
+			store.Push(result)
 			level := slog.LevelInfo
 			if !result.Success {
 				level = slog.LevelWarn
@@ -94,11 +105,26 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
+	// Periodically persist status store
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				store.Save()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
 	slog.Info("Shutting down")
+	store.Save()
 	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)

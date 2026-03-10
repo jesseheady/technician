@@ -9,10 +9,17 @@
  * Usage: node run.js '{"script": "/path/to/probe.js", "base_url": "...", "video": true}'
  */
 
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
+
+// Network throttling profiles (CDP emulateNetworkConditions)
+const NETWORK_PROFILES = {
+  '4g':      { offline: false, downloadThroughput: 4 * 1024 * 1024 / 8,  uploadThroughput: 3 * 1024 * 1024 / 8,  latency: 150 },
+  '3g':      { offline: false, downloadThroughput: 1.5 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8,       latency: 300 },
+  'slow-3g': { offline: false, downloadThroughput: 500 * 1024 / 8,        uploadThroughput: 500 * 1024 / 8,       latency: 2000 },
+};
 
 async function main() {
   const configStr = process.argv[2];
@@ -49,10 +56,16 @@ async function main() {
       recordHar: { path: '/tmp/technician-har.har', mode: 'full' },
     };
 
+    // Apply device emulation (viewport, user agent, device scale factor)
+    if (config.device && devices[config.device]) {
+      Object.assign(contextOpts, devices[config.device]);
+      log(`Device emulation: ${config.device}`);
+    }
+
     if (config.video) {
       contextOpts.recordVideo = {
         dir: '/tmp/technician-videos/',
-        size: { width: 1280, height: 720 },
+        size: { width: contextOpts.viewport?.width || 1280, height: contextOpts.viewport?.height || 720 },
       };
     }
 
@@ -71,6 +84,14 @@ async function main() {
 
     context = await browser.newContext(contextOpts);
     page = await context.newPage();
+
+    // Apply network throttling via CDP
+    if (config.network && NETWORK_PROFILES[config.network]) {
+      const profile = NETWORK_PROFILES[config.network];
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.emulateNetworkConditions', profile);
+      log(`Network throttling: ${config.network} (${profile.latency}ms RTT, ${Math.round(profile.downloadThroughput * 8 / 1024)}kbps down)`);
+    }
 
     // Load and run the probe script
     const scriptPath = path.resolve(config.script);

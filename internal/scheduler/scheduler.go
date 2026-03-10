@@ -88,6 +88,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			}
 			slog.Debug("Running probe", "name", pc.Name, "type", pc.Type)
 			result := prober.Run(ctx, &pc, s.site)
+			result.Group = pc.Group
 			metrics.RecordResult(result)
 			select {
 			case s.results <- result:

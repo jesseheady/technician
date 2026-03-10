@@ -10,5 +10,6 @@
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when probes run on Workers or Lambda (provider location codes, metrics labels). |
 | [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) | Config for central Prometheus (private VPC) and Grafana as source of record; local/Docker vs central reporting; edge push. |
 | [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds and collection. |
+| [Deployment sizing](deployment-sizing.md) | Resource requirements, cost estimates, and sizing by deployment mode (VPS, Lambda, Workers, full stack). |
 
 See also [AGENTS.md](../AGENTS.md) for architecture and conventions.

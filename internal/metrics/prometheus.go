@@ -59,42 +59,42 @@ var (
 	browserTTFB = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_ttfb_ms",
 		Help: "Browser Time to First Byte in milliseconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserFCP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_fcp_ms",
 		Help: "Browser First Contentful Paint in milliseconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserLCP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_lcp_ms",
 		Help: "Browser Largest Contentful Paint in milliseconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserCLS = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_cls",
 		Help: "Browser Cumulative Layout Shift score",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserINP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_inp_ms",
 		Help: "Browser Interaction to Next Paint in milliseconds (Core Web Vital; good ≤200ms)",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserDOMComplete = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_dom_complete_ms",
 		Help: "Browser DOM complete time in milliseconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserTotalTransfer = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_total_transfer_bytes",
 		Help: "Browser total transfer size in bytes",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	browserResourceCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_resource_count",
 		Help: "Browser total resource count",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
 
 	harResourceDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_har_resource_duration_ms",
@@ -172,19 +172,22 @@ func recordHTTPMetrics(result *probe.Result, labels labelSet) {
 }
 
 func recordBrowserMetrics(result *probe.Result, labels labelSet) {
+	network := result.Labels["network"]
+	device := result.Labels["device"]
+
 	if result.WebVitals != nil {
 		v := result.WebVitals
-		browserTTFB.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.TTFB)
-		browserFCP.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.FCP)
-		browserLCP.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.LCP)
-		browserCLS.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.CLS)
-		browserINP.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.INP)
-		browserDOMComplete.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(v.DOMComplete)
+		browserTTFB.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.TTFB)
+		browserFCP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.FCP)
+		browserLCP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.LCP)
+		browserCLS.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.CLS)
+		browserINP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.INP)
+		browserDOMComplete.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.DOMComplete)
 	}
 
 	if result.HARData != nil {
-		browserTotalTransfer.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.HARData.TotalTransferBytes))
-		browserResourceCount.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.ResourceCount))
+		browserTotalTransfer.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(float64(result.HARData.TotalTransferBytes))
+		browserResourceCount.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(float64(result.ResourceCount))
 		recordHARMetrics(result, labels)
 	}
 }

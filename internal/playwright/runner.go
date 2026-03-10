@@ -52,6 +52,8 @@ type RunConfig struct {
 	BaseURL       string `json:"base_url,omitempty"`
 	Video         bool   `json:"video"`
 	Authenticator string `json:"authenticator,omitempty"`
+	Network       string `json:"network,omitempty"`
+	Device        string `json:"device,omitempty"`
 	Timeout       int    `json:"timeout_ms"`
 }
 

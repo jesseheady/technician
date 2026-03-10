@@ -21,6 +21,7 @@ const (
 type ProbeConfig struct {
 	Name     string            `yaml:"name"`
 	Type     ProbeType         `yaml:"-"`
+	Group    string            `yaml:"group"`
 	Schedule string            `yaml:"schedule"`
 	Timeout  time.Duration     `yaml:"timeout"`
 	HTTP     *HTTPProbeConfig  `yaml:"-"`
@@ -55,10 +56,13 @@ type PlaywrightProbeConfig struct {
 	Authenticator string `yaml:"authenticator"`
 	BaseURL       string `yaml:"base_url"`
 	Video         bool   `yaml:"video"`
+	Network       string `yaml:"network"`  // 4g, 3g, slow-3g, or empty (no throttling)
+	Device        string `yaml:"device"`   // Playwright device name, e.g. "iPhone 14", "Pixel 7"
 }
 
 type httpProbeYAML struct {
 	Name           string            `yaml:"name"`
+	Group          string            `yaml:"group"`
 	URL            string            `yaml:"url"`
 	Method         string            `yaml:"method"`
 	ExpectedStatus int               `yaml:"expected_status"`
@@ -71,6 +75,7 @@ type httpProbeYAML struct {
 
 type smtpProbeYAML struct {
 	Name     string        `yaml:"name"`
+	Group    string        `yaml:"group"`
 	Host     string        `yaml:"host"`
 	Port     int           `yaml:"port"`
 	Schedule string        `yaml:"schedule"`
@@ -79,6 +84,7 @@ type smtpProbeYAML struct {
 
 type tracerouteProbeYAML struct {
 	Name     string        `yaml:"name"`
+	Group    string        `yaml:"group"`
 	Host     string        `yaml:"host"`
 	MaxHops  int           `yaml:"max_hops"`
 	Count    int           `yaml:"count"`
@@ -88,10 +94,13 @@ type tracerouteProbeYAML struct {
 
 type playwrightProbeYAML struct {
 	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
 	Script        string        `yaml:"script"`
 	Authenticator string        `yaml:"authenticator"`
 	BaseURL       string        `yaml:"base_url"`
 	Video         bool          `yaml:"video"`
+	Network       string        `yaml:"network"`
+	Device        string        `yaml:"device"`
 	Schedule      string        `yaml:"schedule"`
 	Timeout       time.Duration `yaml:"timeout"`
 }
@@ -159,6 +168,7 @@ func loadHTTPProbes(path string) ([]ProbeConfig, error) {
 		probes[i] = ProbeConfig{
 			Name:     r.Name,
 			Type:     ProbeTypeHTTP,
+			Group:    r.Group,
 			Schedule: r.Schedule,
 			Timeout:  r.Timeout,
 			HTTP: &HTTPProbeConfig{
@@ -193,6 +203,7 @@ func loadSMTPProbes(path string) ([]ProbeConfig, error) {
 		probes[i] = ProbeConfig{
 			Name:     r.Name,
 			Type:     ProbeTypeSMTP,
+			Group:    r.Group,
 			Schedule: r.Schedule,
 			Timeout:  r.Timeout,
 			SMTP: &SMTPProbeConfig{
@@ -227,6 +238,7 @@ func loadTracerouteProbes(path string) ([]ProbeConfig, error) {
 		probes[i] = ProbeConfig{
 			Name:     r.Name,
 			Type:     ProbeTypeTraceroute,
+			Group:    r.Group,
 			Schedule: r.Schedule,
 			Timeout:  r.Timeout,
 			Traceroute: &TracerouteProbeConfig{
@@ -264,6 +276,7 @@ func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
 		probes[i] = ProbeConfig{
 			Name:     r.Name,
 			Type:     ProbeTypePlaywright,
+			Group:    r.Group,
 			Schedule: r.Schedule,
 			Timeout:  r.Timeout,
 			Playwright: &PlaywrightProbeConfig{
@@ -271,6 +284,8 @@ func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
 				Authenticator: r.Authenticator,
 				BaseURL:       r.BaseURL,
 				Video:         r.Video,
+				Network:       r.Network,
+				Device:        r.Device,
 			},
 		}
 	}

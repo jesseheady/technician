@@ -1,14 +1,29 @@
+# ── Global defaults ───────────────────────────────────────────────
 - probe: "*"
   thresholds:
-    duration: 5000
+    duration: 10000
   alert_on: exceed
 
-# Core Web Vitals: LCP ≤2.5s, INP ≤200ms, CLS ≤0.1
-- probe: Example Website
+# ── jesseheady.com (static S3 + CloudFront) ──────────────────────
+- probe: jesseheady.com
   thresholds:
-    ttfb: 800
-    lcp: 2500
-    inp: 200
-    cls: 0.1
     duration: 3000
+    ttfb: 800
+    dns: 100
+    tls: 150
+    lcp: 1500
+    inp: 100
+    cls: 0.05
+  alert_on: exceed
+
+- probe: jesseheady.com/feed
+  thresholds:
+    duration: 5000
+    ttfb: 1000
+  alert_on: exceed
+
+- probe: jesseheady.com/robots
+  thresholds:
+    duration: 2000
+    ttfb: 500
   alert_on: exceed
