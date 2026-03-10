@@ -18,6 +18,7 @@ const maxHistory = 90
 // Entry is a compact snapshot of a single probe result.
 type Entry struct {
 	Success    bool      `json:"success"`
+	InfraError bool      `json:"infra_error,omitempty"` // probe infrastructure failed, not the target
 	DurationMs float64   `json:"duration_ms"`
 	Timestamp  time.Time `json:"timestamp"`
 	Error      string    `json:"error,omitempty"`
@@ -112,6 +113,7 @@ func probeKey(typ config.ProbeType, name string) string {
 func (s *Store) Push(r *probe.Result) {
 	e := Entry{
 		Success:    r.Success,
+		InfraError: r.InfraError,
 		DurationMs: float64(r.Duration) / float64(time.Millisecond),
 		Timestamp:  r.Timestamp,
 		Error:      r.Error,
@@ -135,8 +137,8 @@ func (s *Store) Push(r *probe.Result) {
 		ring.group = r.Group
 	}
 
-	// Track down-since
-	if r.Success {
+	// Track down-since (infra errors don't count as the target being down)
+	if r.Success || r.InfraError {
 		ring.downSince = time.Time{}
 	} else if ring.downSince.IsZero() {
 		ring.downSince = r.Timestamp
@@ -184,6 +186,9 @@ func (s *Store) Snapshot() *Snapshot {
 			if last.Success {
 				ps.Status = "up"
 				upCount++
+			} else if last.InfraError {
+				ps.Status = "error"
+				// Infra errors don't count as the target being down
 			} else {
 				ps.Status = "down"
 				downCount++
@@ -236,12 +241,20 @@ func uptimePercent(entries []Entry) string {
 		return "—"
 	}
 	up := 0
+	total := 0
 	for _, e := range entries {
+		if e.InfraError {
+			continue // don't count infra errors in uptime calculation
+		}
+		total++
 		if e.Success {
 			up++
 		}
 	}
-	pct := float64(up) / float64(len(entries)) * 100
+	if total == 0 {
+		return "—" // all entries are infra errors
+	}
+	pct := float64(up) / float64(total) * 100
 	if pct == 100 {
 		return "100%"
 	}

@@ -273,6 +273,11 @@ func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
 
 	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
+		// Resolve script path relative to probes directory
+		script := r.Script
+		if !filepath.IsAbs(script) {
+			script = filepath.Join(probesDir, script)
+		}
 		probes[i] = ProbeConfig{
 			Name:     r.Name,
 			Type:     ProbeTypePlaywright,
@@ -280,7 +285,7 @@ func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
 			Schedule: r.Schedule,
 			Timeout:  r.Timeout,
 			Playwright: &PlaywrightProbeConfig{
-				Script:        r.Script,
+				Script:        script,
 				Authenticator: r.Authenticator,
 				BaseURL:       r.BaseURL,
 				Video:         r.Video,

@@ -56,13 +56,19 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	},
 	"groupStatus": func(probes []ProbeState) string {
 		down := 0
+		errCount := 0
 		for _, p := range probes {
 			if p.Status == "down" {
 				down++
+			} else if p.Status == "error" {
+				errCount++
 			}
 		}
-		if down == 0 {
+		if down == 0 && errCount == 0 {
 			return "up"
+		}
+		if down == 0 && errCount > 0 {
+			return "error"
 		}
 		if down == len(probes) {
 			return "down"
@@ -70,7 +76,8 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		return "degraded"
 	},
 	"barTip": func(e Entry) string {
-		s := fmt.Sprintf("%dms", int(math.Round(e.DurationMs)))
+		s := e.Timestamp.UTC().Format("15:04 UTC")
+		s += fmt.Sprintf(" · %dms", int(math.Round(e.DurationMs)))
 		if e.StatusCode > 0 {
 			s += fmt.Sprintf(" · %d", e.StatusCode)
 		}
@@ -87,6 +94,9 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 			s += " · " + e.Error
 		}
 		return s
+	},
+	"isoTime": func(t time.Time) string {
+		return t.UTC().Format(time.RFC3339)
 	},
 }).Parse(pageHTML))
 
@@ -129,7 +139,7 @@ const pageHTML = `{{define "probe-card"}}
     {{$max := maxDuration .History}}
     <div class="bars">
       {{range .History}}
-      <div class="bar {{if .Success}}up{{else}}down{{end}}" style="height:{{barHeight .DurationMs $max}}px" data-tip="{{barTip .}}"></div>
+      <div class="bar {{if .Success}}up{{else if .InfraError}}error{{else}}down{{end}}" style="height:{{barHeight .DurationMs $max}}px" data-tip="{{barTip .}}" data-ts="{{isoTime .Timestamp}}"></div>
       {{end}}
     </div>
     {{end}}
@@ -143,6 +153,7 @@ const pageHTML = `{{define "probe-card"}}
       {{if .Latest.TTFBMs}}<span>ttfb <span class="val">{{fmtMs .Latest.TTFBMs}}</span></span>{{end}}
       {{end}}
       {{if .DownSince}}<span class="down-since">{{.DownSince}}</span>{{end}}
+      {{if eq .Status "error"}}<span class="error-label">probe error</span>{{end}}
     </div>
   </div>
 {{end}}<!DOCTYPE html>
@@ -191,7 +202,7 @@ a:hover{color:var(--text)}
 .banner.pending{border-color:var(--border);background:var(--surface)}
 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .dot.up,.dot.operational{background:var(--green);box-shadow:0 0 6px var(--green)}
-.dot.degraded{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.dot.degraded,.dot.error{background:var(--amber);box-shadow:0 0 6px var(--amber)}
 .dot.down{background:var(--red);box-shadow:0 0 6px var(--red)}
 .dot.pending{background:var(--text-mute)}
 .banner-text{font-size:13px;font-weight:500}
@@ -239,6 +250,7 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .bar{flex:1;min-width:2px;max-width:6px;border-radius:1px 1px 0 0;position:relative;overflow:visible}
 .bar.up{background:var(--green)}
 .bar.down{background:var(--red)}
+.bar.error{background:var(--amber)}
 .bar::after{content:attr(data-tip);display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a1e;border:1px solid var(--border-hi);border-radius:6px;padding:6px 10px;font-size:11px;font-family:var(--mono);white-space:nowrap;z-index:10;pointer-events:none;color:var(--text)}
 .bar:hover::after{display:block}
 
@@ -246,6 +258,7 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .probe-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;flex-wrap:wrap}
 .val{color:var(--text)}
 .down-since{color:var(--red);font-weight:500}
+.error-label{color:var(--amber);font-weight:500}
 
 .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:var(--text-mute)}
@@ -326,6 +339,21 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       s[d.getAttribute('data-group')]=d.open;
       localStorage.setItem(KEY,JSON.stringify(s));
     });
+  });
+  // Augment tooltips with local time
+  function addLocalTime(bar){
+    if(bar.dataset.done) return;
+    var ts=bar.dataset.ts;
+    if(!ts) return;
+    var d=new Date(ts);
+    var local=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    bar.dataset.tip=bar.dataset.tip.replace(/^\d{2}:\d{2} UTC/,function(m){return m+' / '+local+' local'});
+    bar.dataset.done='1';
+  }
+  document.querySelectorAll('.bar[data-ts]').forEach(addLocalTime);
+  document.addEventListener('mouseover',function(e){
+    var bar=e.target.closest('.bar[data-ts]');
+    if(bar) addLocalTime(bar);
   });
   // Auto-refresh via fetch (no full page reload)
   setInterval(function(){

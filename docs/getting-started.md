@@ -38,6 +38,8 @@ go build -o technician .
 ./technician worker --config examples/technician.yml
 ```
 
+- Status page: [http://localhost:9394/](http://localhost:9394/) — real-time probe status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
+- Status API: [http://localhost:9394/api/status](http://localhost:9394/api/status) — JSON snapshot of all probe state
 - Metrics: [http://localhost:9394/metrics](http://localhost:9394/metrics)
 - Health: [http://localhost:9394/health](http://localhost:9394/health)
 - Blackbox-style probe: [http://localhost:9394/probe?target=https://example.com&module=http_2xx](http://localhost:9394/probe?target=https://example.com&module=http_2xx)
@@ -55,6 +57,36 @@ docker compose up
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
 Config and probes are mounted from `examples/`. To use your own, change the volume paths in `docker-compose.yml` or pass a different config at build/runtime. `SITE_CODE` only affects metric labels (`site_code`, `site_city`, `site_country`); Compose uses `SITE_CODE=local` so the example config’s “local” site is used and labels stay distinct from real regions. You can also set it from hostname (e.g. `SITE_CODE=$(hostname)`) if you want a durable per-host identifier.
+
+## Probe configuration
+
+Probes are defined in YAML files under the probes directory (see `examples/probes/`). Each probe type has its own file: `http.yml`, `smtp.yml`, `traceroute.yml`, and `playwright/playwright.yml`.
+
+**Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
+
+```yaml
+- name: jesseheady.com
+  group: Marketing
+  url: https://jesseheady.com
+  schedule: "*/60 * * * * *"
+```
+
+**Schedule format**: Technician uses 6-field cron expressions (seconds included) via [robfig/cron](https://pkg.go.dev/github.com/robfig/cron/v3):
+
+```
+┌──────── second (0-59)
+│ ┌────── minute (0-59)
+│ │ ┌──── hour (0-23)
+│ │ │ ┌── day of month (1-31)
+│ │ │ │ ┌ month (1-12)
+│ │ │ │ │ ┌ day of week (0-6)
+│ │ │ │ │ │
+* * * * * *
+```
+
+Examples: `*/60 * * * * *` (every 60 seconds), `0 */5 * * * *` (every 5 minutes at second 0), `0 0 * * * *` (every hour).
+
+**Persistence**: Probe history is persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures history survives container rebuilds.
 
 ## Run a single probe (debug)
 

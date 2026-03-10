@@ -4,8 +4,14 @@
   "tags": ["technician", "synthetic-monitoring"],
   "timezone": "browser",
   "editable": true,
-  "refresh": "10s",
-  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "5m",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
+    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
+    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
+    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
+  ],
   "templating": {
     "list": [
       {

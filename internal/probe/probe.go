@@ -11,10 +11,11 @@ type Result struct {
 	Name      string
 	Type      config.ProbeType
 	Group     string
-	Success   bool
-	Duration  time.Duration
-	Error     string
-	Timestamp time.Time
+	Success    bool
+	InfraError bool // true when the probe infrastructure itself failed (not the target)
+	Duration   time.Duration
+	Error      string
+	Timestamp  time.Time
 
 	// HTTP-specific
 	StatusCode    int

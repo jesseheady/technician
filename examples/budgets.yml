@@ -9,11 +9,41 @@
   thresholds:
     duration: 3000
     ttfb: 800
-    dns: 100
+    dns: 250
     tls: 150
     lcp: 1500
     inp: 100
     cls: 0.05
+  alert_on: exceed
+
+# ── jesseheady.com desktop (Playwright) ──────────────────────────
+- probe: "jesseheady.com (desktop)"
+  thresholds:
+    duration: 30000
+    lcp: 2500
+    inp: 200
+    cls: 0.1
+    dom_complete: 5000
+  alert_on: exceed
+
+# ── jesseheady.com mobile 4G (Playwright) ────────────────────────
+- probe: "jesseheady.com (mobile 4g)"
+  thresholds:
+    duration: 30000
+    lcp: 4000
+    inp: 300
+    cls: 0.15
+    dom_complete: 8000
+  alert_on: exceed
+
+# ── jesseheady.com mobile 3G (Playwright) ────────────────────────
+- probe: "jesseheady.com (mobile 3g)"
+  thresholds:
+    duration: 45000
+    lcp: 6000
+    inp: 500
+    cls: 0.2
+    dom_complete: 15000
   alert_on: exceed
 
 - probe: jesseheady.com/feed

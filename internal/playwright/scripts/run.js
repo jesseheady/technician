@@ -195,7 +195,7 @@ async function main() {
 async function collectWebVitals(page) {
   const fallback = { ttfb: 0, fcp: 0, lcp: 0, cls: 0, inp: 0, dom_complete: 0 };
   try {
-    // Core Web Vitals (LCP, CLS) + TTFB, FCP, dom_complete via web-vitals + Performance API
+    // Register observers, then trigger visibility change to flush LCP/CLS
     const withLcpCls = await page.evaluate(async () => {
       const nav = performance.getEntriesByType('navigation')[0] || {};
       const paint = performance.getEntriesByType('paint');
@@ -207,22 +207,22 @@ async function collectWebVitals(page) {
       try {
         const { onLCP, onCLS } = await import('https://unpkg.com/web-vitals@4?module');
         const result = { ttfb, fcp, dom_complete, lcp: 0, cls: 0 };
+
+        const lcpDone = new Promise((resolve) => {
+          onLCP((m) => { result.lcp = m.value; resolve(); }, { reportAllChanges: true });
+        });
+        const clsDone = new Promise((resolve) => {
+          onCLS((m) => { result.cls = m.value; resolve(); }, { reportAllChanges: true });
+        });
+
+        // Force LCP/CLS to finalize by simulating a visibility change
+        // (web-vitals reports LCP on visibilitychange or page hide)
+        await new Promise((r) => setTimeout(r, 100));
+        document.dispatchEvent(new Event('visibilitychange'));
+
         await Promise.race([
-          Promise.all([
-            new Promise((resolve) => {
-              onLCP((m) => {
-                result.lcp = m.value;
-                resolve();
-              });
-            }),
-            new Promise((resolve) => {
-              onCLS((m) => {
-                result.cls = m.value;
-                resolve();
-              });
-            }),
-          ]),
-          new Promise((r) => setTimeout(r, 8000)),
+          Promise.all([lcpDone, clsDone]),
+          new Promise((r) => setTimeout(r, 3000)),
         ]);
         return result;
       } catch {
@@ -232,17 +232,16 @@ async function collectWebVitals(page) {
 
     // INP requires at least one interaction; trigger a click then read INP
     await page.click('body', { timeout: 2000 }).catch(() => {});
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 300));
 
     const inp = await page.evaluate(async () => {
       try {
         const { onINP } = await import('https://unpkg.com/web-vitals@4?module');
         return new Promise((resolve) => {
-          const done = (m) => {
-            resolve(m.value);
-          };
-          onINP(done);
-          setTimeout(() => resolve(0), 2000);
+          onINP((m) => resolve(m.value), { reportAllChanges: true });
+          // Force INP to report via visibility change
+          document.dispatchEvent(new Event('visibilitychange'));
+          setTimeout(() => resolve(0), 1000);
         });
       } catch {
         return 0;

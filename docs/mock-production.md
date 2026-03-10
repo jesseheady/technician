@@ -100,7 +100,7 @@ go run . worker --config examples/technician.yml
 
 3. **Verify**
    - [http://localhost:9394/metrics](http://localhost:9394/metrics) – should show `technician_*` metrics updating.
-   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_probe_success`.
+   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_probe_up`.
    - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock probes.
 
 ## 4. Validate against mock config

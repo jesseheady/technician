@@ -1,11 +1,11 @@
-- name: jesseheady.com (traceroute)
+- name: "jesseheady.com (traceroute)"
   group: Infrastructure
   host: jesseheady.com
   max_hops: 30
   count: 3
-  schedule: "0 */5 * * * *"
+  schedule: "0 */2 * * * *"
 
-- name: Google DNS
+- name: "Google DNS"
   group: Infrastructure
   host: 8.8.8.8
   max_hops: 30

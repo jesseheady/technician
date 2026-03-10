@@ -9,7 +9,7 @@
 | [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying probe runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when probes run on Workers or Lambda (provider location codes, metrics labels). |
 | [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) | Config for central Prometheus (private VPC) and Grafana as source of record; local/Docker vs central reporting; edge push. |
-| [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds and collection. |
+| [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds, collection, network throttling (4G/3G/slow-3G), and device emulation. |
 | [Deployment sizing](deployment-sizing.md) | Resource requirements, cost estimates, and sizing by deployment mode (VPS, Lambda, Workers, full stack). |
 
 See also [AGENTS.md](../AGENTS.md) for architecture and conventions.

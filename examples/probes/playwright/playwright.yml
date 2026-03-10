@@ -2,7 +2,7 @@
   group: Marketing
   script: playwright/example_flow.js
   base_url: "https://jesseheady.com"
-  schedule: "*/5 * * * *"
+  schedule: "0 */5 * * * *"
   timeout: 120s
 
 - name: "jesseheady.com (mobile 4g)"
@@ -11,7 +11,7 @@
   base_url: "https://jesseheady.com"
   network: "4g"
   device: "iPhone 14"
-  schedule: "*/5 * * * *"
+  schedule: "0 */5 * * * *"
   timeout: 120s
 
 - name: "jesseheady.com (mobile 3g)"
@@ -20,5 +20,5 @@
   base_url: "https://jesseheady.com"
   network: "3g"
   device: "iPhone 14"
-  schedule: "*/5 * * * *"
+  schedule: "0 */5 * * * *"
   timeout: 120s

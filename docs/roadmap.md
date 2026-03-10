@@ -42,7 +42,7 @@ Add native Prometheus remote-write support to Technician, configured via `metric
 
 ### Status page historical data
 
-The built-in status page currently shows only in-memory recent results (~45 min). Two paths to add historical views (30-day uptime bars, etc.):
+The built-in status page shows recent results from an in-memory ring buffer (90 entries per probe, ~45 min at 30s intervals), persisted to a JSON file on disk so history survives restarts and container rebuilds. For longer historical views (30-day uptime bars, etc.), two additional paths:
 
 **Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker.
 
