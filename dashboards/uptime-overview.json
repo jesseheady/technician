@@ -4,8 +4,14 @@
   "tags": ["technician", "synthetic-monitoring"],
   "timezone": "browser",
   "editable": true,
-  "refresh": "10s",
-  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "5m",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
+    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
+    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
+    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
+  ],
   "templating": {
     "list": [
       {
@@ -23,8 +29,8 @@
         "name": "probe",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "Prometheus" },
-        "definition": "label_values(technician_probe_up{site_code=~\"$site_code\"}, probe)",
-        "query": { "query": "label_values(technician_probe_up{site_code=~\"$site_code\"}, probe)", "refId": "A" },
+        "definition": "label_values(technician_probe_up{site_code=~\"$site_code\"}, name)",
+        "query": { "query": "label_values(technician_probe_up{site_code=~\"$site_code\"}, name)", "refId": "A" },
         "includeAll": true,
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
@@ -41,8 +47,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -76,7 +82,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "avg(avg_over_time(technician_probe_up{site_code=~\"$site_code\", probe=~\"$probe\"}[$__range])) * 100",
+          "expr": "avg(avg_over_time(technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}[$__range])) * 100",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -112,13 +118,13 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "technician_probe_duration_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "expr": "technician_probe_duration_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
@@ -138,8 +144,8 @@
           {
             "matcher": { "id": "byName", "options": "Value #B" },
             "properties": [
-              { "id": "displayName", "value": "Duration (ms)" },
-              { "id": "unit", "value": "ms" }
+              { "id": "displayName", "value": "Duration" },
+              { "id": "unit", "value": "s" }
             ]
           },
           {
@@ -161,7 +167,7 @@
           "id": "organize",
           "options": {
             "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
-            "renameByName": { "probe": "Probe", "probe_type": "Type", "site_code": "Site" }
+            "renameByName": { "name": "Probe", "type": "Type", "site_code": "Site" }
           }
         }
       ]
@@ -174,8 +180,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],

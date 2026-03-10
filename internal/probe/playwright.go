@@ -38,6 +38,7 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 	result := NewResult(cfg.Name, config.ProbeTypePlaywright, site)
 
 	if cfg.Playwright == nil {
+		result.InfraError = true
 		result.Error = "missing Playwright probe configuration"
 		return result
 	}
@@ -72,6 +73,7 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 
 	configJSON, err := json.Marshal(runnerConfig)
 	if err != nil {
+		result.InfraError = true
 		result.Error = fmt.Sprintf("marshaling runner config: %v", err)
 		return result
 	}
@@ -82,17 +84,19 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 	result.Duration = time.Since(start)
 
 	if err != nil {
+		result.InfraError = true
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			result.Error = fmt.Sprintf("playwright runner failed: %s (stderr: %s)", err, string(exitErr.Stderr))
 		} else {
 			result.Error = fmt.Sprintf("running playwright: %v", err)
 		}
-		slog.Warn("Playwright probe failed", "name", cfg.Name, "error", result.Error)
+		slog.Warn("Playwright probe infra error", "name", cfg.Name, "error", result.Error)
 		return result
 	}
 
 	var pwOutput playwrightOutput
 	if err := json.Unmarshal(output, &pwOutput); err != nil {
+		result.InfraError = true
 		result.Error = fmt.Sprintf("parsing playwright output: %v", err)
 		return result
 	}

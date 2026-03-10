@@ -54,8 +54,34 @@ func LoadBudgetsFromDir(configPath string) ([]Budget, error) {
 	return LoadBudgets(budgetPath)
 }
 
+// CheckResult represents a single budget metric check (pass or fail).
+type CheckResult struct {
+	Probe     string
+	Metric    string
+	Threshold float64
+	Actual    float64
+	Violated  bool
+}
+
 func Evaluate(result *probe.Result, budgets []Budget) []Violation {
 	var violations []Violation
+	for _, c := range EvaluateAll(result, budgets) {
+		if c.Violated {
+			violations = append(violations, Violation{
+				Probe:     c.Probe,
+				Metric:    c.Metric,
+				Threshold: c.Threshold,
+				Actual:    c.Actual,
+			})
+		}
+	}
+	return violations
+}
+
+// EvaluateAll returns a CheckResult for every applicable budget metric,
+// including passing checks (Violated=false).
+func EvaluateAll(result *probe.Result, budgets []Budget) []CheckResult {
+	var checks []CheckResult
 
 	for _, budget := range budgets {
 		if budget.Probe != "*" && budget.Probe != result.Name {
@@ -69,18 +95,17 @@ func Evaluate(result *probe.Result, budgets []Budget) []Violation {
 			if !ok {
 				continue
 			}
-			if actual > threshold {
-				violations = append(violations, Violation{
-					Probe:     result.Name,
-					Metric:    metric,
-					Threshold: threshold,
-					Actual:    actual,
-				})
-			}
+			checks = append(checks, CheckResult{
+				Probe:     result.Name,
+				Metric:    metric,
+				Threshold: threshold,
+				Actual:    actual,
+				Violated:  actual > threshold,
+			})
 		}
 	}
 
-	return violations
+	return checks
 }
 
 func extractMetrics(result *probe.Result) map[string]float64 {

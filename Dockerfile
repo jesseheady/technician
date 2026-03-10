@@ -14,11 +14,13 @@ RUN apt-get update && \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npx playwright install --with-deps chromium
+COPY internal/playwright/scripts/ /opt/technician/playwright/
+RUN cd /opt/technician/playwright && npm init -y && npm install playwright && npx playwright install --with-deps chromium
+ENV NODE_PATH=/opt/technician/playwright/node_modules
 
 COPY --from=builder /technician /usr/local/bin/technician
-COPY internal/playwright/scripts/ /opt/technician/playwright/
 
+WORKDIR /
 RUN mkdir -p /tmp/technician/artifacts /tmp/technician-videos
 
 EXPOSE 9394

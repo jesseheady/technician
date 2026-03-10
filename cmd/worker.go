@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/monkeyWzr/technician/internal/budget"
 	"github.com/monkeyWzr/technician/internal/config"
 	"github.com/monkeyWzr/technician/internal/exporter"
 	"github.com/monkeyWzr/technician/internal/metrics"
@@ -39,6 +40,14 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		slog.Warn("No probes loaded", "error", err)
 		probes = nil
+	}
+
+	// Load budgets (optional — not an error if missing)
+	budgets, err := budget.LoadBudgetsFromDir(cfgFile)
+	if err != nil {
+		slog.Info("No budgets loaded", "error", err)
+	} else {
+		slog.Info("Loaded budgets", "count", len(budgets))
 	}
 
 	slog.Info("Loaded configuration",
@@ -87,10 +96,26 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	// Drain results: store + log
+	// Drain results: store + budget evaluation + log
+	site := cfg.ResolveSite(siteCode)
 	go func() {
 		for result := range sched.Results() {
 			store.Push(result)
+
+			if len(budgets) > 0 && !result.InfraError {
+				for _, c := range budget.EvaluateAll(result, budgets) {
+					metrics.RecordBudgetViolation(c.Probe, c.Metric, c.Violated, site)
+					if c.Violated {
+						slog.Warn("Budget violation",
+							"probe", c.Probe,
+							"metric", c.Metric,
+							"actual", c.Actual,
+							"threshold", c.Threshold,
+						)
+					}
+				}
+			}
+
 			level := slog.LevelInfo
 			if !result.Success {
 				level = slog.LevelWarn

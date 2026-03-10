@@ -15,6 +15,40 @@ Technician’s Playwright probes collect the **Core Web Vitals** for synthetic m
 - **LCP and CLS** are collected in the browser via the [web-vitals](https://github.com/GoogleChrome/web-vitals) library (PerformanceObserver).
 - **INP** requires at least one user interaction; the Playwright harness triggers a click on the page after load, then reads INP.
 
+## Network throttling and device emulation
+
+Playwright probes support mobile network simulation and device emulation to measure performance under realistic mobile conditions.
+
+### Network profiles
+
+Set `network` in a Playwright probe config to throttle via Chrome DevTools Protocol (CDP):
+
+| Profile | Download | Upload | RTT |
+|---------|----------|--------|-----|
+| `4g` | 4 Mbps | 3 Mbps | 150 ms |
+| `3g` | 1.5 Mbps | 750 kbps | 300 ms |
+| `slow-3g` | 500 kbps | 500 kbps | 2000 ms |
+
+### Device emulation
+
+Set `device` to any [Playwright device descriptor](https://playwright.dev/docs/emulation#devices) (e.g. `"iPhone 14"`, `"Pixel 7"`). This applies the device's viewport, user agent, and device scale factor.
+
+### Example config
+
+```yaml
+- name: "example.com (mobile 4g)"
+  script: playwright/flow.js
+  base_url: "https://example.com"
+  network: "4g"
+  device: "iPhone 14"
+  schedule: "0 0 * * * *"
+  timeout: 120s
+```
+
+### Prometheus labels
+
+Network and device values are exposed as Prometheus labels on all `technician_browser_*` metrics. The Grafana **Web Performance Vitals** dashboard includes `$network` and `$device` template variables for filtering, plus a **Desktop vs Mobile** comparison row.
+
 ## Budgets and alerts
 
 In `budgets.yml` you can set thresholds for `lcp`, `inp`, and `cls` (e.g. `lcp: 2500`, `inp: 200`, `cls: 0.1`). Prometheus rules include **HighLCP** (LCP &gt; 2500 ms) and **HighINP** (INP &gt; 200 ms).

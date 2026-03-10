@@ -4,16 +4,22 @@
   "tags": ["technician", "synthetic-monitoring"],
   "timezone": "browser",
   "editable": true,
-  "refresh": "10s",
-  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "5m",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
+    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
+    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
+    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
+  ],
   "templating": {
     "list": [
       {
         "name": "site_code",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "Prometheus" },
-        "definition": "label_values(technician_http_dns_ms, site_code)",
-        "query": { "query": "label_values(technician_http_dns_ms, site_code)", "refId": "A" },
+        "definition": "label_values(technician_http_dns_seconds, site_code)",
+        "query": { "query": "label_values(technician_http_dns_seconds, site_code)", "refId": "A" },
         "includeAll": true,
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
@@ -23,8 +29,8 @@
         "name": "probe",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "Prometheus" },
-        "definition": "label_values(technician_http_dns_ms{site_code=~\"$site_code\"}, probe)",
-        "query": { "query": "label_values(technician_http_dns_ms{site_code=~\"$site_code\"}, probe)", "refId": "A" },
+        "definition": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)",
+        "query": { "query": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)", "refId": "A" },
         "includeAll": true,
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
@@ -41,34 +47,34 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_dns_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "DNS - {{probe}}",
+          "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "DNS - {{name}}",
           "refId": "A"
         },
         {
-          "expr": "technician_http_tls_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "TLS - {{probe}}",
+          "expr": "technician_http_tls_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "TLS - {{name}}",
           "refId": "B"
         },
         {
-          "expr": "technician_http_connect_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "Connect - {{probe}}",
+          "expr": "technician_http_connect_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "Connect - {{name}}",
           "refId": "C"
         },
         {
-          "expr": "technician_http_ttfb_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "TTFB - {{probe}}",
+          "expr": "technician_http_ttfb_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "TTFB - {{name}}",
           "refId": "D"
         },
         {
-          "expr": "technician_http_transfer_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "Transfer - {{probe}}",
+          "expr": "technician_http_transfer_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "Transfer - {{name}}",
           "refId": "E"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 80 },
           "color": { "mode": "palette-classic" }
         }
@@ -89,14 +95,14 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_dns_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
           "color": { "mode": "palette-classic" }
         }
@@ -114,14 +120,14 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_tls_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_tls_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
           "color": { "mode": "palette-classic" }
         }
@@ -139,14 +145,14 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_connect_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_connect_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
           "color": { "mode": "palette-classic" }
         }
@@ -164,14 +170,14 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_ttfb_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_ttfb_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
           "color": { "mode": "palette-classic" }
         }
@@ -189,14 +195,14 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_transfer_ms{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_transfer_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
           "color": { "mode": "palette-classic" }
         }
@@ -214,8 +220,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_response_bytes{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "technician_http_response_bytes{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -243,7 +249,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_http_status_code{site_code=~\"$site_code\", probe=~\"$probe\"}",
+          "expr": "technician_http_response_status{site_code=~\"$site_code\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -267,7 +273,7 @@
           "id": "organize",
           "options": {
             "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
-            "renameByName": { "probe": "Probe", "site_code": "Site" }
+            "renameByName": { "name": "Probe", "site_code": "Site" }
           }
         }
       ]

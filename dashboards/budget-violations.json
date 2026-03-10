@@ -4,8 +4,14 @@
   "tags": ["technician", "synthetic-monitoring"],
   "timezone": "browser",
   "editable": true,
-  "refresh": "10s",
-  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "5m",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
+    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
+    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
+    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
+  ],
   "templating": {
     "list": [
       {
@@ -23,8 +29,8 @@
         "name": "probe",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "Prometheus" },
-        "definition": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, probe)",
-        "query": { "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, probe)", "refId": "A" },
+        "definition": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)",
+        "query": { "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)", "refId": "A" },
         "includeAll": true,
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
@@ -41,7 +47,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "count(technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1)",
+          "expr": "count(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1)",
           "legendFormat": "Violations",
           "refId": "A"
         }
@@ -70,8 +76,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1",
-          "legendFormat": "{{metric_name}} ({{probe}} @ {{site_code}})",
+          "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
+          "legendFormat": "{{metric}} ({{name}} @ {{site_code}})",
           "refId": "A"
         }
       ],
@@ -100,8 +106,8 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "max by (probe, site_code) (technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"})",
-          "legendFormat": "{{probe}} @ {{site_code}}",
+          "expr": "max by (name, site_code) (technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"})",
+          "legendFormat": "{{name}} @ {{site_code}}",
           "refId": "A"
         }
       ],
@@ -124,14 +130,15 @@
     },
     {
       "id": 4,
-      "title": "Budget Violations Over Time",
+      "title": "Budget Violation Rate Over Time",
+      "description": "Percentage of checks violating budget per 5m window (median smoothing dampens outliers)",
       "type": "timeseries",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "legendFormat": "{{metric_name}} ({{probe}} @ {{site_code}})",
+          "expr": "avg_over_time(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"}[5m])",
+          "legendFormat": "{{metric}} ({{name}} @ {{site_code}})",
           "refId": "A"
         }
       ],
@@ -140,29 +147,30 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 30,
+            "fillOpacity": 15,
             "pointSize": 5,
-            "showPoints": "always",
+            "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "mode": "none" }
+            "stacking": { "mode": "none" },
+            "gradientMode": "scheme"
           },
           "min": 0,
           "max": 1,
+          "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              { "color": "yellow", "value": 0.25 },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red", "value": 0.75 }
             ]
           },
-          "color": { "mode": "palette-classic" },
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "PASS" }, "1": { "text": "FAIL" } } }
-          ]
+          "color": { "mode": "continuous-GrYlRd" }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean", "max"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
@@ -174,55 +182,31 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_budget_violation{site_code=~\"$site_code\", probe=~\"$probe\"} == 1",
+          "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
           "format": "table",
           "instant": true,
           "refId": "A"
-        },
-        {
-          "expr": "technician_budget_threshold{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "B"
-        },
-        {
-          "expr": "technician_budget_actual{site_code=~\"$site_code\", probe=~\"$probe\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "C"
         }
       ],
       "fieldConfig": {
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Value #A" },
+            "matcher": { "id": "byName", "options": "Value" },
             "properties": [
               { "id": "displayName", "value": "Violated" },
               { "id": "mappings", "value": [{ "type": "value", "options": { "1": { "text": "YES", "color": "red" } } }] },
               { "id": "custom.cellOptions", "value": { "type": "color-text" } }
             ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Value #B" },
-            "properties": [{ "id": "displayName", "value": "Threshold" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Value #C" },
-            "properties": [{ "id": "displayName", "value": "Actual" }]
           }
         ]
       },
       "transformations": [
         {
-          "id": "merge",
-          "options": {}
-        },
-        {
           "id": "organize",
           "options": {
             "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
-            "renameByName": { "probe": "Probe", "site_code": "Site", "metric_name": "Metric", "budget_name": "Budget" }
+            "renameByName": { "name": "Probe", "site_code": "Site", "metric": "Metric" }
           }
         }
       ]

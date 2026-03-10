@@ -302,7 +302,7 @@ A future enhancement would add native Prometheus remote-write to Technician itse
 
 ### AWS Managed Grafana (AMG)
 
-No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`site_code`, `probe`) that work identically with AMP.
+No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`site_code`, `probe`, and for browser dashboards `network` and `device`) that work identically with AMP.
 
 ### Alerting
 
@@ -348,7 +348,7 @@ Every external dependency Technician touches, and whether it can be swapped:
 
 | Data | Store | Retention | Survives restart? |
 |------|-------|-----------|-------------------|
-| Real-time probe status | In-memory ring buffer (90 results per probe) | ~45 min at 30s intervals | No |
+| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file | ~45 min at 30s intervals | Yes (with Docker named volume or persistent disk) |
 | Metrics time-series | Prometheus / AMP | Configurable (default 15 days, up to years) | Yes |
 | Dashboards, uptime history, trends | Grafana querying Prometheus | As long as Prometheus retains the data | Yes |
 | HAR files, screenshots, videos | Local disk or S3 | Configurable (`artifacts.retention`) | Yes (if S3) |

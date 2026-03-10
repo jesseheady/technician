@@ -142,6 +142,12 @@ func Handler() http.Handler {
 }
 
 func RecordResult(result *probe.Result) {
+	// Don't record metrics for infrastructure errors — the probe didn't
+	// actually test the target, so probe_up=0 would be misleading.
+	if result.InfraError {
+		return
+	}
+
 	labels := siteLabels(result)
 	typeStr := string(result.Type)
 
