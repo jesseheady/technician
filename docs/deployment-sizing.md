@@ -8,23 +8,23 @@ Technician is a static Go binary (14 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 7 probes active (4 HTTP, 1 SMTP, 2 traceroute) on a Docker Compose stack. Adding TCP, DNS, ICMP, and gRPC probes does not meaningfully change these numbers — all probe types are lightweight I/O-bound goroutines.
+Numbers below were measured with 28 probes active across all 9 probe types (7 HTTP, 3 TCP, 4 DNS, 3 ICMP, 3 NTP, 1 SMTP, 4 traceroute, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
 
 ### Runtime memory
 
 | Component | RSS | Notes |
 |-----------|-----|-------|
-| Technician (Go process) | ~13 MB | 7 probes, status store, Prometheus registry |
-| Prometheus | ~97 MB | 15-day retention, scraping one target |
+| Technician (Go process) | ~18 MB | 28 probes (9 types), status store, Prometheus registry |
+| Prometheus | ~150 MB | 15-day retention, scraping one target |
 | Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
-| **Full stack total** | **~414 MB** | |
+| **Full stack total** | **~472 MB** | |
 
 ### Image / disk sizes
 
 | Component | Size | Breakdown |
 |-----------|------|-----------|
-| Go binary | 14 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
-| Docker image (with Playwright) | 1.63 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
+| Go binary | 15 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
+| Docker image (with Playwright) | 1.62 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
 | Docker image (without Playwright) | ~80 MB | Alpine or distroless base + Go binary + mtr + ca-certificates |
 | Prometheus image | 303 MB | |
 | Grafana image | 693 MB | |
@@ -117,7 +117,7 @@ Separate concerns for reliability and geographic coverage:
 
 1. **Independence** — A worker failure shouldn't take down dashboards. A Grafana restart shouldn't stop probing.
 2. **Geography** — Workers need to be in the regions you're probing from. Prometheus/Grafana only need to be reachable.
-3. **Resource isolation** — Workers are tiny (13 MB). Grafana is heavy (300 MB). Different scaling profiles.
+3. **Resource isolation** — Workers are tiny (~18 MB). Grafana is heavy (300 MB). Different scaling profiles.
 
 ## Build artifacts and deploy flow
 
@@ -438,7 +438,7 @@ The built-in status page is intentionally lightweight — a real-time view of wh
 
 - **Uptime overview** — probe status matrix, uptime percentage, degraded state tracking
 - **HTTP timing** — DNS, TLS, connect, TTFB breakdown over time
-- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health
+- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health, NTP offset/stratum/RTT
 - **Web Performance Vitals** — LCP, INP, CLS trends
 - **HAR analysis** — resource breakdown by type
 - **Budget violations** — threshold tracking over time
@@ -449,7 +449,7 @@ For a public-facing status page with extended history, use Grafana's anonymous v
 
 ### Probes only, no Playwright
 
-The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, SMTP, and/or traceroute probes.
+The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, NTP, SMTP, and/or traceroute probes.
 
 | Resource | Minimum | Notes |
 |----------|---------|-------|
@@ -545,6 +545,7 @@ Workers run at the edge with no cold start. Ideal for lightweight HTTP uptime ch
 | 9090 | TCP | Inbound | Prometheus UI (if running full stack) |
 | 3000 | TCP | Inbound | Grafana UI (if running full stack) |
 | 25 | TCP | Outbound | SMTP probes (if used) |
+| 123 | UDP | Outbound | NTP probes (if used) |
 | 443 | TCP | Outbound | HTTPS probes + Playwright CDN fetches |
 
 Most cloud providers block outbound port 25 by default. Request an unblock if you use SMTP probes.
