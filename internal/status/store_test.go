@@ -170,6 +170,72 @@ func TestBudgetChecks(t *testing.T) {
 	}
 }
 
+func TestBudgetEscalation(t *testing.T) {
+	s := NewStore("test", nil, "")
+	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+
+	// First violation → warn
+	crossed := s.RecordBudgetCheck("a", "dns", true)
+	if crossed {
+		t.Error("should not cross threshold on first violation")
+	}
+	snap := s.Snapshot()
+	bc := findBudget(snap.Probes[0].BudgetChecks, "dns")
+	if bc.Severity != "warn" {
+		t.Errorf("expected warn, got %s", bc.Severity)
+	}
+
+	// Second violation → still warn
+	s.RecordBudgetCheck("a", "dns", true)
+	snap = s.Snapshot()
+	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	if bc.Severity != "warn" {
+		t.Errorf("expected warn, got %s", bc.Severity)
+	}
+
+	// Third violation → fail, crosses threshold
+	crossed = s.RecordBudgetCheck("a", "dns", true)
+	if !crossed {
+		t.Error("should cross threshold on third consecutive violation")
+	}
+	snap = s.Snapshot()
+	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	if bc.Severity != "fail" {
+		t.Errorf("expected fail, got %s", bc.Severity)
+	}
+
+	// Fourth violation → still fail, but threshold not re-signaled
+	crossed = s.RecordBudgetCheck("a", "dns", true)
+	if crossed {
+		t.Error("should only signal threshold crossing once")
+	}
+
+	// Single pass resets to pass
+	s.RecordBudgetCheck("a", "dns", false)
+	snap = s.Snapshot()
+	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	if bc.Severity != "pass" {
+		t.Errorf("expected pass after reset, got %s", bc.Severity)
+	}
+
+	// Next violation starts fresh at warn
+	s.RecordBudgetCheck("a", "dns", true)
+	snap = s.Snapshot()
+	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	if bc.Severity != "warn" {
+		t.Errorf("expected warn after reset+violation, got %s", bc.Severity)
+	}
+}
+
+func findBudget(checks []BudgetCheck, metric string) BudgetCheck {
+	for _, c := range checks {
+		if c.Metric == metric {
+			return c
+		}
+	}
+	return BudgetCheck{}
+}
+
 func TestGrouping(t *testing.T) {
 	s := NewStore("test", nil, "")
 	r1 := makeResult("a", config.ProbeTypeHTTP, true)
@@ -371,7 +437,161 @@ func TestStatusPage404ForNonRoot(t *testing.T) {
 	}
 }
 
+// --- Latency percentiles ---
+
+func TestComputeLatency(t *testing.T) {
+	entries := make([]Entry, 20)
+	for i := range entries {
+		entries[i] = Entry{Success: true, DurationMs: float64((i + 1) * 10)} // 10, 20, ..., 200
+	}
+	lat := computeLatency(entries)
+	if lat == nil {
+		t.Fatal("expected latency, got nil")
+	}
+	// P50 of 10..200 (20 values): index 9.5 → interpolation between 100 and 110
+	if lat.P50 < 100 || lat.P50 > 110 {
+		t.Errorf("expected P50 ~105, got %.1f", lat.P50)
+	}
+	if lat.P95 < 185 || lat.P95 > 200 {
+		t.Errorf("expected P95 ~191, got %.1f", lat.P95)
+	}
+}
+
+func TestComputeLatencyTooFewEntries(t *testing.T) {
+	entries := []Entry{{Success: true, DurationMs: 100}}
+	if lat := computeLatency(entries); lat != nil {
+		t.Fatalf("expected nil for single entry, got %+v", lat)
+	}
+}
+
+func TestComputeLatencyExcludesFailures(t *testing.T) {
+	entries := []Entry{
+		{Success: true, DurationMs: 100},
+		{Success: false, DurationMs: 9999},
+		{Success: true, DurationMs: 200},
+		{Success: true, InfraError: true, DurationMs: 8888},
+		{Success: true, DurationMs: 300},
+	}
+	lat := computeLatency(entries)
+	if lat == nil {
+		t.Fatal("expected latency")
+	}
+	// Only 100, 200, 300 should be included; P50 = 200
+	if lat.P50 != 200 {
+		t.Errorf("expected P50=200, got %.1f", lat.P50)
+	}
+}
+
+func TestSnapshotIncludesLatency(t *testing.T) {
+	s := NewStore("test", nil, "")
+	for i := 0; i < 10; i++ {
+		r := &probe.Result{
+			Name: "a", Type: config.ProbeTypeHTTP, Success: true,
+			Duration: time.Duration((i+1)*100) * time.Millisecond,
+			Timestamp: time.Now(),
+		}
+		s.Push(r)
+	}
+	snap := s.Snapshot()
+	if snap.Probes[0].Latency == nil {
+		t.Fatal("expected latency in snapshot")
+	}
+	if snap.Probes[0].Latency.P50 <= 0 {
+		t.Errorf("expected positive P50, got %.1f", snap.Probes[0].Latency.P50)
+	}
+}
+
+// --- Timing breakdown ---
+
+func TestComputeTiming(t *testing.T) {
+	entries := []Entry{
+		{Success: true, DurationMs: 500, DNSMs: 20, TLSMs: 30, TTFBMs: 400},
+		{Success: true, DurationMs: 600, DNSMs: 10, TLSMs: 40, TTFBMs: 500},
+	}
+	tb := computeTiming(entries)
+	if tb == nil {
+		t.Fatal("expected timing, got nil")
+	}
+	if tb.DNSMs != 15 {
+		t.Errorf("expected DNS avg 15, got %.1f", tb.DNSMs)
+	}
+	if tb.TLSMs != 35 {
+		t.Errorf("expected TLS avg 35, got %.1f", tb.TLSMs)
+	}
+	if tb.TTFBMs != 450 {
+		t.Errorf("expected TTFB avg 450, got %.1f", tb.TTFBMs)
+	}
+	if tb.TransferMs != 100 {
+		t.Errorf("expected Transfer avg 100, got %.1f", tb.TransferMs)
+	}
+}
+
+func TestComputeTimingSkipsNonHTTP(t *testing.T) {
+	entries := []Entry{
+		{Success: true, DurationMs: 500, TTFBMs: 0}, // no HTTP timing
+	}
+	if tb := computeTiming(entries); tb != nil {
+		t.Fatalf("expected nil for entries without timing, got %+v", tb)
+	}
+}
+
 // --- Helpers ---
+
+func TestBackupAndFallback(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "status.json")
+
+	// Create store with data and save
+	s := NewStore("test", nil, path)
+	s.Push(makeResult("web", config.ProbeTypeHTTP, true))
+	s.Save()
+
+	// Create backup
+	s.SaveBackup()
+
+	// Verify backup file exists
+	backupPath := path + "." + time.Now().Format("20060102")
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+		t.Fatal("backup file should exist")
+	}
+
+	// Calling SaveBackup again is idempotent (same day)
+	s.SaveBackup()
+
+	// Corrupt the main file
+	os.WriteFile(path, []byte("corrupted"), 0o644)
+
+	// Load should fall back to backup
+	s2 := NewStore("test", nil, path)
+	snap := s2.Snapshot()
+	if len(snap.Probes) != 1 {
+		t.Fatalf("expected 1 probe from backup, got %d", len(snap.Probes))
+	}
+	if snap.Probes[0].Name != "web" {
+		t.Errorf("expected probe 'web', got %s", snap.Probes[0].Name)
+	}
+}
+
+func TestBackupFallbackMissingMain(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "status.json")
+
+	// Create a "backup" file directly (simulating prior day's backup)
+	s := NewStore("test", nil, path)
+	s.Push(makeResult("api", config.ProbeTypeHTTP, true))
+	s.Save()
+
+	// Move main file to a dated backup, remove main
+	backup := path + "." + time.Now().Format("20060102")
+	os.Rename(path, backup)
+
+	// Load should find the backup
+	s2 := NewStore("test", nil, path)
+	snap := s2.Snapshot()
+	if len(snap.Probes) != 1 || snap.Probes[0].Name != "api" {
+		t.Fatalf("expected probe 'api' from backup, got %v", snap.Probes)
+	}
+}
 
 func TestFmtDuration(t *testing.T) {
 	tests := []struct {

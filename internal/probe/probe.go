@@ -7,6 +7,14 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
+// AssertionResult records the outcome of a single body assertion.
+type AssertionResult struct {
+	Type    string `json:"type"`
+	Target  string `json:"target"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message,omitempty"` // failure reason
+}
+
 type Result struct {
 	Name      string
 	Type      config.ProbeType
@@ -25,6 +33,7 @@ type Result struct {
 	TTFBDuration  time.Duration
 	TransferDuration time.Duration
 	ResponseBytes int64
+	Assertions    []AssertionResult
 
 	// Browser-specific (Playwright)
 	WebVitals    *WebVitals
@@ -34,6 +43,28 @@ type Result struct {
 
 	// Traceroute-specific
 	Hops []TracerouteHop
+
+	// TCP-specific
+	TCPConnDuration time.Duration
+	TCPTLSDuration  time.Duration
+
+	// DNS-specific
+	DNSAnswers   []string // resolved values
+	DNSQueryTime time.Duration
+
+	// ICMP-specific
+	ICMPPacketsSent int
+	ICMPPacketsRecv int
+	ICMPPacketLoss  float64 // 0.0–100.0
+	ICMPMinRTT      time.Duration
+	ICMPAvgRTT      time.Duration
+	ICMPMaxRTT      time.Duration
+
+	// gRPC-specific
+	GRPCStatus string // serving status from health check
+
+	// Degraded flag (set when duration exceeds degraded_after threshold)
+	Degraded bool
 
 	// Extra metadata
 	Labels map[string]string

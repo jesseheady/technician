@@ -164,6 +164,159 @@ func TestHTTPProberTimeout(t *testing.T) {
 	}
 }
 
+func TestHTTPProberAssertionContains(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok","version":"1.2.3"}`))
+	}))
+	defer server.Close()
+
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
+		Name:    "test-assert",
+		Type:    config.ProbeTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPProbeConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Assertions: []config.Assertion{
+				{Type: "contains", Target: `"status":"ok"`},
+			},
+		},
+	}
+
+	result := prober.Run(context.Background(), cfg, nil)
+	if !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if len(result.Assertions) != 1 {
+		t.Fatalf("expected 1 assertion result, got %d", len(result.Assertions))
+	}
+	if !result.Assertions[0].Passed {
+		t.Errorf("expected assertion to pass: %s", result.Assertions[0].Message)
+	}
+}
+
+func TestHTTPProberAssertionContainsFail(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"error"}`))
+	}))
+	defer server.Close()
+
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
+		Name:    "test-assert-fail",
+		Type:    config.ProbeTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPProbeConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Assertions: []config.Assertion{
+				{Type: "contains", Target: `"status":"ok"`},
+			},
+		},
+	}
+
+	result := prober.Run(context.Background(), cfg, nil)
+	if result.Success {
+		t.Error("expected failure for missing body content")
+	}
+	if len(result.Assertions) != 1 || result.Assertions[0].Passed {
+		t.Error("expected assertion to fail")
+	}
+}
+
+func TestHTTPProberAssertionNotContains(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer server.Close()
+
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
+		Name:    "test-not-contains",
+		Type:    config.ProbeTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPProbeConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Assertions: []config.Assertion{
+				{Type: "not_contains", Target: "error"},
+			},
+		},
+	}
+
+	result := prober.Run(context.Background(), cfg, nil)
+	if !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+}
+
+func TestHTTPProberAssertionRegex(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"version":"2.5.1"}`))
+	}))
+	defer server.Close()
+
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
+		Name:    "test-regex",
+		Type:    config.ProbeTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPProbeConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Assertions: []config.Assertion{
+				{Type: "regex", Target: `"version":"\d+\.\d+\.\d+"`},
+			},
+		},
+	}
+
+	result := prober.Run(context.Background(), cfg, nil)
+	if !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if !result.Assertions[0].Passed {
+		t.Errorf("expected regex assertion to pass: %s", result.Assertions[0].Message)
+	}
+}
+
+func TestHTTPProberAssertionStatusOverride(t *testing.T) {
+	// Status code matches but assertion fails — probe should fail
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("maintenance mode"))
+	}))
+	defer server.Close()
+
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
+		Name:    "test-assert-override",
+		Type:    config.ProbeTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPProbeConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Assertions: []config.Assertion{
+				{Type: "not_contains", Target: "maintenance"},
+			},
+		},
+	}
+
+	result := prober.Run(context.Background(), cfg, nil)
+	if result.Success {
+		t.Error("expected failure — status 200 but assertion should fail")
+	}
+}
+
 func TestHTTPProberMissingConfig(t *testing.T) {
 	prober := NewHTTPProber()
 	cfg := &config.ProbeConfig{

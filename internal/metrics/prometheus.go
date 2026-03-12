@@ -110,6 +110,40 @@ var (
 		Name: "technician_budget_violation",
 		Help: "Whether a performance budget is violated (1=violated, 0=ok)",
 	}, []string{"name", "metric", "site_code", "site_city", "site_country"})
+
+	// TCP metrics
+	tcpConnDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_tcp_connect_seconds",
+		Help: "TCP connection duration in seconds",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	tcpTLSDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_tcp_tls_seconds",
+		Help: "TCP TLS handshake duration in seconds",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	// DNS metrics
+	dnsQueryDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_dns_query_seconds",
+		Help: "DNS query duration in seconds",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	// ICMP metrics
+	icmpPacketLoss = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_icmp_packet_loss_percent",
+		Help: "ICMP packet loss percentage",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	icmpAvgRTT = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_icmp_avg_rtt_seconds",
+		Help: "ICMP average round-trip time in seconds",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	// Degraded indicator
+	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_probe_degraded",
+		Help: "Whether the probe response time exceeds the degraded threshold (1=degraded, 0=ok)",
+	}, []string{"type", "name", "site_code", "site_city", "site_country"})
 )
 
 func init() {
@@ -134,6 +168,12 @@ func init() {
 		harResourceDuration,
 		harResourceBytes,
 		budgetViolation,
+		tcpConnDuration,
+		tcpTLSDuration,
+		dnsQueryDuration,
+		icmpPacketLoss,
+		icmpAvgRTT,
+		probeDegraded,
 	)
 }
 
@@ -164,7 +204,19 @@ func RecordResult(result *probe.Result) {
 		recordHTTPMetrics(result, labels)
 	case config.ProbeTypePlaywright:
 		recordBrowserMetrics(result, labels)
+	case config.ProbeTypeTCP:
+		recordTCPMetrics(result, labels)
+	case config.ProbeTypeDNS:
+		recordDNSMetrics(result, labels)
+	case config.ProbeTypeICMP:
+		recordICMPMetrics(result, labels)
 	}
+
+	degraded := float64(0)
+	if result.Degraded {
+		degraded = 1
+	}
+	probeDegraded.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(degraded)
 }
 
 func recordHTTPMetrics(result *probe.Result, labels labelSet) {
@@ -222,6 +274,20 @@ func recordHARMetrics(result *probe.Result, labels labelSet) {
 	for rt, bytes := range typeBytes {
 		harResourceBytes.WithLabelValues(result.Name, rt, labels.code, labels.city, labels.country).Set(float64(bytes))
 	}
+}
+
+func recordTCPMetrics(result *probe.Result, labels labelSet) {
+	tcpConnDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.TCPConnDuration.Seconds())
+	tcpTLSDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.TCPTLSDuration.Seconds())
+}
+
+func recordDNSMetrics(result *probe.Result, labels labelSet) {
+	dnsQueryDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.DNSQueryTime.Seconds())
+}
+
+func recordICMPMetrics(result *probe.Result, labels labelSet) {
+	icmpPacketLoss.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPPacketLoss)
+	icmpAvgRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPAvgRTT.Seconds())
 }
 
 func RecordBudgetViolation(probeName, metricName string, violated bool, site *config.Site) {

@@ -6,12 +6,16 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/probe"
 )
+
+const backupRetention = 90 * 24 * time.Hour
 
 const maxHistory = 90
 
@@ -33,7 +37,27 @@ type Entry struct {
 // BudgetCheck is a single budget metric evaluation for display on the status page.
 type BudgetCheck struct {
 	Metric   string `json:"metric"`
-	Violated bool   `json:"violated"`
+	Severity string `json:"severity"` // "pass", "warn", "fail"
+}
+
+// BudgetFailThreshold is the number of consecutive violations before a budget
+// check escalates from "warn" (amber) to "fail" (red / alert-worthy).
+const BudgetFailThreshold = 3
+
+// Latency holds percentile latencies computed from the ring buffer.
+type Latency struct {
+	P50 float64 `json:"p50"`
+	P90 float64 `json:"p90"`
+	P95 float64 `json:"p95"`
+	P99 float64 `json:"p99"`
+}
+
+// TimingBreakdown holds average timing phases for successful HTTP probes.
+type TimingBreakdown struct {
+	DNSMs      float64 `json:"dns_ms"`
+	TLSMs      float64 `json:"tls_ms"`
+	TTFBMs     float64 `json:"ttfb_ms"`
+	TransferMs float64 `json:"transfer_ms"`
 }
 
 // ProbeState is the current state of a single probe.
@@ -43,6 +67,8 @@ type ProbeState struct {
 	Status       string           `json:"status"`    // "up", "down", "pending"
 	DownSince    string           `json:"down_since"` // human-readable, e.g. "for 2h 15m"
 	Uptime       string           `json:"uptime"`    // e.g. "99.7%"
+	Latency      *Latency         `json:"latency,omitempty"`
+	Timing       *TimingBreakdown `json:"timing,omitempty"`
 	Latest       *Entry           `json:"latest,omitempty"`
 	History      []Entry          `json:"history"`
 	BudgetChecks []BudgetCheck    `json:"budget_checks,omitempty"`
@@ -82,6 +108,8 @@ type SiteInfo struct {
 	Country string `json:"country"`
 }
 
+const snapshotTTL = 2 * time.Second
+
 // Store holds recent probe results in memory with optional file persistence.
 type Store struct {
 	mu      sync.RWMutex
@@ -93,10 +121,15 @@ type Store struct {
 
 	budgetMu     sync.RWMutex
 	budgetChecks map[string]budgetState // keyed by "probe:metric"
+
+	snapMu    sync.Mutex
+	snapCache *Snapshot
+	snapTime  time.Time
 }
 
 type budgetState struct {
-	violated bool
+	violated              bool
+	consecutiveViolations int
 }
 
 type probeRing struct {
@@ -173,20 +206,64 @@ func (s *Store) Push(r *probe.Result) {
 	if len(ring.entries) > maxHistory {
 		ring.entries = ring.entries[len(ring.entries)-maxHistory:]
 	}
+
+	s.invalidateCache()
 }
 
 // RecordBudgetCheck updates the per-check budget state for the status page summary.
-func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) {
+// Returns true when the check has just crossed the fail threshold (for alerting).
+func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) bool {
 	s.budgetMu.Lock()
+	defer s.budgetMu.Unlock()
+
 	if s.budgetChecks == nil {
 		s.budgetChecks = make(map[string]budgetState)
 	}
-	s.budgetChecks[probe+":"+metric] = budgetState{violated: violated}
-	s.budgetMu.Unlock()
+
+	key := probe + ":" + metric
+	prev := s.budgetChecks[key]
+
+	var bs budgetState
+	if violated {
+		bs.violated = true
+		bs.consecutiveViolations = prev.consecutiveViolations + 1
+	}
+	// else: zero value resets both fields
+
+	s.budgetChecks[key] = bs
+	s.invalidateCache()
+	// Signal that we just crossed the fail threshold
+	return bs.consecutiveViolations == BudgetFailThreshold
 }
 
-// Snapshot returns the current status of all probes.
+// Snapshot returns the current status of all probes. Results are cached
+// for snapshotTTL to avoid recomputing percentiles on rapid requests.
 func (s *Store) Snapshot() *Snapshot {
+	s.snapMu.Lock()
+	if s.snapCache != nil && time.Since(s.snapTime) < snapshotTTL {
+		cached := s.snapCache
+		s.snapMu.Unlock()
+		return cached
+	}
+	s.snapMu.Unlock()
+
+	snap := s.computeSnapshot()
+
+	s.snapMu.Lock()
+	s.snapCache = snap
+	s.snapTime = time.Now()
+	s.snapMu.Unlock()
+
+	return snap
+}
+
+func (s *Store) invalidateCache() {
+	s.snapMu.Lock()
+	s.snapCache = nil
+	s.snapMu.Unlock()
+}
+
+func (s *Store) computeSnapshot() *Snapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -212,6 +289,8 @@ func (s *Store) Snapshot() *Snapshot {
 			Type:    ring.typ,
 			Status:  "pending",
 			Uptime:  uptimePercent(ring.entries),
+			Latency: computeLatency(ring.entries),
+			Timing:  computeTiming(ring.entries),
 			History: make([]Entry, len(ring.entries)),
 		}
 		copy(ps.History, ring.entries)
@@ -281,13 +360,25 @@ func (s *Store) Snapshot() *Snapshot {
 			if key[i] == ':' {
 				probeName := key[:i]
 				metric := key[i+1:]
+				severity := "pass"
+				if bs.consecutiveViolations >= BudgetFailThreshold {
+					severity = "fail"
+				} else if bs.violated {
+					severity = "warn"
+				}
 				probeBudgets[probeName] = append(probeBudgets[probeName], BudgetCheck{
 					Metric:   metric,
-					Violated: bs.violated,
+					Severity: severity,
 				})
 				break
 			}
 		}
+	}
+	// Sort budget checks by metric name for stable rendering
+	for k := range probeBudgets {
+		sort.Slice(probeBudgets[k], func(i, j int) bool {
+			return probeBudgets[k][i].Metric < probeBudgets[k][j].Metric
+		})
 	}
 	// Attach budget checks to probes
 	for i := range snap.Probes {
@@ -314,6 +405,65 @@ func (s *Store) Snapshot() *Snapshot {
 	s.budgetMu.RUnlock()
 
 	return snap
+}
+
+func computeLatency(entries []Entry) *Latency {
+	var durations []float64
+	for _, e := range entries {
+		if e.Success && !e.InfraError {
+			durations = append(durations, e.DurationMs)
+		}
+	}
+	if len(durations) < 2 {
+		return nil
+	}
+	sort.Float64s(durations)
+	return &Latency{
+		P50: percentile(durations, 0.50),
+		P90: percentile(durations, 0.90),
+		P95: percentile(durations, 0.95),
+		P99: percentile(durations, 0.99),
+	}
+}
+
+func percentile(sorted []float64, p float64) float64 {
+	idx := p * float64(len(sorted)-1)
+	lower := int(idx)
+	upper := lower + 1
+	if upper >= len(sorted) {
+		return sorted[len(sorted)-1]
+	}
+	frac := idx - float64(lower)
+	return sorted[lower]*(1-frac) + sorted[upper]*frac
+}
+
+func computeTiming(entries []Entry) *TimingBreakdown {
+	var dns, tls, ttfb, total float64
+	var n int
+	for _, e := range entries {
+		if !e.Success || e.InfraError || e.TTFBMs == 0 {
+			continue
+		}
+		dns += e.DNSMs
+		tls += e.TLSMs
+		ttfb += e.TTFBMs
+		total += e.DurationMs
+		n++
+	}
+	if n == 0 {
+		return nil
+	}
+	fn := float64(n)
+	transfer := total/fn - ttfb/fn
+	if transfer < 1 { // sub-millisecond transfer is noise
+		transfer = 0
+	}
+	return &TimingBreakdown{
+		DNSMs:      dns / fn,
+		TLSMs:      tls / fn,
+		TTFBMs:     ttfb / fn,
+		TransferMs: transfer,
+	}
 }
 
 func uptimePercent(entries []Entry) string {
@@ -368,10 +518,23 @@ type persistedRing struct {
 	DownSince time.Time        `json:"down_since,omitempty"`
 }
 
+type persistedBudget struct {
+	Violated              bool `json:"violated"`
+	ConsecutiveViolations int  `json:"consecutive_violations,omitempty"`
+}
+
 type persistedStore struct {
+	Order        []string                    `json:"order"`
+	Rings        map[string]persistedRing    `json:"rings"`
+	BudgetChecks map[string]persistedBudget  `json:"budget_checks,omitempty"` // "probe:metric" -> state
+}
+
+// persistedStoreRaw is used for backwards-compatible loading: budget_checks
+// used to be map[string]bool, so we decode it as RawMessage first.
+type persistedStoreRaw struct {
 	Order        []string                 `json:"order"`
 	Rings        map[string]persistedRing `json:"rings"`
-	BudgetChecks map[string]bool          `json:"budget_checks,omitempty"` // "probe:metric" -> violated
+	BudgetChecks json.RawMessage          `json:"budget_checks,omitempty"`
 }
 
 // Save writes the current store state to disk. Safe to call concurrently.
@@ -398,9 +561,12 @@ func (s *Store) Save() {
 
 	s.budgetMu.RLock()
 	if len(s.budgetChecks) > 0 {
-		ps.BudgetChecks = make(map[string]bool, len(s.budgetChecks))
+		ps.BudgetChecks = make(map[string]persistedBudget, len(s.budgetChecks))
 		for key, bs := range s.budgetChecks {
-			ps.BudgetChecks[key] = bs.violated
+			ps.BudgetChecks[key] = persistedBudget{
+				Violated:              bs.violated,
+				ConsecutiveViolations: bs.consecutiveViolations,
+			}
 		}
 	}
 	s.budgetMu.RUnlock()
@@ -426,23 +592,122 @@ func (s *Store) Save() {
 	}
 }
 
+// SaveBackup creates a daily timestamped backup of the current status file
+// and prunes backups older than the retention period (90 days).
+func (s *Store) SaveBackup() {
+	if s.path == "" {
+		return
+	}
+	src, err := os.ReadFile(s.path)
+	if err != nil {
+		return
+	}
+	backup := s.path + "." + time.Now().Format("20060102")
+	if _, err := os.Stat(backup); err == nil {
+		return // today's backup already exists
+	}
+	if err := os.WriteFile(backup, src, 0o644); err != nil {
+		slog.Warn("Failed to write status backup", "error", err)
+		return
+	}
+	slog.Info("Created status backup", "file", filepath.Base(backup))
+	s.pruneBackups()
+}
+
+func (s *Store) pruneBackups() {
+	dir := filepath.Dir(s.path)
+	base := filepath.Base(s.path) + "."
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-backupRetention)
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, base) {
+			continue
+		}
+		suffix := strings.TrimPrefix(name, base)
+		t, err := time.Parse("20060102", suffix)
+		if err != nil {
+			continue
+		}
+		if t.Before(cutoff) {
+			os.Remove(filepath.Join(dir, name))
+			slog.Info("Pruned old status backup", "file", name)
+		}
+	}
+}
+
+// latestBackup returns the contents of the most recent dated backup,
+// or nil if none exist.
+func (s *Store) latestBackup() []byte {
+	dir := filepath.Dir(s.path)
+	base := filepath.Base(s.path) + "."
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var latest string
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, base) {
+			continue
+		}
+		suffix := strings.TrimPrefix(name, base)
+		if _, err := time.Parse("20060102", suffix); err != nil {
+			continue
+		}
+		if name > latest {
+			latest = name
+		}
+	}
+	if latest == "" {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(dir, latest))
+	if err != nil {
+		return nil
+	}
+	slog.Info("Falling back to status backup", "file", latest)
+	return data
+}
+
 func (s *Store) load() {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			slog.Warn("Failed to read status store", "error", err)
 		}
-		return
+		// Try backup
+		data = s.latestBackup()
+		if data == nil {
+			return
+		}
 	}
 
-	var ps persistedStore
-	if err := json.Unmarshal(data, &ps); err != nil {
+	if !s.tryLoadData(data) {
+		// Main file corrupt — try backup
+		slog.Warn("Main status store failed to parse, trying backup")
+		backup := s.latestBackup()
+		if backup != nil {
+			s.tryLoadData(backup)
+		}
+	}
+}
+
+// tryLoadData attempts to parse and load store data. Returns true on success.
+func (s *Store) tryLoadData(data []byte) bool {
+	// Use raw struct so budget_checks field type mismatch doesn't block
+	// loading the rest of the store (probe rings, order, etc.).
+	var raw persistedStoreRaw
+	if err := json.Unmarshal(data, &raw); err != nil {
 		slog.Warn("Failed to parse status store", "error", err)
-		return
+		return false
 	}
 
-	s.order = ps.Order
-	for key, pr := range ps.Rings {
+	s.order = raw.Order
+	for key, pr := range raw.Rings {
 		s.probes[key] = &probeRing{
 			name:      pr.Name,
 			typ:       pr.Type,
@@ -452,12 +717,33 @@ func (s *Store) load() {
 		}
 	}
 
-	if len(ps.BudgetChecks) > 0 {
-		s.budgetChecks = make(map[string]budgetState, len(ps.BudgetChecks))
-		for key, violated := range ps.BudgetChecks {
-			s.budgetChecks[key] = budgetState{violated: violated}
+	// Try new format (map[string]persistedBudget) first, fall back to
+	// legacy format (map[string]bool) for backwards compatibility.
+	if len(raw.BudgetChecks) > 0 {
+		var newFmt map[string]persistedBudget
+		if err := json.Unmarshal(raw.BudgetChecks, &newFmt); err == nil {
+			s.budgetChecks = make(map[string]budgetState, len(newFmt))
+			for key, pb := range newFmt {
+				s.budgetChecks[key] = budgetState{
+					violated:              pb.Violated,
+					consecutiveViolations: pb.ConsecutiveViolations,
+				}
+			}
+		} else {
+			// Legacy: map[string]bool
+			var oldFmt map[string]bool
+			if err := json.Unmarshal(raw.BudgetChecks, &oldFmt); err == nil {
+				s.budgetChecks = make(map[string]budgetState, len(oldFmt))
+				for key, violated := range oldFmt {
+					s.budgetChecks[key] = budgetState{violated: violated}
+				}
+				slog.Info("Migrated legacy budget checks format", "count", len(oldFmt))
+			} else {
+				slog.Warn("Failed to parse budget checks", "error", err)
+			}
 		}
 	}
 
-	slog.Info("Loaded status store from disk", "probes", len(s.probes), "budget_checks", len(s.budgetChecks), "path", s.path)
+	slog.Info("Loaded status store from disk", "probes", len(s.probes), "budget_checks", len(s.budgetChecks))
+	return true
 }

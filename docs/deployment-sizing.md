@@ -348,11 +348,42 @@ Every external dependency Technician touches, and whether it can be swapped:
 
 | Data | Store | Retention | Survives restart? |
 |------|-------|-----------|-------------------|
-| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file | ~45 min at 30s intervals | Yes (with Docker named volume or persistent disk) |
+| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | ~45 min at 30s intervals | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
 | Metrics time-series | Prometheus / AMP | Configurable (default 15 days, up to years) | Yes |
 | Dashboards, uptime history, trends | Grafana querying Prometheus | As long as Prometheus retains the data | Yes |
 | HAR files, screenshots, videos | Local disk or S3 | Configurable (`artifacts.retention`) | Yes (if S3) |
 | Alert history | Alertmanager / Grafana | Depends on config | Yes |
+
+### Status store scaling
+
+The in-memory status store is persisted to a single JSON file (`status.json`) every 60 seconds. Daily backups are kept for 90 days. Snapshot results are cached in memory (2s TTL) to avoid recomputing percentiles on every page load.
+
+**File size by probe count** (at full 90-entry ring buffer per probe):
+
+| Probes | Snapshot size | 90 days of daily backups | Marshal/unmarshal |
+|--------|--------------|------------------------|--------------------|
+| 10 | ~40 KB | ~3.5 MB | < 1 ms |
+| 100 | ~400 KB | ~35 MB | ~2–3 ms |
+| 500 | ~2 MB | ~180 MB | ~10–15 ms |
+| 1000 | ~4 MB | ~360 MB | ~20–30 ms |
+| 5000 | ~20 MB | ~1.8 GB | ~100–150 ms |
+
+**What to watch at scale:**
+
+- **`Snapshot()` computation** — Sorts each probe's entries for percentile calculation and averages timing data. At 1000 probes × 90 entries = 90K entries per snapshot. The 2s cache absorbs rapid page refreshes and the 10s auto-refresh, but a single computation still takes O(probes × entries). This is the first bottleneck.
+- **`Save()` lock hold** — Copies all data under `RLock` before marshaling. At 1000+ probes the copy phase grows, adding latency to `Push()` calls contending for the write lock.
+- **Full-file rewrite** — Every 60s save rewrites the entire file. At 20 MB+ this creates unnecessary I/O.
+
+**Inflection points:**
+
+| Scale | Status | Action |
+|-------|--------|--------|
+| < 100 probes | No concerns | JSON store is the right choice |
+| 100–500 probes | Monitor marshal time in logs | Consider pre-computing percentiles on `Push()` instead of on `Snapshot()` |
+| 500–1000 probes | Marshal + snapshot cost becomes measurable | Move to SQLite (see below) for append-only writes, indexed queries, no full-file rewrite |
+| 1000+ probes | JSON is the wrong tool | SQLite or Prometheus API for historical data |
+
+All backup storage fits comfortably on a minimal EBS volume at any realistic probe count. S3 would only be relevant for cross-region archival or decoupling storage from the worker instance.
 
 ### Getting 30-day uptime without an application database
 

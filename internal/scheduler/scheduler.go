@@ -82,18 +82,25 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		}
 
 		delay := staggerDelay
+		probeCfg := pc // capture for closure
 		_, err := s.cron.AddFunc(schedule, func() {
 			if delay > 0 {
 				time.Sleep(delay)
 			}
-			slog.Debug("Running probe", "name", pc.Name, "type", pc.Type)
-			result := prober.Run(ctx, &pc, s.site)
-			result.Group = pc.Group
+			slog.Debug("Running probe", "name", probeCfg.Name, "type", probeCfg.Type)
+			result := runWithRetry(ctx, prober, &probeCfg, s.site)
+			result.Group = probeCfg.Group
+
+			// Mark as degraded if duration exceeds threshold
+			if probeCfg.DegradedAfter > 0 && result.Success && result.Duration > probeCfg.DegradedAfter {
+				result.Degraded = true
+			}
+
 			metrics.RecordResult(result)
 			select {
 			case s.results <- result:
 			default:
-				slog.Warn("Result channel full, dropping result", "name", pc.Name)
+				slog.Warn("Result channel full, dropping result", "name", probeCfg.Name)
 			}
 		})
 		if err != nil {
@@ -117,4 +124,42 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 func (s *Scheduler) Results() <-chan *probe.Result {
 	return s.results
+}
+
+// runWithRetry executes a probe with optional retry policy.
+func runWithRetry(ctx context.Context, prober probe.Prober, cfg *config.ProbeConfig, site *config.Site) *probe.Result {
+	result := prober.Run(ctx, cfg, site)
+	if result.Success || cfg.Retry == nil || cfg.Retry.Count <= 0 {
+		return result
+	}
+
+	delay := cfg.Retry.Delay
+	if delay == 0 {
+		delay = 1 * time.Second
+	}
+
+	for attempt := 1; attempt <= cfg.Retry.Count; attempt++ {
+		slog.Info("Retrying probe", "name", cfg.Name, "attempt", attempt, "delay", delay)
+
+		select {
+		case <-ctx.Done():
+			return result
+		case <-time.After(delay):
+		}
+
+		result = prober.Run(ctx, cfg, site)
+		if result.Success {
+			return result
+		}
+
+		// Scale delay for next attempt
+		switch cfg.Retry.Backoff {
+		case "exponential":
+			delay *= 2
+		case "linear":
+			delay += cfg.Retry.Delay
+		}
+	}
+
+	return result
 }

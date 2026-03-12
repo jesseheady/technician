@@ -16,6 +16,10 @@ func newProbers() map[config.ProbeType]probe.Prober {
 		config.ProbeTypeHTTP:       probe.NewHTTPProber(),
 		config.ProbeTypeSMTP:       probe.NewSMTPProber(),
 		config.ProbeTypeTraceroute: probe.NewTracerouteProber(),
+		config.ProbeTypeTCP:        probe.NewTCPProber(),
+		config.ProbeTypeDNS:        probe.NewDNSProber(),
+		config.ProbeTypeICMP:       probe.NewICMPProber(),
+		config.ProbeTypeGRPC:       probe.NewGRPCProber(),
 	}
 
 	if runner, err := playwright.NewRunner(); err != nil {
