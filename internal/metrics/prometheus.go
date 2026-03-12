@@ -139,6 +139,22 @@ var (
 		Help: "ICMP average round-trip time in seconds",
 	}, []string{"name", "site_code", "site_city", "site_country"})
 
+	// NTP metrics
+	ntpOffsetMs = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_ntp_offset_ms",
+		Help: "NTP clock offset in milliseconds (positive = local ahead of server)",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	ntpStratum = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_ntp_stratum",
+		Help: "NTP server stratum level (1 = primary reference)",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	ntpRTT = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_ntp_rtt_seconds",
+		Help: "NTP round-trip time in seconds",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
 	// Degraded indicator
 	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
@@ -173,6 +189,9 @@ func init() {
 		dnsQueryDuration,
 		icmpPacketLoss,
 		icmpAvgRTT,
+		ntpOffsetMs,
+		ntpStratum,
+		ntpRTT,
 		probeDegraded,
 	)
 }
@@ -210,6 +229,8 @@ func RecordResult(result *probe.Result) {
 		recordDNSMetrics(result, labels)
 	case config.ProbeTypeICMP:
 		recordICMPMetrics(result, labels)
+	case config.ProbeTypeNTP:
+		recordNTPMetrics(result, labels)
 	}
 
 	degraded := float64(0)
@@ -288,6 +309,12 @@ func recordDNSMetrics(result *probe.Result, labels labelSet) {
 func recordICMPMetrics(result *probe.Result, labels labelSet) {
 	icmpPacketLoss.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPPacketLoss)
 	icmpAvgRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPAvgRTT.Seconds())
+}
+
+func recordNTPMetrics(result *probe.Result, labels labelSet) {
+	ntpOffsetMs.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPOffsetMs)
+	ntpStratum.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.NTPStratum))
+	ntpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPRTT.Seconds())
 }
 
 func RecordBudgetViolation(probeName, metricName string, violated bool, site *config.Site) {

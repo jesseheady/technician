@@ -528,6 +528,12 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
   host: ${TEST_HOST}
 `), 0o644)
 
+	// NTP
+	os.WriteFile(filepath.Join(probesDir, "ntp.yml"), []byte(`
+- name: NTP Test
+  server: ${TEST_HOST}
+`), 0o644)
+
 	probes, err := LoadProbes(probesDir)
 	if err != nil {
 		t.Fatal(err)
@@ -559,7 +565,113 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
 			if p.Traceroute.Host != "expanded.example.com" {
 				t.Errorf("Traceroute: env expansion failed, got host=%s", p.Traceroute.Host)
 			}
+		case ProbeTypeNTP:
+			if p.NTP.Server != "expanded.example.com" {
+				t.Errorf("NTP: env expansion failed, got server=%s", p.NTP.Server)
+			}
 		}
+	}
+}
+
+func TestLoadNTPProbes(t *testing.T) {
+	content := `
+- name: Pool NTP
+  server: pool.ntp.org
+  schedule: "0 */5 * * * *"
+  timeout: 5s
+  degraded_after: 100ms
+- name: Google NTP
+  server: time.google.com
+  port: 123
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "ntp.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 2 {
+		t.Fatalf("expected 2 probes, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.Name != "Pool NTP" {
+		t.Errorf("expected name=Pool NTP, got %s", p.Name)
+	}
+	if p.Type != ProbeTypeNTP {
+		t.Errorf("expected type=ntp, got %s", p.Type)
+	}
+	if p.NTP.Server != "pool.ntp.org" {
+		t.Errorf("expected server=pool.ntp.org, got %s", p.NTP.Server)
+	}
+	if p.NTP.Port != 123 {
+		t.Errorf("expected default port=123, got %d", p.NTP.Port)
+	}
+	if p.DegradedAfter != 100*time.Millisecond {
+		t.Errorf("expected DegradedAfter=100ms, got %s", p.DegradedAfter)
+	}
+
+	p2 := probes[1]
+	if p2.NTP.Server != "time.google.com" {
+		t.Errorf("expected server=time.google.com, got %s", p2.NTP.Server)
+	}
+	if p2.NTP.Port != 123 {
+		t.Errorf("expected port=123, got %d", p2.NTP.Port)
+	}
+}
+
+func TestLoadNTPProbesWithRetryAndEnvExpansion(t *testing.T) {
+	os.Setenv("TEST_NTP_SERVER", "time.test.com")
+	defer os.Unsetenv("TEST_NTP_SERVER")
+
+	content := `
+- name: NTP Retry Test
+  server: ${TEST_NTP_SERVER}
+  degraded_after: 200ms
+  retry:
+    count: 2
+    backoff: linear
+    delay: 1s
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "ntp.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 1 {
+		t.Fatalf("expected 1 probe, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.NTP.Server != "time.test.com" {
+		t.Errorf("env expansion failed, got server=%s", p.NTP.Server)
+	}
+	if p.Retry == nil {
+		t.Fatal("expected Retry to be set")
+	}
+	if p.Retry.Count != 2 {
+		t.Errorf("expected retry count=2, got %d", p.Retry.Count)
+	}
+	if p.Retry.Backoff != "linear" {
+		t.Errorf("expected retry backoff=linear, got %s", p.Retry.Backoff)
+	}
+	if p.DegradedAfter != 200*time.Millisecond {
+		t.Errorf("expected DegradedAfter=200ms, got %s", p.DegradedAfter)
 	}
 }
 

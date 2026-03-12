@@ -27,6 +27,7 @@ const (
 	ProbeTypeDNS         ProbeType = "dns"
 	ProbeTypeICMP        ProbeType = "icmp"
 	ProbeTypeGRPC        ProbeType = "grpc"
+	ProbeTypeNTP         ProbeType = "ntp"
 )
 
 type RetryPolicy struct {
@@ -51,6 +52,7 @@ type ProbeConfig struct {
 	DNS      *DNSProbeConfig   `yaml:"-"`
 	ICMP     *ICMPProbeConfig  `yaml:"-"`
 	GRPC     *GRPCProbeConfig  `yaml:"-"`
+	NTP      *NTPProbeConfig   `yaml:"-"`
 }
 
 type Assertion struct {
@@ -97,6 +99,11 @@ type GRPCProbeConfig struct {
 	Service string `yaml:"service"` // gRPC health check service name (empty = overall)
 	TLS     bool   `yaml:"tls"`
 	SkipTLS bool   `yaml:"skip_tls"` // skip TLS cert verification
+}
+
+type NTPProbeConfig struct {
+	Server string `yaml:"server"` // NTP server hostname or IP (e.g. "pool.ntp.org")
+	Port   int    `yaml:"port"`   // UDP port (default 123)
 }
 
 type SMTPProbeConfig struct {
@@ -215,6 +222,17 @@ type icmpProbeYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
+type ntpProbeYAML struct {
+	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
+	Server        string        `yaml:"server"`
+	Port          int           `yaml:"port"`
+	Schedule      string        `yaml:"schedule"`
+	Timeout       time.Duration `yaml:"timeout"`
+	Retry         *RetryPolicy  `yaml:"retry"`
+	DegradedAfter time.Duration `yaml:"degraded_after"`
+}
+
 type grpcProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
@@ -278,6 +296,12 @@ func LoadProbes(probesDir string) ([]ProbeConfig, error) {
 		return nil, fmt.Errorf("loading gRPC probes: %w", err)
 	}
 	probes = append(probes, grpcProbes...)
+
+	ntpProbes, err := loadNTPProbes(filepath.Join(probesDir, "ntp.yml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("loading NTP probes: %w", err)
+	}
+	probes = append(probes, ntpProbes...)
 
 	for i := range probes {
 		if probes[i].Timeout == 0 {
@@ -617,6 +641,41 @@ func loadGRPCProbes(path string) ([]ProbeConfig, error) {
 				Service: r.Service,
 				TLS:     r.TLS,
 				SkipTLS: r.SkipTLS,
+			},
+		}
+	}
+	return probes, nil
+}
+
+func loadNTPProbes(path string) ([]ProbeConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expanded := expandEnvVars(string(data))
+
+	var raw []ntpProbeYAML
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	probes := make([]ProbeConfig, len(raw))
+	for i, r := range raw {
+		if r.Port == 0 {
+			r.Port = 123
+		}
+		probes[i] = ProbeConfig{
+			Name:          r.Name,
+			Type:          ProbeTypeNTP,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
+			NTP: &NTPProbeConfig{
+				Server: r.Server,
+				Port:   r.Port,
 			},
 		}
 	}
