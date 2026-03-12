@@ -66,7 +66,7 @@ func runProbe(cmd *cobra.Command, args []string) error {
 
 	site := cfg.ResolveSite(siteCode)
 
-	probers := newProbers()
+	probers := newProbers(cfg)
 
 	var toRun []config.ProbeConfig
 	if probeName != "" {

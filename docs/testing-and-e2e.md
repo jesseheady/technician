@@ -54,13 +54,15 @@ golint ./...
 
 | Package            | Focus |
 |--------------------|--------|
-| `internal/probe`   | HTTP (httptest), SMTP, traceroute, behavior |
-| `internal/config`  | YAML loading, env expansion, defaults |
+| `internal/probe`   | HTTP (httptest), TCP, DNS, Playwright (concurrency limiter), behavior |
+| `internal/config`  | YAML loading, env expansion, defaults, probe config for all 9 types |
 | `internal/budget`  | Threshold evaluation, wildcards |
 | `internal/metrics` | HAR parsing, recording |
-| `internal/scheduler` | Stagger, cron |
+| `internal/scheduler` | Stagger, cron, retry logic |
 | `internal/artifact` | Store interfaces |
 | `internal/exporter` | Blackbox handler |
+| `internal/notify`  | Webhook delivery, state transitions |
+| `internal/status`  | Store persistence, snapshot, budget badges |
 
 Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP probes; mock or skip external dependencies (e.g. SMTP, mtr) when not available.
 
@@ -123,21 +125,29 @@ curl -s http://localhost:9090/api/v1/query?query=technician_probe_duration_secon
 docker compose down
 ```
 
-### 6. CI canary (GitHub Actions)
+### 6. CI (GitHub Actions)
 
-The canary workflow runs `technician validate` inside the built image with a canary config and budgets. Use it as the reference e2e:
+Two workflows are available:
 
-- Trigger via `workflow_dispatch` with optional `target_url`.
-- Or on `deployment_status` with the deployment environment URL.
+**Main CI** (`.github/workflows/ci.yml`) — runs on push to `main` and PRs:
+- Build, test (race detector + coverage), lint
+- Validate probes + budgets (with and without Playwright)
+- Docker build on main branch pushes
 
-See [.github/workflows/canary.yml](../.github/workflows/canary.yml).
+**Canary** (`.github/workflows/canary.yml`) — runs post-deployment:
+- Trigger via `workflow_dispatch` with optional `target_url`, or on `deployment_status`
+- Uses the pre-built Docker image (includes Chromium)
+- Uploads HAR artifacts
+
+See [CI documentation](ci.md) for details on GitHub Actions, generic CI pipelines (GitLab, CircleCI, Jenkins), and Playwright resource considerations in CI.
 
 ## Recommended e2e flow for changes
 
 1. `go test ./...` and `go vet ./...` on every change.
 2. Before merge: run `validate` with a config that uses stable or mock targets.
 3. Optionally run the full Docker stack and spot-check Grafana/Prometheus.
-4. Rely on the canary workflow in CI for deployment-time validation.
+4. The CI workflow runs build + test + lint + validate automatically on PRs and pushes to main.
+5. Rely on the canary workflow for deployment-time validation.
 
 ## Adding e2e coverage
 

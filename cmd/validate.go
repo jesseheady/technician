@@ -49,7 +49,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 
 	site := cfg.ResolveSite(siteCode)
 
-	probers := newProbers()
+	probers := newProbers(cfg)
 
 	ctx := context.Background()
 	var allViolations []budget.Violation

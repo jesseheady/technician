@@ -59,7 +59,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	)
 
 	registry := scheduler.NewProberRegistry()
-	registry.RegisterMap(newProbers())
+	registry.RegisterMap(newProbers(cfg))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

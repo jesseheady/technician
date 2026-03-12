@@ -144,7 +144,9 @@ On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivale
 ## Next steps
 
 - [Alerting](alerting.md) – native webhooks (Discord, Slack), Grafana alerting (recommended), and Alertmanager
+- [CI](ci.md) – GitHub Actions workflow, generic CI pipelines, budget validation
 - [Testing and end-to-end validation](testing-and-e2e.md)
 - [Local development configuration](mock-production.md)
+- [Playwright scaling](playwright-scaling.md) – browser probe resource analysis, concurrency controls, dedicated runners
 - [AGENTS.md](../AGENTS.md) – architecture and conventions
 - [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) – sending deployed and edge probe metrics to a central Prometheus in your VPC and using central Grafana as source of record

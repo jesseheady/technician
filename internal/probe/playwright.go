@@ -12,11 +12,23 @@ import (
 )
 
 type PlaywrightProber struct {
-	RunnerPath string
+	RunnerPath  string
+	browserSem  chan struct{} // limits concurrent Chromium instances
+	maxBrowsers int
 }
 
-func NewPlaywrightProber(runnerPath string) *PlaywrightProber {
-	return &PlaywrightProber{RunnerPath: runnerPath}
+// NewPlaywrightProber creates a Playwright prober with a concurrency limit.
+// maxBrowsers controls how many Chromium instances can run simultaneously.
+// If maxBrowsers <= 0, it defaults to 2.
+func NewPlaywrightProber(runnerPath string, maxBrowsers int) *PlaywrightProber {
+	if maxBrowsers <= 0 {
+		maxBrowsers = 2
+	}
+	return &PlaywrightProber{
+		RunnerPath:  runnerPath,
+		browserSem:  make(chan struct{}, maxBrowsers),
+		maxBrowsers: maxBrowsers,
+	}
 }
 
 func (p *PlaywrightProber) Type() config.ProbeType {
@@ -51,6 +63,17 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	// Acquire browser slot (respects context cancellation)
+	select {
+	case p.browserSem <- struct{}{}:
+		defer func() { <-p.browserSem }()
+	case <-ctx.Done():
+		result.InfraError = true
+		result.Error = fmt.Sprintf("timed out waiting for browser slot (%d/%d in use)", len(p.browserSem), p.maxBrowsers)
+		slog.Warn("Playwright probe queued too long", "name", cfg.Name, "max_browsers", p.maxBrowsers)
+		return result
+	}
 
 	runnerConfig := map[string]interface{}{
 		"script": pcfg.Script,

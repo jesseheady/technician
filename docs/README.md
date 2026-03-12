@@ -13,5 +13,7 @@
 | [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) | Config for central Prometheus (private VPC) and Grafana as source of record; local/Docker vs central reporting; edge push. |
 | [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds, collection, network throttling (4G/3G/slow-3G), and device emulation. |
 | [Deployment sizing](deployment-sizing.md) | Resource requirements, cost estimates, and sizing by deployment mode (VPS, Lambda, Workers, full stack). |
+| [CI](ci.md) | GitHub Actions workflow, generic CI pipelines (GitLab, CircleCI, Jenkins), budget validation, Playwright in CI. |
+| [Playwright scaling](playwright-scaling.md) | Browser probe resource analysis, concurrency controls (`max_browsers`), and dedicated runner architecture (stages 1-4). |
 
 See also [AGENTS.md](../AGENTS.md) for architecture and conventions.

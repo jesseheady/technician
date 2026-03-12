@@ -58,8 +58,9 @@ type ArtifactsConfig struct {
 }
 
 type PlaywrightConfig struct {
-	Mode      string `yaml:"mode"`
-	ServerURL string `yaml:"server_url"`
+	Mode        string `yaml:"mode"`
+	ServerURL   string `yaml:"server_url"`
+	MaxBrowsers int    `yaml:"max_browsers"` // max concurrent Chromium instances (0 = default 2)
 }
 
 func Load(path string) (*Config, error) {
@@ -83,6 +84,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Playwright.Mode == "" {
 		cfg.Playwright.Mode = "local"
+	}
+	if cfg.Playwright.MaxBrowsers <= 0 {
+		cfg.Playwright.MaxBrowsers = 2
 	}
 
 	if err := validateWebhooks(cfg.Webhooks); err != nil {

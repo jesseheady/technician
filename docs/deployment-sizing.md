@@ -41,7 +41,7 @@ Each Playwright probe launches a separate Chromium instance via Node.js:
 | Cold start (first probe) | ~2–3 s |
 | Warm probe execution | ~3–8 s depending on page complexity |
 
-Chromium instances are not pooled — each probe invocation launches and closes a browser. Multiple concurrent Playwright probes stack their memory usage.
+Chromium instances are not pooled — each probe invocation launches and closes a browser. The `max_browsers` setting (default 2) caps concurrent instances via a semaphore. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. See [Playwright scaling](playwright-scaling.md) for detailed resource projections and dedicated runner architecture.
 
 ## Deployment topology
 
