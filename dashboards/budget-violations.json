@@ -1,51 +1,95 @@
 {
   "uid": "technician-budget-violations",
   "title": "Technician: Budget Violations",
-  "tags": ["technician", "synthetic-monitoring"],
+  "tags": [
+    "technician",
+    "synthetic-monitoring"
+  ],
   "timezone": "browser",
   "editable": true,
   "refresh": "5m",
-  "time": { "from": "now-1h", "to": "now" },
-  "links": [
-    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
-    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
-    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
-    { "title": "Infrastructure Probes", "type": "link", "url": "/d/technician-infrastructure-probes", "icon": "dashboard", "tooltip": "TCP, DNS, ICMP, gRPC probe details" },
-    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
-  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [],
   "templating": {
     "list": [
       {
         "name": "site_code",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_budget_violation, site_code)",
-        "query": { "query": "label_values(technician_budget_violation, site_code)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_budget_violation, site_code)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       },
       {
         "name": "probe",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)",
-        "query": { "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       }
     ]
   },
   "panels": [
     {
+      "id": 999,
+      "title": "",
+      "type": "text",
+      "transparent": true,
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">Budgets</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
+      }
+    },
+    {
       "id": 1,
       "title": "Current Violation Count",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "count(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1)",
@@ -58,23 +102,51 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 3 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
             ]
           },
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "noValue": "0"
         }
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
     },
     {
       "id": 2,
       "title": "Violations by Metric",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
@@ -85,26 +157,63 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "PASS", "color": "green" }, "1": { "text": "FAIL", "color": "red" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "PASS",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "FAIL",
+                  "color": "red"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           },
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         }
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "name" }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "name"
+      }
     },
     {
       "id": 3,
       "title": "Budget Status (Pass/Fail by Probe)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "max by (name, site_code) (technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"})",
@@ -115,27 +224,64 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "PASS", "color": "green" }, "1": { "text": "FAIL", "color": "red" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "PASS",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "FAIL",
+                  "color": "red"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           },
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         }
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
     },
     {
       "id": 4,
       "title": "Budget Violation Rate Over Time",
       "description": "Percentage of checks violating budget per 5m window (median smoothing dampens outliers)",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "avg_over_time(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"}[5m])",
@@ -152,7 +298,9 @@
             "pointSize": 5,
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "mode": "none" },
+            "stacking": {
+              "mode": "none"
+            },
             "gradientMode": "scheme"
           },
           "min": 0,
@@ -161,26 +309,59 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.25 },
-              { "color": "orange", "value": 0.5 },
-              { "color": "red", "value": 0.75 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.25
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.75
+              }
             ]
           },
-          "color": { "mode": "continuous-GrYlRd" }
+          "color": {
+            "mode": "continuous-GrYlRd"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean", "max"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 5,
       "title": "All Current Violations",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
@@ -193,11 +374,35 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Value" },
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
             "properties": [
-              { "id": "displayName", "value": "Violated" },
-              { "id": "mappings", "value": [{ "type": "value", "options": { "1": { "text": "YES", "color": "red" } } }] },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "displayName",
+                "value": "Violated"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "YES",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           }
         ]
@@ -206,8 +411,17 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
-            "renameByName": { "name": "Probe", "site_code": "Site", "metric": "Metric" }
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "name": "Probe",
+              "site_code": "Site",
+              "metric": "Metric"
+            }
           }
         }
       ]
