@@ -20,6 +20,7 @@ func newProbers() map[config.ProbeType]probe.Prober {
 		config.ProbeTypeDNS:        probe.NewDNSProber(),
 		config.ProbeTypeICMP:       probe.NewICMPProber(),
 		config.ProbeTypeGRPC:       probe.NewGRPCProber(),
+		config.ProbeTypeNTP:        probe.NewNTPProber(),
 	}
 
 	if runner, err := playwright.NewRunner(); err != nil {

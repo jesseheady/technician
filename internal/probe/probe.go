@@ -63,6 +63,11 @@ type Result struct {
 	// gRPC-specific
 	GRPCStatus string // serving status from health check
 
+	// NTP-specific
+	NTPOffsetMs  float64       // clock offset in milliseconds (positive = local ahead)
+	NTPStratum   int           // stratum level (1 = primary reference, 2+ = secondary)
+	NTPRTT       time.Duration // round-trip time to NTP server
+
 	// Degraded flag (set when duration exceeds degraded_after threshold)
 	Degraded bool
 

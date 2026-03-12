@@ -99,6 +99,9 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		if e.TTFBMs > 0 {
 			s += fmt.Sprintf(" · ttfb %dms", int(math.Round(e.TTFBMs)))
 		}
+		if e.NTPOffsetMs != 0 {
+			s += fmt.Sprintf(" · offset %.1fms", e.NTPOffsetMs)
+		}
 		if e.Error != "" {
 			s += " · " + e.Error
 		}

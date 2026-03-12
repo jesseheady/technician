@@ -32,6 +32,9 @@ type Entry struct {
 	DNSMs      float64 `json:"dns_ms,omitempty"`
 	TLSMs      float64 `json:"tls_ms,omitempty"`
 	TTFBMs     float64 `json:"ttfb_ms,omitempty"`
+
+	// NTP details
+	NTPOffsetMs float64 `json:"ntp_offset_ms,omitempty"`
 }
 
 // BudgetCheck is a single budget metric evaluation for display on the status page.
@@ -178,7 +181,8 @@ func (s *Store) Push(r *probe.Result) {
 		StatusCode: r.StatusCode,
 		DNSMs:      float64(r.DNSDuration) / float64(time.Millisecond),
 		TLSMs:      float64(r.TLSDuration) / float64(time.Millisecond),
-		TTFBMs:     float64(r.TTFBDuration) / float64(time.Millisecond),
+		TTFBMs:      float64(r.TTFBDuration) / float64(time.Millisecond),
+		NTPOffsetMs: r.NTPOffsetMs,
 	}
 
 	s.mu.Lock()
@@ -330,7 +334,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 	}
 
 	// Collect distinct types in stable order
-	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
+	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
 	for _, t := range typeOrder {
 		if typesSeen[string(t)] {
 			snap.Types = append(snap.Types, string(t))
