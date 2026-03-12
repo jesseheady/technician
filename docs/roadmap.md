@@ -221,13 +221,13 @@ logging:
 {"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"scheduler_tick","active_probes":12,"goroutines":28,"heap_mb":8.2}
 ```
 
-### Status page redesign (UptimeFlare-inspired)
+### Status page redesign
 
-Redesign the built-in status page with a cleaner, more informative layout inspired by [UptimeFlare](https://github.com/lyc8503/UptimeFlare) and similar modern status pages.
+Redesign the built-in status page with a cleaner, more informative layout inspired by modern open-source status pages.
 
 **Current state:** Minimal HTML template with probe rows, history bars, timing breakdown, and budget badges.
 
-**Reference layout (UptimeFlare):**
+**Reference layout:**
 
 Each monitor is rendered as a card with three stacked elements:
 1. **Header row** — Monitor name + status icon (left), overall uptime % (right, color-coded green/amber/red based on threshold)
@@ -241,10 +241,10 @@ Monitors are grouped under collapsible section headers: group name (left), "N/N 
 - **Overall status banner** — Large banner at the top: "All Systems Operational" (green), "Some Systems Degraded" (amber), or "Outage Detected" (red). Single glance tells you the story.
 - **Dense uptime bars with hover tooltips** — Replace the current short history bars with a dense segmented bar where each segment represents one time bucket. Hover tooltip shows: segment date/time, uptime %, downtime duration, and error summary for that bucket. Color: green (100% up), amber (partial failures or degraded), red (majority down). Shows overall uptime % right-aligned on the header row.
 - **Time window picker** — Allow users to switch the status page view between time windows: Last 24h, Last 7d, Last 30d, Last 90d. This controls both the uptime bar granularity (hourly buckets for 24h, daily for 7d/30d/90d) and the response time chart X-axis. Default: 24h for the ring buffer (no persistence needed), longer windows require [historical data](#status-page-historical-data). Implemented as simple tab/button bar above the monitor list.
-- **Response time line chart** — Per-monitor line chart always visible below the uptime bar (UptimeFlare pattern). Y-axis auto-scaled per monitor so both fast (200ms) and slow (5s) services are readable. Response time is a key golden signal — this should be prominent, not hidden behind a click. Lightweight JS using inline `<canvas>` or SVG path generation. No chart library dependency.
+- **Response time line chart** — Per-monitor line chart always visible below the uptime bar. Y-axis auto-scaled per monitor so both fast (200ms) and slow (5s) services are readable. Response time is a key golden signal — this should be prominent, not hidden behind a click. Lightweight JS using inline `<canvas>` or SVG path generation. No chart library dependency.
 - **Monitor grouping with collapse** — Group probes by the existing `group` field with collapsible section headers. Header shows: group name + optional icon (left), "N/N Operational" aggregate count (right), collapse chevron. Group-level status is worst-of-group.
 - **Maintenance banners** — When any probe is in maintenance mode, show a blue/gray banner with the reason text and scheduled end time. Maintenance probes show a wrench icon instead of status dot.
-- **Dark/light mode** — Respect `prefers-color-scheme` media query. Dark mode as default (matches UptimeFlare, Grafana). CSS-only, no JS framework needed.
+- **Dark/light mode** — Respect `prefers-color-scheme` media query. Dark mode as default (matches Grafana). CSS-only, no JS framework needed.
 - **Incident timeline** — Below the monitor list, show recent incidents (state transitions) in reverse chronological order with duration and resolution status.
 
 **Design principles:**
@@ -262,7 +262,7 @@ Technician's scope is: **everything needed to answer "is my service up, fast, an
 ### What Technician owns
 
 - **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, TLS, WebSocket, Playwright. These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
-- **Scheduling** — Built-in cron with stagger/jitter. This is the key differentiator vs blackbox_exporter (which has no scheduler).
+- **Scheduling** — Built-in cron with stagger/jitter. Key differentiator vs pure probe executors that rely on external schedulers.
 - **Status page** — Lightweight, built-in, no external dependencies. The "is everything OK right now?" view.
 - **Notifications** — Webhook-based alerting for probe state transitions. Simple, stateless, push-based. The fallback for environments without Grafana Alerting.
 - **Performance budgets** — Unique to Technician. Threshold-based degradation tracking with three-state escalation.
@@ -285,7 +285,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Probes and protocol
 
-- **TLS version constraints** — Min/max TLS version for HTTP and TCP probes (as in blackbox_exporter). Low priority; rarely needed for synthetic monitoring.
+- **TLS version constraints** — Min/max TLS version for HTTP and TCP probes. Low priority; rarely needed for synthetic monitoring.
 
 - **Proxy support** — HTTP proxy configuration for probes running behind corporate proxies. Edge case for most deployments.
 
@@ -307,7 +307,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Latency percentile Grafana panels** — The Grafana dashboards have latency trend graphs but no dedicated P50/P90/P99 panels. Add percentile stat panels and histogram panels to the HTTP Timing and Uptime Overview dashboards.
 
-- **Per-region latency comparison** — OpenStatus-style side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `site_code` label grouping.
+- **Per-region latency comparison** — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `site_code` label grouping.
 
 - **Latency trend sparklines on status page** — Small inline SVG sparklines per probe row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
 
@@ -329,7 +329,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Incident tracking** — Automatic incident creation/resolution from probe failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
 
-See [comparison-openstatus-blackbox.md](comparison-openstatus-blackbox.md) and [comparison-upright.md](comparison-upright.md) for full feature gap analyses.
+See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 

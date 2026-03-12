@@ -21,6 +21,9 @@ Thumbs.db
 # Copy from examples/ and customise: cp -r examples/ config/
 /config/
 
+# Internal docs (comparison with internal projects, decision logs, cost analysis)
+/docs/internal/
+
 # Environment
 .env
 .env.*
