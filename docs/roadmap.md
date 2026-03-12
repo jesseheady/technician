@@ -261,7 +261,7 @@ Technician's scope is: **everything needed to answer "is my service up, fast, an
 
 ### What Technician owns
 
-- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, TLS, WebSocket, Playwright. These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
+- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, SMTP, traceroute, Playwright (and planned: TLS, WebSocket). These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
 - **Scheduling** — Built-in cron with stagger/jitter. Key differentiator vs pure probe executors that rely on external schedulers.
 - **Status page** — Lightweight, built-in, no external dependencies. The "is everything OK right now?" view.
 - **Notifications** — Webhook-based alerting for probe state transitions. Simple, stateless, push-based. The fallback for environments without Grafana Alerting.
@@ -385,3 +385,19 @@ All probe types support an optional `retry` config with `count`, `backoff` (none
 ### Response time thresholds
 
 All probe types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_probe_degraded` metric). Distinct from failure: the probe passed, but response time indicates degradation.
+
+### NTP probe
+
+Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/probes/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
+
+### Infrastructure Probes dashboard
+
+Grafana dashboard combining TCP, DNS, ICMP, gRPC, and NTP probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset).
+
+### Browser concurrency limiter
+
+`max_browsers` config field (default 2) caps concurrent Chromium instances via a channel-based semaphore. Prevents OOM when multiple Playwright probes overlap. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. See [Playwright scaling](playwright-scaling.md).
+
+### CI workflow
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) with build, test (race detector + coverage), lint, validate (with and without Playwright), and Docker build jobs. Generic CI guidance for GitLab, CircleCI, and Jenkins in [docs/ci.md](ci.md).

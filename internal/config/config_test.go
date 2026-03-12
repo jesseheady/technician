@@ -78,6 +78,31 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Playwright.Mode != "local" {
 		t.Errorf("expected default playwright mode=local, got %s", cfg.Playwright.Mode)
 	}
+	if cfg.Playwright.MaxBrowsers != 2 {
+		t.Errorf("expected default max_browsers=2, got %d", cfg.Playwright.MaxBrowsers)
+	}
+}
+
+func TestLoadPlaywrightMaxBrowsers(t *testing.T) {
+	content := `
+service: test
+playwright:
+  max_browsers: 4
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "technician.yml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Playwright.MaxBrowsers != 4 {
+		t.Errorf("expected max_browsers=4, got %d", cfg.Playwright.MaxBrowsers)
+	}
 }
 
 func TestExpandEnvVars(t *testing.T) {

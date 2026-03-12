@@ -31,6 +31,7 @@ artifacts:
 
 playwright:
   mode: local
+  # max_browsers: 2  # max concurrent Chromium instances (default 2, increase for CI or dedicated runners)
 
 # Native webhook notifications (optional).
 # Technician sends notifications directly — no Alertmanager or Grafana needed.

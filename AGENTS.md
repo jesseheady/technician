@@ -34,7 +34,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright`, `webhooks`.
+- **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
 - **Probes**: Loaded from directory next to config: `<config_dir>/probes/`:
   - `http.yml`, `tcp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type. HTTP probes support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
   - Playwright: `probes/playwright/playwright.yml` (or `probes/playwright.yml`) + script files.
@@ -93,13 +93,17 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
 - `docs/getting-started.md` – Prerequisites, init script (Mac), run worker and full stack.
+- `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
+- `docs/playwright-scaling.md` – Browser probe resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
+- `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.
 - `docs/architecture/central-prometheus-grafana.md` – Central Prometheus (VPC), Grafana as source of record, local vs phone-home, edge push.
 - `docs/proposals/site-identifiers-edge.md` – Site identifiers when probes run on Workers or Lambda.
 - `docs/proposals/cloudflare-workers.md` – Cloudflare Workers and AWS options (Health Checks, Synthetics, Lambda).
-- `docs/README.md` – Index of testing, local development, proposals.
+- `docs/README.md` – Full index of all documentation.
 
 ## CI
 
-- `.github/workflows/canary.yml` – canary synthetic check in CI.
+- `.github/workflows/ci.yml` – main CI: build, test, lint, validate (with and without Playwright). Runs on push to main and PRs.
+- `.github/workflows/canary.yml` – canary synthetic check post-deployment.
 
 When editing code, preserve existing patterns: probe results feed metrics and (where applicable) OTLP; new metrics should follow the naming in `internal/metrics/prometheus.go`; budget metric names must match threshold keys in `budgets.yml`.
