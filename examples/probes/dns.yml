@@ -1,0 +1,28 @@
+# Example DNS probes.
+# Queries a DNS server and optionally asserts on the response.
+
+- name: Google DNS A Record
+  group: Infrastructure
+  domain: example.com
+  server: "8.8.8.8:53"
+  record_type: A
+  timeout: 10s
+  schedule: "*/60 * * * * *"
+
+# Assert expected DNS answers:
+# - name: CDN CNAME Check
+#   domain: www.example.com
+#   server: "8.8.8.8:53"
+#   record_type: CNAME
+#   expected:
+#     - "cdn.example.com."
+#   schedule: "0 */5 * * * *"
+
+# MX record check:
+# - name: Mail Exchange
+#   domain: example.com
+#   record_type: MX
+#   schedule: "0 */5 * * * *"
+
+# Supported record types: A, AAAA, MX, TXT, CNAME, NS, SRV
+# Default server: 8.8.8.8:53

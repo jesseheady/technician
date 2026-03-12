@@ -1,0 +1,18 @@
+# Example ICMP (ping) probes.
+# May require root/CAP_NET_RAW for raw sockets; falls back to unprivileged UDP mode.
+
+- name: Ping Google DNS
+  group: Infrastructure
+  host: 8.8.8.8
+  count: 5
+  ip_version: "4"
+  timeout: 10s
+  schedule: "*/60 * * * * *"
+
+# IPv6 ping:
+# - name: Ping Cloudflare v6
+#   host: 2606:4700:4700::1111
+#   count: 5
+#   ip_version: "6"
+#   timeout: 10s
+#   schedule: "*/60 * * * * *"

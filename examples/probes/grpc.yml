@@ -1,0 +1,25 @@
+# Example gRPC health check probes.
+# Uses the standard grpc.health.v1.Health/Check protocol.
+
+- name: API Health
+  group: API
+  host: api.example.com:443
+  service: myapp
+  tls: true
+  timeout: 5s
+  schedule: "*/60 * * * * *"
+
+# Skip TLS verification (self-signed certs):
+# - name: Internal gRPC
+#   host: grpc.internal:9090
+#   tls: true
+#   skip_tls: true
+#   timeout: 5s
+#   schedule: "0 */5 * * * *"
+
+# Plaintext (no TLS):
+# - name: Local gRPC
+#   host: localhost:50051
+#   service: ""
+#   timeout: 5s
+#   schedule: "*/30 * * * * *"

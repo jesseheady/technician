@@ -1,0 +1,27 @@
+# Example TCP probes.
+# Tests that the target accepts TCP connections on the given port.
+
+- name: Redis
+  group: Infrastructure
+  host: redis.example.com
+  port: 6379
+  timeout: 5s
+  schedule: "*/60 * * * * *"
+
+# TLS connection with IPv4:
+# - name: HTTPS Port
+#   host: example.com
+#   port: 443
+#   tls: true
+#   ip_version: "4"
+#   timeout: 5s
+#   schedule: "*/60 * * * * *"
+
+# Send/expect pattern (e.g. protocol banner check):
+# - name: SMTP Banner
+#   host: smtp.example.com
+#   port: 25
+#   send: "EHLO monitor\r\n"
+#   expect_recv: "250"
+#   timeout: 10s
+#   schedule: "0 */5 * * * *"

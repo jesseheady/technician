@@ -1,7 +1,0 @@
-# Optional: stable target for deterministic e2e
-# - name: Mock Traceroute
-#   host: 127.0.0.1
-#   max_hops: 5
-#   count: 1
-#   schedule: "0 */5 * * * *"
-[]
