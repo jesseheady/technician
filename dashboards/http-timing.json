@@ -1,51 +1,95 @@
 {
   "uid": "technician-http-timing",
   "title": "Technician: HTTP Timing Breakdown",
-  "tags": ["technician", "synthetic-monitoring"],
+  "tags": [
+    "technician",
+    "synthetic-monitoring"
+  ],
   "timezone": "browser",
   "editable": true,
   "refresh": "5m",
-  "time": { "from": "now-1h", "to": "now" },
-  "links": [
-    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
-    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
-    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
-    { "title": "Infrastructure Probes", "type": "link", "url": "/d/technician-infrastructure-probes", "icon": "dashboard", "tooltip": "TCP, DNS, ICMP, gRPC probe details" },
-    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
-  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [],
   "templating": {
     "list": [
       {
         "name": "site_code",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_http_dns_seconds, site_code)",
-        "query": { "query": "label_values(technician_http_dns_seconds, site_code)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_http_dns_seconds, site_code)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       },
       {
         "name": "probe",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)",
-        "query": { "query": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       }
     ]
   },
   "panels": [
     {
+      "id": 999,
+      "title": "",
+      "type": "text",
+      "transparent": true,
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HTTP Timing</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
+      }
+    },
+    {
       "id": 1,
       "title": "HTTP Timing Breakdown (Stacked)",
       "type": "barchart",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -76,13 +120,26 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 80 },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 80
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
         "stacking": "normal",
         "barWidth": 0.8,
         "groupWidth": 0.7
@@ -92,8 +149,16 @@
       "id": 2,
       "title": "DNS Lookup Time",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -104,21 +169,43 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 3,
       "title": "TLS Handshake Time",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_tls_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -129,21 +216,43 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 4,
       "title": "TCP Connect Time",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_connect_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -154,21 +263,43 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 5,
       "title": "Time to First Byte (TTFB)",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_ttfb_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -179,21 +310,43 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 6,
       "title": "Transfer Time",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_transfer_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -204,21 +357,43 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 7,
       "title": "Response Size",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 24 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_response_bytes{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -229,25 +404,53 @@
       "fieldConfig": {
         "defaults": {
           "unit": "decbytes",
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1048576 },
-              { "color": "red", "value": 5242880 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1048576
+              },
+              {
+                "color": "red",
+                "value": 5242880
+              }
             ]
           }
         }
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "auto" }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
     },
     {
       "id": 8,
       "title": "HTTP Response Status Codes",
       "type": "table",
-      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 24 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_http_response_status{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -260,11 +463,45 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Value" },
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
             "properties": [
-              { "id": "displayName", "value": "Status Code" },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 300 }, { "color": "orange", "value": 400 }, { "color": "red", "value": 500 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "displayName",
+                "value": "Status Code"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 300
+                    },
+                    {
+                      "color": "orange",
+                      "value": 400
+                    },
+                    {
+                      "color": "red",
+                      "value": 500
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           }
         ]
@@ -273,8 +510,16 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
-            "renameByName": { "name": "Probe", "site_code": "Site" }
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "name": "Probe",
+              "site_code": "Site"
+            }
           }
         }
       ]

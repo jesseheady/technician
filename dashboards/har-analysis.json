@@ -1,51 +1,95 @@
 {
   "uid": "technician-har-analysis",
   "title": "Technician: HAR Resource Analysis",
-  "tags": ["technician", "synthetic-monitoring"],
+  "tags": [
+    "technician",
+    "synthetic-monitoring"
+  ],
   "timezone": "browser",
   "editable": true,
   "refresh": "5m",
-  "time": { "from": "now-1h", "to": "now" },
-  "links": [
-    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
-    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
-    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
-    { "title": "Infrastructure Probes", "type": "link", "url": "/d/technician-infrastructure-probes", "icon": "dashboard", "tooltip": "TCP, DNS, ICMP, gRPC probe details" },
-    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" }
-  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [],
   "templating": {
     "list": [
       {
         "name": "site_code",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_har_resource_bytes, site_code)",
-        "query": { "query": "label_values(technician_har_resource_bytes, site_code)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_har_resource_bytes, site_code)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       },
       {
         "name": "probe",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
         "definition": "label_values(technician_har_resource_bytes{site_code=~\"$site_code\"}, name)",
-        "query": { "query": "label_values(technician_har_resource_bytes{site_code=~\"$site_code\"}, name)", "refId": "A" },
+        "query": {
+          "query": "label_values(technician_har_resource_bytes{site_code=~\"$site_code\"}, name)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       }
     ]
   },
   "panels": [
     {
+      "id": 999,
+      "title": "",
+      "type": "text",
+      "transparent": true,
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HAR Analysis</strong></div>"
+      }
+    },
+    {
       "id": 1,
       "title": "Resource Size by Type",
       "type": "piechart",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (resource_type) (technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
@@ -56,13 +100,28 @@
       "fieldConfig": {
         "defaults": {
           "unit": "decbytes",
-          "color": { "mode": "palette-classic" }
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
-        "tooltip": { "mode": "single" },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "tooltip": {
+          "mode": "single"
+        },
         "pieType": "donut"
       }
     },
@@ -70,8 +129,16 @@
       "id": 2,
       "title": "Total Transfer Size",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 2
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "sum(technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
@@ -85,22 +152,50 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 2097152 },
-              { "color": "red", "value": 5242880 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2097152
+              },
+              {
+                "color": "red",
+                "value": 5242880
+              }
             ]
           },
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         }
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
     },
     {
       "id": 3,
       "title": "Resource Count",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "technician_browser_resource_count{site_code=~\"$site_code\", name=~\"$probe\"}",
@@ -110,11 +205,17 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" }
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "value",
         "graphMode": "area",
         "textMode": "auto"
@@ -124,8 +225,16 @@
       "id": 4,
       "title": "Resource Bytes Over Time by Type",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (resource_type) (technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
@@ -143,22 +252,45 @@
             "pointSize": 5,
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "mode": "normal" }
+            "stacking": {
+              "mode": "normal"
+            }
           },
-          "color": { "mode": "palette-classic" }
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 5,
       "title": "Resource Duration Over Time by Type",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (resource_type) (technician_har_resource_duration_ms{site_code=~\"$site_code\", name=~\"$probe\"})",
@@ -176,14 +308,29 @@
             "pointSize": 5,
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "mode": "normal" }
+            "stacking": {
+              "mode": "normal"
+            }
           },
-          "color": { "mode": "palette-classic" }
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     }
   ],
