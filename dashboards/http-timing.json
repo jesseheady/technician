@@ -10,6 +10,7 @@
     { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
     { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
     { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
+    { "title": "Infrastructure Probes", "type": "link", "url": "/d/technician-infrastructure-probes", "icon": "dashboard", "tooltip": "TCP, DNS, ICMP, gRPC probe details" },
     { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
   ],
   "templating": {

@@ -9,6 +9,7 @@
   "links": [
     { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
     { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
+    { "title": "Infrastructure Probes", "type": "link", "url": "/d/technician-infrastructure-probes", "icon": "dashboard", "tooltip": "TCP, DNS, ICMP, gRPC probe details" },
     { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
     { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
   ],
@@ -43,7 +44,7 @@
       "id": 1,
       "title": "Probe Status Matrix",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
@@ -78,7 +79,7 @@
       "id": 2,
       "title": "Overall Uptime Percentage",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
@@ -111,6 +112,42 @@
       }
     },
     {
+      "id": 5,
+      "title": "Degraded Probes",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Probes where response time exceeds the degraded_after threshold",
+      "targets": [
+        {
+          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "DEGRADED", "color": "orange" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
       "id": 3,
       "title": "All Probes",
       "type": "table",
@@ -128,6 +165,12 @@
           "format": "table",
           "instant": true,
           "refId": "B"
+        },
+        {
+          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
         }
       ],
       "fieldConfig": {
@@ -146,6 +189,14 @@
             "properties": [
               { "id": "displayName", "value": "Duration" },
               { "id": "unit", "value": "s" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #C" },
+            "properties": [
+              { "id": "displayName", "value": "Degraded" },
+              { "id": "mappings", "value": [{ "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "DEGRADED", "color": "orange" } } }] },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
             ]
           },
           {
@@ -202,6 +253,47 @@
             "steps": [
               { "color": "red", "value": null },
               { "color": "green", "value": 1 }
+            ]
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Degraded State Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Tracks which probes are in degraded state (response time exceeds degraded_after threshold)",
+      "targets": [
+        {
+          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
             ]
           },
           "color": { "mode": "palette-classic" }

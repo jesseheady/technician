@@ -1,0 +1,334 @@
+{
+  "uid": "technician-infrastructure-probes",
+  "title": "Technician: Infrastructure Probes",
+  "tags": ["technician", "synthetic-monitoring"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "5m",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    { "title": "Uptime Overview", "type": "link", "url": "/d/technician-uptime-overview", "icon": "dashboard", "tooltip": "Probe uptime and availability" },
+    { "title": "HTTP Timing", "type": "link", "url": "/d/technician-http-timing", "icon": "dashboard", "tooltip": "DNS, TLS, TTFB breakdown" },
+    { "title": "Budget Violations", "type": "link", "url": "/d/technician-budget-violations", "icon": "dashboard", "tooltip": "Performance budget status" },
+    { "title": "Web Vitals", "type": "link", "url": "/d/technician-performance-vitals", "icon": "dashboard", "tooltip": "LCP, INP, CLS metrics" },
+    { "title": "HAR Analysis", "type": "link", "url": "/d/technician-har-analysis", "icon": "dashboard", "tooltip": "Resource waterfall and transfer sizes" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "site_code",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(technician_probe_up, site_code)",
+        "query": { "query": "label_values(technician_probe_up, site_code)", "refId": "A" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "type",
+        "type": "custom",
+        "query": "tcp,dns,icmp,grpc",
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "title": "Infrastructure Probe Status",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_up{type=~\"$type\", site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} ({{type}}) @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 101,
+      "title": "Probe Duration (All Infrastructure)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_duration_seconds{type=~\"$type\", site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} ({{type}}) @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 1,
+      "title": "TCP Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "title": "TCP Connection Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_tcp_connect_seconds{site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "TCP TLS Handshake Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_tcp_tls_seconds{site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 10,
+      "title": "DNS Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "collapsed": false
+    },
+    {
+      "id": 11,
+      "title": "DNS Query Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_dns_query_seconds{site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 20,
+      "title": "ICMP Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "title": "ICMP Packet Loss",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_icmp_packet_loss_percent{site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 25, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 22,
+      "title": "ICMP Average RTT",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_icmp_avg_rtt_seconds{site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 30,
+      "title": "gRPC Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "title": "gRPC Health Status",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_up{type=\"grpc\", site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "NOT SERVING", "color": "red" }, "1": { "text": "SERVING", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 32,
+      "title": "gRPC Probe Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_duration_seconds{type=\"grpc\", site_code=~\"$site_code\"}",
+          "legendFormat": "{{name}} @ {{site_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    }
+  ],
+  "schemaVersion": 39
+}

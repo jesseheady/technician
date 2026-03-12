@@ -274,7 +274,7 @@ Technician's scope is: **everything needed to answer "is my service up, fast, an
 - **Incident management** — Grafana OnCall, PagerDuty, OpsGenie. Technician fires webhooks into these tools, it doesn't replace them.
 - **Complex alerting rules** — Grafana Alerting handles multi-condition, multi-signal alerting with silences, routing, and escalation. Technician's notifications are simple state-transition triggers.
 - **Log aggregation and analysis** — Loki. Technician emits structured logs; it doesn't store, index, or query them.
-- **Dashboarding beyond provisioned set** — Grafana. The 5 provisioned dashboards are a starting point. Custom dashboards are the user's domain.
+- **Dashboarding beyond provisioned set** — Grafana. The 6 provisioned dashboards are a starting point. Custom dashboards are the user's domain.
 - **Domain intelligence / WHOIS** — Different problem domain. Dedicated tools (dnstwist, domain monitoring services) handle this better.
 - **Admin UI / user management / SSO** — Grafana is the UI. Building a second admin interface creates maintenance burden for marginal value.
 - **Full incident timelines and postmortems** — Grafana Incident, Statuspage, or dedicated incident tools. Technician can feed data into these but shouldn't replicate them.

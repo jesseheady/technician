@@ -8,7 +8,7 @@ Technician is a static Go binary (14 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 7 probes active (4 HTTP, 1 SMTP, 2 traceroute) on a Docker Compose stack.
+Numbers below were measured with 7 probes active (4 HTTP, 1 SMTP, 2 traceroute) on a Docker Compose stack. Adding TCP, DNS, ICMP, and gRPC probes does not meaningfully change these numbers — all probe types are lightweight I/O-bound goroutines.
 
 ### Runtime memory
 
@@ -16,7 +16,7 @@ Numbers below were measured with 7 probes active (4 HTTP, 1 SMTP, 2 traceroute) 
 |-----------|-----|-------|
 | Technician (Go process) | ~13 MB | 7 probes, status store, Prometheus registry |
 | Prometheus | ~97 MB | 15-day retention, scraping one target |
-| Grafana | ~304 MB | 5 provisioned dashboards, anonymous viewer |
+| Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~414 MB** | |
 
 ### Image / disk sizes
@@ -436,8 +436,9 @@ SQLite adds ~2 MB to the binary size and negligible runtime overhead. It doesn't
 
 The built-in status page is intentionally lightweight — a real-time view of what this worker sees. For richer views (30-day uptime bars, multi-site matrix, incident history), Grafana is the answer. The Technician dashboards already provide:
 
-- **Uptime overview** — probe status matrix, uptime percentage
+- **Uptime overview** — probe status matrix, uptime percentage, degraded state tracking
 - **HTTP timing** — DNS, TLS, connect, TTFB breakdown over time
+- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health
 - **Web Performance Vitals** — LCP, INP, CLS trends
 - **HAR analysis** — resource breakdown by type
 - **Budget violations** — threshold tracking over time
@@ -448,7 +449,7 @@ For a public-facing status page with extended history, use Grafana's anonymous v
 
 ### Probes only, no Playwright
 
-The lightest deployment. Just the Go binary running HTTP, SMTP, and/or traceroute probes.
+The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, SMTP, and/or traceroute probes.
 
 | Resource | Minimum | Notes |
 |----------|---------|-------|

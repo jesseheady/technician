@@ -391,6 +391,178 @@ func TestLoadHTTPProbesWithRetryAndDegraded(t *testing.T) {
 	}
 }
 
+func TestLoadSMTPProbesWithRetryAndDegraded(t *testing.T) {
+	content := `
+- name: Mail Server
+  host: smtp.example.com
+  port: 587
+  timeout: 5s
+  degraded_after: 3s
+  retry:
+    count: 2
+    backoff: linear
+    delay: 1s
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "smtp.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 1 {
+		t.Fatalf("expected 1 probe, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.Type != ProbeTypeSMTP {
+		t.Errorf("expected type=smtp, got %s", p.Type)
+	}
+	if p.DegradedAfter != 3*time.Second {
+		t.Errorf("expected DegradedAfter=3s, got %s", p.DegradedAfter)
+	}
+	if p.Retry == nil {
+		t.Fatal("expected Retry to be set")
+	}
+	if p.Retry.Count != 2 {
+		t.Errorf("expected retry count=2, got %d", p.Retry.Count)
+	}
+	if p.Retry.Backoff != "linear" {
+		t.Errorf("expected retry backoff=linear, got %s", p.Retry.Backoff)
+	}
+}
+
+func TestLoadTracerouteProbesWithRetryAndDegraded(t *testing.T) {
+	content := `
+- name: Trace Route
+  host: example.com
+  max_hops: 20
+  degraded_after: 10s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "traceroute.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 1 {
+		t.Fatalf("expected 1 probe, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.Type != ProbeTypeTraceroute {
+		t.Errorf("expected type=traceroute, got %s", p.Type)
+	}
+	if p.DegradedAfter != 10*time.Second {
+		t.Errorf("expected DegradedAfter=10s, got %s", p.DegradedAfter)
+	}
+	if p.Retry == nil {
+		t.Fatal("expected Retry to be set")
+	}
+	if p.Retry.Count != 1 {
+		t.Errorf("expected retry count=1, got %d", p.Retry.Count)
+	}
+}
+
+func TestEnvExpansionAllProbeTypes(t *testing.T) {
+	os.Setenv("TEST_HOST", "expanded.example.com")
+	defer os.Unsetenv("TEST_HOST")
+
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	// TCP
+	os.WriteFile(filepath.Join(probesDir, "tcp.yml"), []byte(`
+- name: TCP Test
+  host: ${TEST_HOST}
+  port: 6379
+`), 0o644)
+
+	// DNS
+	os.WriteFile(filepath.Join(probesDir, "dns.yml"), []byte(`
+- name: DNS Test
+  domain: ${TEST_HOST}
+`), 0o644)
+
+	// ICMP
+	os.WriteFile(filepath.Join(probesDir, "icmp.yml"), []byte(`
+- name: ICMP Test
+  host: ${TEST_HOST}
+`), 0o644)
+
+	// gRPC
+	os.WriteFile(filepath.Join(probesDir, "grpc.yml"), []byte(`
+- name: gRPC Test
+  host: ${TEST_HOST}:443
+  tls: true
+`), 0o644)
+
+	// SMTP
+	os.WriteFile(filepath.Join(probesDir, "smtp.yml"), []byte(`
+- name: SMTP Test
+  host: ${TEST_HOST}
+  port: 25
+`), 0o644)
+
+	// Traceroute
+	os.WriteFile(filepath.Join(probesDir, "traceroute.yml"), []byte(`
+- name: Trace Test
+  host: ${TEST_HOST}
+`), 0o644)
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range probes {
+		switch p.Type {
+		case ProbeTypeTCP:
+			if p.TCP.Host != "expanded.example.com" {
+				t.Errorf("TCP: env expansion failed, got host=%s", p.TCP.Host)
+			}
+		case ProbeTypeDNS:
+			if p.DNS.Domain != "expanded.example.com" {
+				t.Errorf("DNS: env expansion failed, got domain=%s", p.DNS.Domain)
+			}
+		case ProbeTypeICMP:
+			if p.ICMP.Host != "expanded.example.com" {
+				t.Errorf("ICMP: env expansion failed, got host=%s", p.ICMP.Host)
+			}
+		case ProbeTypeGRPC:
+			if p.GRPC.Host != "expanded.example.com:443" {
+				t.Errorf("gRPC: env expansion failed, got host=%s", p.GRPC.Host)
+			}
+		case ProbeTypeSMTP:
+			if p.SMTP.Host != "expanded.example.com" {
+				t.Errorf("SMTP: env expansion failed, got host=%s", p.SMTP.Host)
+			}
+		case ProbeTypeTraceroute:
+			if p.Traceroute.Host != "expanded.example.com" {
+				t.Errorf("Traceroute: env expansion failed, got host=%s", p.Traceroute.Host)
+			}
+		}
+	}
+}
+
 func TestLoadHTTPProbeHeaderAssertionValidation(t *testing.T) {
 	content := `
 - name: Bad Header Assert
