@@ -95,7 +95,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 - `docs/architecture/central-prometheus-grafana.md` – Central Prometheus (VPC), Grafana as source of record, local vs phone-home, edge push.
 - `docs/proposals/site-identifiers-edge.md` – Site identifiers when probes run on Workers or Lambda.
 - `docs/proposals/cloudflare-workers.md` – Cloudflare Workers and AWS options (Health Checks, Synthetics, Lambda).
-- `docs/README.md` – Index of testing, mock production, proposals.
+- `docs/README.md` – Index of testing, local development, proposals.
 
 ## CI
 

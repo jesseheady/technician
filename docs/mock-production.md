@@ -1,4 +1,4 @@
-# Mock production configuration
+# Local development configuration
 
 Run Technician locally with **full feature output** (metrics, traces, dashboards) while probing **mock local endpoints** instead of production. Use this for development, demos, and stable e2e validation.
 
@@ -34,23 +34,23 @@ HTTPServer(('0.0.0.0', 8080), H).serve_forever()
 
 Or use a small Go/Node server; keep it running in a terminal.
 
-## 2. Mock production config and probes
+## 2. Local development config and probes
 
-Create a config set used only for local “mock production” runs.
+Create a config set used only for local development runs.
 
-**Option A – Use the provided mock config (recommended)**
+**Option A – Use the provided local config (recommended)**
 
-The repo includes a ready-made mock config under `config/mock-production/`:
+The repo includes a ready-made local config under `examples/local/`:
 
 - `technician.yml` – single site `local`, metrics and local artifacts.
 - `probes/http.yml` – one HTTP probe to `http://localhost:8080/`.
-- `probes/smtp.yml` and `probes/traceroute.yml` – empty; add entries if you run mock SMTP or want traceroute.
 - `budgets.yml` – relaxed thresholds so `validate` passes.
 
-Run the worker with:
+Copy to your config directory and run:
 
 ```bash
-go run . worker --config config/mock-production/technician.yml
+cp -r examples/local/ config/local/
+go run . worker --config config/local/technician.yml
 ```
 
 Start a mock HTTP server on port 8080 first (see [Mock HTTP target](#1-mock-http-target) above).
@@ -83,33 +83,33 @@ go run . worker --config config/technician.yml
 
 2. **Start Technician + Prometheus + Grafana** (terminal 2):
    ```bash
-   # Use mock config; ensure compose mounts the mock config dir
+   # Use local config; ensure compose mounts the config dir
    docker compose -f docker-compose.yml up
    ```
-   If using a separate mock config dir, either:
+   If using a separate config dir, either:
    - Copy it into `config/` and point compose at it, or
-   - Run Technician outside Docker with the mock config and only start Prometheus + Grafana in Docker (and set Prometheus scrape target to host’s Technician port).
+   - Run Technician outside Docker with the local config and only start Prometheus + Grafana in Docker (and set Prometheus scrape target to host's Technician port).
 
-   **Simple approach**: Run Technician on the host with mock config so it can reach `localhost:8080`:
+   **Simple approach**: Run Technician on the host with local config so it can reach `localhost:8080`:
    ```bash
-   go run . worker --config config/mock-production/technician.yml
+   go run . worker --config config/local/technician.yml
    ```
    In another terminal, run only Prometheus + Grafana (e.g. temporarily edit `docker-compose.yml` to remove the `technician` service and set Prometheus to scrape `host.docker.internal:9394` or your host IP).
 
-   **All-in-Docker**: Run the mock HTTP server as another service in `docker-compose.yml` (e.g. image `python:3-slim` with a one-line server), and point probe URLs at that service name (e.g. `http://mock-http:8080/`). Mount mock config and probes into the Technician container.
+   **All-in-Docker**: Run the mock HTTP server as another service in `docker-compose.yml` (e.g. image `python:3-slim` with a one-line server), and point probe URLs at that service name (e.g. `http://mock-http:8080/`). Mount local config and probes into the Technician container.
 
 3. **Verify**
    - [http://localhost:9394/metrics](http://localhost:9394/metrics) – should show `technician_*` metrics updating.
    - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_probe_up`.
    - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock probes.
 
-## 4. Validate against mock config
+## 4. Validate against local config
 
-Use the same mock config and budgets for e2e:
+Use the same local config and budgets for e2e:
 
 ```bash
 # Start mock HTTP server first
-go run . validate --config config/mock-production/technician.yml --budget config/mock-production/budgets.yml
+go run . validate --config config/local/technician.yml --budget config/local/budgets.yml
 ```
 
 Expect exit 0 when thresholds are relaxed and the mock server is up.
@@ -119,15 +119,15 @@ Expect exit 0 when thresholds are relaxed and the mock server is up.
 For SMTP probes without hitting real mail servers:
 
 - Run a local SMTP server that accepts connections (e.g. [inbucket](https://www.inbucket.org/), or a minimal `smtpd` in Python). Point `probes/smtp.yml` at `localhost:25` (or the chosen port).
-- Or leave SMTP probes out of the mock config so only HTTP (and optionally traceroute) run.
+- Or leave SMTP probes out of the local config so only HTTP runs.
 
 ## 6. Summary
 
 | Step | Action |
 |------|--------|
 | 1 | Run mock HTTP (and optionally SMTP) server(s) on localhost. |
-| 2 | Create a mock config dir with `technician.yml` and probes targeting those URLs/hosts. |
+| 2 | Copy `examples/local/` to `config/local/` with probes targeting mock endpoints. |
 | 3 | Run Technician with that config; run Prometheus + Grafana (Docker or host) so they scrape Technician. |
 | 4 | Use the same config + budgets for `validate` to get reproducible e2e. |
 
-This gives you a **mock production** setup: full feature output (metrics, traces, dashboards) against local, controllable endpoints.
+This gives you a **local development** setup: full feature output (metrics, traces, dashboards) against local, controllable endpoints.

@@ -131,6 +131,6 @@ On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivale
 
 - [Alerting](alerting.md) – native webhooks (Discord, Slack), Grafana alerting (recommended), and Alertmanager
 - [Testing and end-to-end validation](testing-and-e2e.md)
-- [Mock production configuration](mock-production.md)
+- [Local development configuration](mock-production.md)
 - [AGENTS.md](../AGENTS.md) – architecture and conventions
 - [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) – sending deployed and edge probe metrics to a central Prometheus in your VPC and using central Grafana as source of record

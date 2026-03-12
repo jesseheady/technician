@@ -77,7 +77,7 @@ go run . validate --config config/technician.yml --budget config/budgets.yml
 - **Exit 0**: All probes ran and no budget violations.
 - **Exit 1**: One or more violations (or probe load/run failure).
 
-Use a **dedicated e2e config** that points at stable or mock targets so results are deterministic (see [Mock production](mock-production.md)).
+Use a **dedicated e2e config** that points at stable or mock targets so results are deterministic (see [Local development](mock-production.md)).
 
 ### 2. Single-probe run
 
