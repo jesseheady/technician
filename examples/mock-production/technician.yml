@@ -1,7 +1,8 @@
 # Mock production config: run Technician locally probing localhost mock endpoints.
 # Start a mock HTTP server on 8080 first, e.g.:
 #   python3 -c "from http.server import HTTPServer, BaseHTTPRequestHandler; ..."
-# Then: technician worker --config examples/mock-production/technician.yml
+# Copy to config/mock-production/ then run:
+# technician worker --config config/mock-production/technician.yml
 
 service: technician
 hostname: localhost

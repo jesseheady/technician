@@ -1,13 +1,23 @@
-- name: "jesseheady.com (traceroute)"
+# Example traceroute probes.
+# Requires mtr (brew install mtr on macOS). May need root for raw sockets.
+
+- name: "example.com (traceroute)"
   group: Infrastructure
-  host: jesseheady.com
+  host: example.com
   max_hops: 30
   count: 3
-  schedule: "0 */2 * * * *"
+  schedule: "0 */5 * * * *"
 
 - name: "Google DNS"
   group: Infrastructure
   host: 8.8.8.8
+  max_hops: 30
+  count: 3
+  schedule: "0 */5 * * * *"
+
+- name: "Cloudflare DNS"
+  group: Infrastructure
+  host: 1.1.1.1
   max_hops: 30
   count: 3
   schedule: "0 */5 * * * *"

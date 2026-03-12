@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -17,6 +18,14 @@ type Config struct {
 	Metrics    MetricsConfig    `yaml:"metrics"`
 	Artifacts  ArtifactsConfig  `yaml:"artifacts"`
 	Playwright PlaywrightConfig `yaml:"playwright"`
+	Webhooks   []WebhookConfig  `yaml:"webhooks"`
+}
+
+type WebhookConfig struct {
+	URL      string        `yaml:"url"`
+	Type     string        `yaml:"type"`     // "discord", "slack", "generic"
+	Events   []string      `yaml:"events"`   // "probe_down", "probe_up", "budget_violation"
+	Cooldown time.Duration `yaml:"cooldown"` // minimum interval between repeated notifications; default 5m
 }
 
 type Site struct {
@@ -76,7 +85,31 @@ func Load(path string) (*Config, error) {
 		cfg.Playwright.Mode = "local"
 	}
 
+	if err := validateWebhooks(cfg.Webhooks); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
+}
+
+var validWebhookTypes = map[string]bool{"discord": true, "slack": true, "generic": true}
+var validWebhookEvents = map[string]bool{"probe_down": true, "probe_up": true, "budget_violation": true}
+
+func validateWebhooks(webhooks []WebhookConfig) error {
+	for i, wh := range webhooks {
+		if wh.URL == "" {
+			return fmt.Errorf("webhook[%d]: url is required", i)
+		}
+		if wh.Type != "" && !validWebhookTypes[wh.Type] {
+			return fmt.Errorf("webhook[%d]: invalid type %q (must be discord, slack, or generic)", i, wh.Type)
+		}
+		for _, e := range wh.Events {
+			if !validWebhookEvents[e] {
+				return fmt.Errorf("webhook[%d]: invalid event %q (must be probe_down, probe_up, or budget_violation)", i, e)
+			}
+		}
+	}
+	return nil
 }
 
 var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)

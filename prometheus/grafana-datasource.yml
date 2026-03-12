@@ -1,3 +1,13 @@
+# Grafana datasource provisioning.
+# To use an external Prometheus (AMP, Grafana Cloud, Thanos, Mimir),
+# change the url below. Dashboards use standard PromQL and work with
+# any Prometheus-compatible backend.
+#
+# Example for AWS Managed Prometheus:
+#   url: https://aps-workspaces.<region>.amazonaws.com/workspaces/<id>
+#   jsonData:
+#     sigV4Auth: true
+#     sigV4Region: <region>
 apiVersion: 1
 datasources:
   - name: Prometheus

@@ -4,9 +4,9 @@ services:
     ports:
       - "9394:9394"
     volumes:
-      - ./examples/technician.yml:/etc/technician/technician.yml:ro
-      - ./examples/probes:/etc/technician/probes:ro
-      - ./examples/budgets.yml:/etc/technician/budgets.yml:ro
+      - ./config/technician.yml:/etc/technician/technician.yml:ro
+      - ./config/probes:/etc/technician/probes:ro
+      - ./config/budgets.yml:/etc/technician/budgets.yml:ro
       - technician_data:/var/lib/technician
     environment:
       - SITE_CODE=local
@@ -21,6 +21,21 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  # alertmanager-discord bridge (optional - only needed if using Alertmanager
+  # with Discord; native webhooks in technician.yml are simpler).
+  # See: https://github.com/benjojo/alertmanager-discord
+  # alertmanager-discord:
+  #   image: benjojo/alertmanager-discord:latest
+  #   environment:
+  #     - DISCORD_WEBHOOK=https://discord.com/api/webhooks/YOUR/WEBHOOK
 
   grafana:
     image: grafana/grafana:latest

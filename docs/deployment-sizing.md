@@ -167,7 +167,7 @@ CGO_ENABLED=0 go build -ldflags="-s -w" -o technician .
 
 # Copy to server
 scp technician yourserver:/usr/local/bin/
-scp -r examples/ yourserver:/etc/technician/
+scp -r config/ yourserver:/etc/technician/
 
 # Run (or use systemd/supervisord)
 ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/technician.yml'
@@ -316,18 +316,18 @@ Technician supports two complementary alerting layers:
 | **Grafana alerting** | Define alert rules in AMG/Grafana that query AMP. Route to SNS, PagerDuty, Slack, etc. via Grafana contact points. |
 | **Alertmanager** | Self-hosted Alertmanager receives alerts from Prometheus rules. Routes to Slack, PagerDuty, email, webhooks. |
 
-**Edge alerting** (planned) — webhooks fired directly from the Technician worker on probe state changes (up→down, down→up). No dependency on the central stack being reachable.
+**Native webhooks** — webhooks fired directly from the Technician worker on probe state changes (up→down, down→up) and budget violations. No dependency on the central stack being reachable.
 
-| | Central (Prometheus/Grafana) | Edge (Technician worker) |
+| | Central (Prometheus/Grafana) | Native (Technician worker) |
 |--|------------------------------|--------------------------|
 | **Latency** | 30–60s (scrape interval + rule eval) | Immediate (fires in the probe goroutine) |
-| **Deduplication** | Alertmanager groups, deduplicates, silences | Simple: fire on state change only |
+| **Deduplication** | Alertmanager groups, deduplicates, silences | Fire on state change only, with per-probe cooldown |
 | **Dependency** | Requires Prometheus + Alertmanager/Grafana to be up | Zero — just an outbound HTTP POST |
 | **Escalation** | Routes by severity, time-of-day, team | Not built-in (use central for complex routing) |
 | **Works on Lambda/edge** | Only if metrics reach Prometheus in time | Yes — fires before the function exits |
 | **Best for** | Full-featured alert management, dashboards, history | Critical "probe down" notifications that must fire no matter what |
 
-Edge alerting is configured in `technician.yml` under `alerts.webhooks` and supports Slack incoming webhooks, PagerDuty Events API v2, and any generic webhook consumer. See [roadmap.md § Edge alerting](roadmap.md#edge-alerting-webhooks) for the implementation plan.
+Native webhooks are configured in `technician.yml` under `webhooks` and support Discord, Slack, and generic HTTP endpoints. See [alerting.md](alerting.md) for configuration details and comparison of all three alerting strategies.
 
 ### Dependency map
 
@@ -337,7 +337,7 @@ Every external dependency Technician touches, and whether it can be swapped:
 |------------|-------------------------|--------------------|----|
 | Prometheus | `prom/prometheus` container | AMP, Grafana Cloud, Thanos, Mimir | Scrape config or remote-write agent |
 | Grafana | `grafana/grafana` container | AMG, Grafana Cloud (free tier) | Datasource + dashboard import |
-| Alertmanager | Not bundled (optional add) | AMG alerting, SNS, PagerDuty via Grafana | Contact point config in Grafana |
+| Alertmanager | `prom/alertmanager` container | AMG alerting, SNS, PagerDuty via Grafana | `prometheus/alertmanager.yml` receivers; or contact point config in Grafana |
 | Artifact storage | Local disk (`/tmp/technician/artifacts`) | S3, R2, MinIO | `artifacts.driver: s3` + bucket/region |
 | OTLP tracing | None (disabled by default) | X-Ray (ADOT), Datadog, Honeycomb | `metrics.otel.endpoint` |
 | DNS/network | Host resolver | Route 53, Cloudflare DNS | N/A (uses OS resolver) |
@@ -359,7 +359,7 @@ Every external dependency Technician touches, and whether it can be swapped:
 Prometheus **is** the time-series database. When Grafana (or the status page) needs "30-day uptime for probe X", it queries:
 
 ```promql
-avg_over_time(technician_probe_up{name="jesseheady.com"}[30d])
+avg_over_time(technician_probe_up{name="example.com"}[30d])
 ```
 
 This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, retention, and aggregation natively. For AMP, retention is 150 days by default (no configuration needed).

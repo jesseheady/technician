@@ -40,7 +40,7 @@ Create a config set used only for local “mock production” runs.
 
 **Option A – Use the provided mock config (recommended)**
 
-The repo includes a ready-made mock config under `examples/mock-production/`:
+The repo includes a ready-made mock config under `config/mock-production/`:
 
 - `technician.yml` – single site `local`, metrics and local artifacts.
 - `probes/http.yml` – one HTTP probe to `http://localhost:8080/`.
@@ -50,17 +50,17 @@ The repo includes a ready-made mock config under `examples/mock-production/`:
 Run the worker with:
 
 ```bash
-go run . worker --config examples/mock-production/technician.yml
+go run . worker --config config/mock-production/technician.yml
 ```
 
 Start a mock HTTP server on port 8080 first (see [Mock HTTP target](#1-mock-http-target) above).
 
 **Option B – Override with env vars**
 
-Keep using `examples/technician.yml` and `examples/probes/`, but add env var expansion and a mock URL:
+Keep using `config/technician.yml` and `config/probes/`, but add env var expansion and a mock URL:
 
 ```yaml
-# In examples/probes/http.yml (or a copy)
+# In config/probes/http.yml (or a copy)
 - name: Mock Website
   url: ${MOCK_HTTP_URL}
   expected_status: 200
@@ -71,7 +71,7 @@ Then run:
 
 ```bash
 export MOCK_HTTP_URL=http://localhost:8080/
-go run . worker --config examples/technician.yml
+go run . worker --config config/technician.yml
 ```
 
 ## 3. Run the stack with mock targets
@@ -87,12 +87,12 @@ go run . worker --config examples/technician.yml
    docker compose -f docker-compose.yml up
    ```
    If using a separate mock config dir, either:
-   - Copy it into `examples/` and point compose at it, or
+   - Copy it into `config/` and point compose at it, or
    - Run Technician outside Docker with the mock config and only start Prometheus + Grafana in Docker (and set Prometheus scrape target to host’s Technician port).
 
    **Simple approach**: Run Technician on the host with mock config so it can reach `localhost:8080`:
    ```bash
-   go run . worker --config examples/mock-production/technician.yml
+   go run . worker --config config/mock-production/technician.yml
    ```
    In another terminal, run only Prometheus + Grafana (e.g. temporarily edit `docker-compose.yml` to remove the `technician` service and set Prometheus to scrape `host.docker.internal:9394` or your host IP).
 
@@ -109,7 +109,7 @@ Use the same mock config and budgets for e2e:
 
 ```bash
 # Start mock HTTP server first
-go run . validate --config examples/mock-production/technician.yml --budget examples/mock-production/budgets.yml
+go run . validate --config config/mock-production/technician.yml --budget config/mock-production/budgets.yml
 ```
 
 Expect exit 0 when thresholds are relaxed and the mock server is up.

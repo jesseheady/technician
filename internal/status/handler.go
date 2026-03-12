@@ -10,6 +10,7 @@ import (
 )
 
 var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
+	"sub": func(a, b int) int { return a - b },
 	"fmtMs": func(ms float64) string {
 		if ms < 1000 {
 			return fmt.Sprintf("%dms", int(math.Round(ms)))
@@ -155,6 +156,11 @@ const pageHTML = `{{define "probe-card"}}
       {{if .DownSince}}<span class="down-since">{{.DownSince}}</span>{{end}}
       {{if eq .Status "error"}}<span class="error-label">probe error</span>{{end}}
     </div>
+    {{if .BudgetChecks}}
+    <div class="budget-row">
+      {{range .BudgetChecks}}<span class="budget-badge {{if .Violated}}fail{{else}}pass{{end}}">{{.Metric}}</span>{{end}}
+    </div>
+    {{end}}
   </div>
 {{end}}<!DOCTYPE html>
 <html lang="en">
@@ -195,7 +201,7 @@ a:hover{color:var(--text)}
 .links{display:flex;gap:16px;font-size:12px}
 
 /* banner */
-.banner{border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+.banner{border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
 .banner.operational{border-color:color-mix(in srgb,var(--green) 30%,var(--border));background:var(--green-dim)}
 .banner.degraded{border-color:color-mix(in srgb,var(--amber) 30%,var(--border));background:var(--amber-dim)}
 .banner.down{border-color:color-mix(in srgb,var(--red) 30%,var(--border));background:var(--red-dim)}
@@ -206,6 +212,15 @@ a:hover{color:var(--text)}
 .dot.down{background:var(--red);box-shadow:0 0 6px var(--red)}
 .dot.pending{background:var(--text-mute)}
 .banner-text{font-size:13px;font-weight:500}
+
+/* summary strip */
+.summary{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;font-family:var(--mono);color:var(--text-dim);padding:0 4px;margin-bottom:20px}
+.summary .sep{color:var(--text-mute)}
+.summary .stat{display:inline-flex;align-items:center;gap:4px}
+.summary .stat-val{color:var(--text);font-weight:500}
+.summary .stat-val.warn{color:var(--amber)}
+.summary .stat-val.bad{color:var(--red)}
+.summary .stat-val.good{color:var(--green)}
 
 /* type filter — radios and labels are bare siblings in body */
 .type-filters{display:none}
@@ -260,6 +275,12 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .down-since{color:var(--red);font-weight:500}
 .error-label{color:var(--amber);font-weight:500}
 
+/* budget badges */
+.budget-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.budget-badge{font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:3px}
+.budget-badge.pass{color:var(--green);background:var(--green-dim)}
+.budget-badge.fail{color:var(--red);background:var(--red-dim);font-weight:500}
+
 .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:var(--text-mute)}
 </style>
@@ -290,6 +311,16 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 </div>
 
 {{if .Probes}}
+<div class="summary" id="summary">
+  <span class="stat"><span class="stat-val {{if eq .Summary.Down 0}}good{{else}}bad{{end}}">{{.Summary.Up}}/{{.Summary.Total}}</span> probes up</span>
+  {{if gt .Summary.Down 0}}<span class="sep">&middot;</span>
+  <span class="stat"><span class="stat-val bad">{{.Summary.Down}}</span> down</span>{{end}}
+  {{if gt .Summary.Error 0}}<span class="sep">&middot;</span>
+  <span class="stat"><span class="stat-val warn">{{.Summary.Error}}</span> errors</span>{{end}}
+  {{if gt .Summary.BudgetTotal 0}}<span class="sep">&middot;</span>
+  <span class="stat">Budgets: <span class="stat-val {{if eq .Summary.BudgetViolations 0}}good{{else if gt .Summary.BudgetViolations 2}}bad{{else}}warn{{end}}">{{sub .Summary.BudgetTotal .Summary.BudgetViolations}}/{{.Summary.BudgetTotal}}</span> passing</span>{{end}}
+</div>
+
 {{if gt (len .Types) 1}}
 <input type="radio" name="type-filter" id="filter-all" checked>
 <label for="filter-all">all</label>
@@ -364,9 +395,11 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       document.querySelectorAll('details[data-group]').forEach(function(d){
         states[d.getAttribute('data-group')]=d.open;
       });
-      // Update banner
+      // Update banner + summary
       var nb=doc.querySelector('.banner'), ob=document.querySelector('.banner');
       if(nb&&ob) ob.replaceWith(nb);
+      var ns2=doc.getElementById('summary'), os2=document.getElementById('summary');
+      if(ns2&&os2) os2.replaceWith(ns2);
       // Update probe groups/list
       var groups=document.querySelectorAll('.group');
       var newGroups=doc.querySelectorAll('.group');

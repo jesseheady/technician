@@ -2,8 +2,24 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Alertmanager routing. Change target to use an external Alertmanager:
+#   - alertmanager.your-company.com:9093
+# Or remove this section entirely if using Grafana-managed alerting.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
 rule_files:
   - rules.yml
+
+# To push metrics to a remote Prometheus (AMP, Grafana Cloud, Mimir):
+# remote_write:
+#   - url: https://prometheus-prod.grafana.net/api/prom/push
+#     basic_auth:
+#       username: '<id>'
+#       password: '<api_key>'
 
 scrape_configs:
   - job_name: technician

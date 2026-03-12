@@ -1,5 +1,14 @@
+# Example SMTP probes.
+# Tests that the SMTP server accepts connections on the given port.
+
 - name: Gmail SMTP
   group: Infrastructure
   host: smtp.gmail.com
   port: 587
   schedule: "0 */5 * * * *"
+
+# - name: Company Mail
+#   group: Infrastructure
+#   host: smtp.example.com
+#   port: 25
+#   schedule: "0 */5 * * * *"

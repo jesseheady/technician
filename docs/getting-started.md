@@ -23,19 +23,30 @@ From the project root:
 
 This checks Go, Node (if needed), and optional tools; installs Go dependencies; builds the binary; and optionally starts the full stack. See [scripts/init-mac.sh](../scripts/init-mac.sh) for what it does.
 
+## Configuration layout
+
+```
+examples/          # Reference configs with placeholder values (checked in)
+config/            # Your local/production configs (gitignored)
+```
+
+To get started, copy the examples to `config/` and customise:
+
+```bash
+cp -r examples/ config/
+# Edit config/probes/http.yml, config/technician.yml, etc.
+```
+
 ## Run the worker (minimal)
 
-Using the example config and probes:
+```bash
+go run . worker --config config/technician.yml
+```
+
+Or with the example configs directly (placeholder targets):
 
 ```bash
 go run . worker --config examples/technician.yml
-```
-
-Or after building:
-
-```bash
-go build -o technician .
-./technician worker --config examples/technician.yml
 ```
 
 - Status page: [http://localhost:9394/](http://localhost:9394/) — real-time probe status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
@@ -53,21 +64,22 @@ docker compose up
 ```
 
 - **Technician**: metrics on port 9394 (inside the compose network).
-- **Prometheus**: [http://localhost:9090](http://localhost:9090) – scrapes Technician.
+- **Prometheus**: [http://localhost:9090](http://localhost:9090) – scrapes Technician, evaluates alert rules.
+- **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Slack, Discord, PagerDuty, etc. Configure receivers in `prometheus/alertmanager.yml`.
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
-Config and probes are mounted from `examples/`. To use your own, change the volume paths in `docker-compose.yml` or pass a different config at build/runtime. `SITE_CODE` only affects metric labels (`site_code`, `site_city`, `site_country`); Compose uses `SITE_CODE=local` so the example config’s “local” site is used and labels stay distinct from real regions. You can also set it from hostname (e.g. `SITE_CODE=$(hostname)`) if you want a durable per-host identifier.
+Config and probes are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`site_code`, `site_city`, `site_country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
 
 ## Probe configuration
 
-Probes are defined in YAML files under the probes directory (see `examples/probes/`). Each probe type has its own file: `http.yml`, `smtp.yml`, `traceroute.yml`, and `playwright/playwright.yml`.
+Probes are defined in YAML files under the probes directory (see `examples/probes/` for reference). Each probe type has its own file: `http.yml`, `smtp.yml`, `traceroute.yml`, and `playwright/playwright.yml`.
 
 **Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
 
 ```yaml
-- name: jesseheady.com
+- name: example.com
   group: Marketing
-  url: https://jesseheady.com
+  url: https://example.com
   schedule: "*/60 * * * * *"
 ```
 
@@ -86,22 +98,22 @@ Probes are defined in YAML files under the probes directory (see `examples/probe
 
 Examples: `*/60 * * * * *` (every 60 seconds), `0 */5 * * * *` (every 5 minutes at second 0), `0 0 * * * *` (every hour).
 
-**Persistence**: Probe history is persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures history survives container rebuilds.
+**Persistence**: Probe history and budget check state are persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures state survives container rebuilds.
 
 ## Run a single probe (debug)
 
 ```bash
-go run . probe --name "Example Website" --config examples/technician.yml
+go run . probe --name "example.com" --config config/technician.yml
 ```
 
-Probe name must match a `name` in your probe definitions under `examples/probes/`.
+Probe name must match a `name` in your probe definitions under `config/probes/`.
 
 ## Validate (probes + budgets)
 
 Runs all probes once and checks them against performance budgets. Exits 0 if all pass, 1 if any budget is violated:
 
 ```bash
-go run . validate --config examples/technician.yml --budget examples/budgets.yml
+go run . validate --config config/technician.yml --budget config/budgets.yml
 ```
 
 Output formats: `--output text` (default), `--output json`, `--output gha` (GitHub Actions annotations).
@@ -110,12 +122,14 @@ Output formats: `--output text` (default), `--output json`, `--output gha` (GitH
 
 1. Install Go 1.25+ and ensure `go` is on your `PATH`.
 2. From the repo root: `go mod download` then `go build -o technician .`.
-3. Run as above: `./technician worker --config examples/technician.yml`.
+3. Copy examples to config: `cp -r examples/ config/` and customise.
+4. Run: `./technician worker --config config/technician.yml`.
 
 On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivalent). For Playwright probes you need Node.js and the Playwright Chromium browser (see Dockerfile or run `npx playwright install chromium` in a Node environment).
 
 ## Next steps
 
+- [Alerting](alerting.md) – native webhooks (Discord, Slack), Grafana alerting (recommended), and Alertmanager
 - [Testing and end-to-end validation](testing-and-e2e.md)
 - [Mock production configuration](mock-production.md)
 - [AGENTS.md](../AGENTS.md) – architecture and conventions

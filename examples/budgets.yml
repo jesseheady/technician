@@ -1,59 +1,37 @@
-# ── Global defaults ───────────────────────────────────────────────
+# Example performance budgets.
+# Probe names must match entries in your probes/ directory.
+# Copy to config/budgets.yml and customise thresholds for your targets.
+
+# Global defaults (applied to any probe not listed below)
 - probe: "*"
   thresholds:
-    duration: 10000
+    duration: 10000   # 10s total request time
   alert_on: exceed
 
-# ── jesseheady.com (static S3 + CloudFront) ──────────────────────
-- probe: jesseheady.com
+# HTTP probe budgets
+- probe: example.com
   thresholds:
     duration: 3000
     ttfb: 800
     dns: 250
     tls: 150
-    lcp: 1500
-    inp: 100
-    cls: 0.05
   alert_on: exceed
 
-# ── jesseheady.com desktop (Playwright) ──────────────────────────
-- probe: "jesseheady.com (desktop)"
+# Browser (Playwright) probe budgets
+- probe: "example.com (desktop)"
   thresholds:
     duration: 30000
-    lcp: 2500
-    inp: 200
-    cls: 0.1
+    lcp: 2500         # Largest Contentful Paint
+    inp: 200          # Interaction to Next Paint
+    cls: 0.1          # Cumulative Layout Shift
     dom_complete: 5000
   alert_on: exceed
 
-# ── jesseheady.com mobile 4G (Playwright) ────────────────────────
-- probe: "jesseheady.com (mobile 4g)"
+- probe: "example.com (mobile 4g)"
   thresholds:
     duration: 30000
     lcp: 4000
     inp: 300
     cls: 0.15
     dom_complete: 8000
-  alert_on: exceed
-
-# ── jesseheady.com mobile 3G (Playwright) ────────────────────────
-- probe: "jesseheady.com (mobile 3g)"
-  thresholds:
-    duration: 45000
-    lcp: 6000
-    inp: 500
-    cls: 0.2
-    dom_complete: 15000
-  alert_on: exceed
-
-- probe: jesseheady.com/feed
-  thresholds:
-    duration: 5000
-    ttfb: 1000
-  alert_on: exceed
-
-- probe: jesseheady.com/robots
-  thresholds:
-    duration: 2000
-    ttfb: 500
   alert_on: exceed

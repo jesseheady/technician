@@ -14,8 +14,11 @@ Technician is a **synthetic monitoring orchestrator**: it runs health-check prob
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
 | `internal/budget/` | YAML budgets, threshold evaluation, reporters (text, JSON, GHA) |
 | `internal/exporter/` | Blackbox-exporter–compatible `/probe` handler |
+| `internal/notify/` | Webhook notifications: Discord, Slack, generic HTTP |
+| `internal/status/` | In-memory probe store, budget badge tracking, status page + JSON API |
 | `internal/playwright/` | Go orchestrator + embedded Node.js run script |
-| `examples/` | Sample `technician.yml`, `probes/`, `budgets.yml` |
+| `config/` | Local/production configs (gitignored — copy from `examples/`) |
+| `examples/` | Reference configs with placeholder values |
 | `dashboards/` | Grafana JSON dashboards |
 | `prometheus/` | Prometheus config, rules, Grafana provisioning |
 
@@ -25,17 +28,33 @@ Technician is a **synthetic monitoring orchestrator**: it runs health-check prob
 - **`technician probe --name <name>`** – Run a single probe by name (for debugging).
 - **`technician serve`** – Serve-only mode (metrics/health).
 - **`technician validate`** – Run all probes, evaluate budgets, exit 0/1 (CI).
+- **`technician test-webhook`** – Send a test notification to all configured webhooks.
 
 Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), `--verbose` / `-v`.
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright`.
+- **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright`, `webhooks`.
 - **Probes**: Loaded from directory next to config: `<config_dir>/probes/`:
   - `http.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type.
   - Playwright: `probes/playwright/playwright.yml` (or `probes/playwright.yml`) + script files.
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
+- **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation), and `cooldown` (default 5m). Notifications fire on state transitions, not every probe run.
+- **Config layout**: `examples/` has reference configs with placeholder values (checked in). Copy to `config/` for local/production use (gitignored). Docker Compose mounts from `config/`.
 - All YAML supports `${ENV_VAR}` expansion.
+
+## Alerting
+
+Three strategies (see `docs/alerting.md`):
+
+1. **Grafana alerting** (recommended) – Native contact points for Discord, Slack, PagerDuty, etc. Rich UI for silencing, grouping, history.
+2. **Native webhooks** – Direct from Technician via `webhooks` config. Simple, no external stack needed. Fires on probe state transitions and new budget violations with per-probe cooldown.
+3. **Prometheus Alertmanager** – Rule-based routing via `prometheus/rules.yml` and `prometheus/alertmanager.yml`. Discord requires a bridge container (`alertmanager-discord`); Slack/PagerDuty/Email work natively.
+
+## Status page and persistence
+
+- **Status page**: HTML at `/`, JSON API at `/api/status`. Shows probe health, history bars, budget badges (pass/fail per metric), and overall status (operational/degraded/down).
+- **Persistence**: Probe history (90-entry ring buffer per probe), down-since timestamps, and budget check state are persisted to `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). Budget badges survive restarts.
 
 ## Probe model
 
@@ -62,7 +81,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 ## Run and test
 
 ```bash
-go run . worker --config examples/technician.yml
+go run . worker --config config/technician.yml
 go test ./...
 go vet ./...
 ```
@@ -71,6 +90,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 ## Documentation
 
+- `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
 - `docs/getting-started.md` – Prerequisites, init script (Mac), run worker and full stack.
 - `docs/architecture/central-prometheus-grafana.md` – Central Prometheus (VPC), Grafana as source of record, local vs phone-home, edge push.
 - `docs/proposals/site-identifiers-edge.md` – Site identifiers when probes run on Workers or Lambda.
@@ -81,4 +101,4 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 - `.github/workflows/canary.yml` – canary synthetic check in CI.
 
-When editing code, preserve existing patterns: probe results feed metrics and (where applicable) OTLP; new metrics should follow the naming in `internal/metrics/prometheus.go`; budget metric names must match threshold keys in `budgets.yml`. Playwright prober exists but is not yet registered in `cmd/worker.go`; add it there (and in `validate` if desired) to run browser probes.
+When editing code, preserve existing patterns: probe results feed metrics and (where applicable) OTLP; new metrics should follow the naming in `internal/metrics/prometheus.go`; budget metric names must match threshold keys in `budgets.yml`.

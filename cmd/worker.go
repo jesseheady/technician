@@ -14,6 +14,7 @@ import (
 	"github.com/monkeyWzr/technician/internal/config"
 	"github.com/monkeyWzr/technician/internal/exporter"
 	"github.com/monkeyWzr/technician/internal/metrics"
+	"github.com/monkeyWzr/technician/internal/notify"
 	"github.com/monkeyWzr/technician/internal/scheduler"
 	"github.com/monkeyWzr/technician/internal/status"
 	"github.com/spf13/cobra"
@@ -96,15 +97,21 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	// Drain results: store + budget evaluation + log
+	// Webhook notifications (nil if none configured)
+	notifier := notify.NewManager(cfg.Webhooks)
+
+	// Drain results: store + budget evaluation + notifications + log
 	site := cfg.ResolveSite(siteCode)
 	go func() {
 		for result := range sched.Results() {
 			store.Push(result)
+			notifier.HandleResult(ctx, result)
 
 			if len(budgets) > 0 && !result.InfraError {
 				for _, c := range budget.EvaluateAll(result, budgets) {
 					metrics.RecordBudgetViolation(c.Probe, c.Metric, c.Violated, site)
+					store.RecordBudgetCheck(c.Probe, c.Metric, c.Violated)
+					notifier.HandleBudgetViolation(ctx, c.Probe, c.Metric, c.Violated)
 					if c.Violated {
 						slog.Warn("Budget violation",
 							"probe", c.Probe,
@@ -149,6 +156,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	<-sigCh
 
 	slog.Info("Shutting down")
+	notifier.Wait()
 	store.Save()
 	cancel()
 
