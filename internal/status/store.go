@@ -30,15 +30,22 @@ type Entry struct {
 	TTFBMs     float64 `json:"ttfb_ms,omitempty"`
 }
 
+// BudgetCheck is a single budget metric evaluation for display on the status page.
+type BudgetCheck struct {
+	Metric   string `json:"metric"`
+	Violated bool   `json:"violated"`
+}
+
 // ProbeState is the current state of a single probe.
 type ProbeState struct {
-	Name      string           `json:"name"`
-	Type      config.ProbeType `json:"type"`
-	Status    string           `json:"status"`    // "up", "down", "pending"
-	DownSince string           `json:"down_since"` // human-readable, e.g. "for 2h 15m"
-	Uptime    string           `json:"uptime"`    // e.g. "99.7%"
-	Latest    *Entry           `json:"latest,omitempty"`
-	History   []Entry          `json:"history"`
+	Name         string           `json:"name"`
+	Type         config.ProbeType `json:"type"`
+	Status       string           `json:"status"`    // "up", "down", "pending"
+	DownSince    string           `json:"down_since"` // human-readable, e.g. "for 2h 15m"
+	Uptime       string           `json:"uptime"`    // e.g. "99.7%"
+	Latest       *Entry           `json:"latest,omitempty"`
+	History      []Entry          `json:"history"`
+	BudgetChecks []BudgetCheck    `json:"budget_checks,omitempty"`
 }
 
 // ProbeGroup is a named group of probes for the status page.
@@ -47,12 +54,23 @@ type ProbeGroup struct {
 	Probes []ProbeState `json:"probes"`
 }
 
+// Summary provides aggregate counts for the status page header.
+type Summary struct {
+	Total            int `json:"total"`
+	Up               int `json:"up"`
+	Down             int `json:"down"`
+	Error            int `json:"error"`
+	BudgetTotal      int `json:"budget_total"`
+	BudgetViolations int `json:"budget_violations"`
+}
+
 // Snapshot is the full status payload returned by the API.
 type Snapshot struct {
 	Service   string       `json:"service"`
 	Site      *SiteInfo    `json:"site,omitempty"`
 	Overall   string       `json:"overall"` // "operational", "degraded", "down"
-	Types     []string     `json:"types"`   // distinct probe types present
+	Summary   Summary      `json:"summary"`
+	Types     []string     `json:"types"` // distinct probe types present
 	Groups    []ProbeGroup `json:"groups"`
 	Probes    []ProbeState `json:"probes"`
 	UpdatedAt time.Time    `json:"updated_at"`
@@ -72,6 +90,13 @@ type Store struct {
 	service string
 	site    *SiteInfo
 	path    string // file path for persistence; empty = no persistence
+
+	budgetMu     sync.RWMutex
+	budgetChecks map[string]budgetState // keyed by "probe:metric"
+}
+
+type budgetState struct {
+	violated bool
 }
 
 type probeRing struct {
@@ -150,6 +175,16 @@ func (s *Store) Push(r *probe.Result) {
 	}
 }
 
+// RecordBudgetCheck updates the per-check budget state for the status page summary.
+func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) {
+	s.budgetMu.Lock()
+	if s.budgetChecks == nil {
+		s.budgetChecks = make(map[string]budgetState)
+	}
+	s.budgetChecks[probe+":"+metric] = budgetState{violated: violated}
+	s.budgetMu.Unlock()
+}
+
 // Snapshot returns the current status of all probes.
 func (s *Store) Snapshot() *Snapshot {
 	s.mu.RLock()
@@ -163,6 +198,7 @@ func (s *Store) Snapshot() *Snapshot {
 
 	upCount := 0
 	downCount := 0
+	errCount := 0
 	typesSeen := make(map[string]bool)
 	groupMap := make(map[string]*ProbeGroup)
 	var groupOrder []string
@@ -188,7 +224,7 @@ func (s *Store) Snapshot() *Snapshot {
 				upCount++
 			} else if last.InfraError {
 				ps.Status = "error"
-				// Infra errors don't count as the target being down
+				errCount++
 			} else {
 				ps.Status = "down"
 				downCount++
@@ -232,6 +268,50 @@ func (s *Store) Snapshot() *Snapshot {
 	default:
 		snap.Overall = "pending"
 	}
+
+	s.budgetMu.RLock()
+	budgetViolations := 0
+	probeBudgets := make(map[string][]BudgetCheck) // keyed by probe name
+	for key, bs := range s.budgetChecks {
+		if bs.violated {
+			budgetViolations++
+		}
+		// key format: "probeName:metric"
+		for i := len(key) - 1; i >= 0; i-- {
+			if key[i] == ':' {
+				probeName := key[:i]
+				metric := key[i+1:]
+				probeBudgets[probeName] = append(probeBudgets[probeName], BudgetCheck{
+					Metric:   metric,
+					Violated: bs.violated,
+				})
+				break
+			}
+		}
+	}
+	// Attach budget checks to probes
+	for i := range snap.Probes {
+		if checks, ok := probeBudgets[snap.Probes[i].Name]; ok {
+			snap.Probes[i].BudgetChecks = checks
+		}
+	}
+	// Also update probes inside groups
+	for gi := range snap.Groups {
+		for pi := range snap.Groups[gi].Probes {
+			if checks, ok := probeBudgets[snap.Groups[gi].Probes[pi].Name]; ok {
+				snap.Groups[gi].Probes[pi].BudgetChecks = checks
+			}
+		}
+	}
+	snap.Summary = Summary{
+		Total:            len(s.order),
+		Up:               upCount,
+		Down:             downCount,
+		Error:            errCount,
+		BudgetTotal:      len(s.budgetChecks),
+		BudgetViolations: budgetViolations,
+	}
+	s.budgetMu.RUnlock()
 
 	return snap
 }
@@ -289,8 +369,9 @@ type persistedRing struct {
 }
 
 type persistedStore struct {
-	Order []string                 `json:"order"`
-	Rings map[string]persistedRing `json:"rings"`
+	Order        []string                 `json:"order"`
+	Rings        map[string]persistedRing `json:"rings"`
+	BudgetChecks map[string]bool          `json:"budget_checks,omitempty"` // "probe:metric" -> violated
 }
 
 // Save writes the current store state to disk. Safe to call concurrently.
@@ -314,6 +395,15 @@ func (s *Store) Save() {
 		}
 	}
 	s.mu.RUnlock()
+
+	s.budgetMu.RLock()
+	if len(s.budgetChecks) > 0 {
+		ps.BudgetChecks = make(map[string]bool, len(s.budgetChecks))
+		for key, bs := range s.budgetChecks {
+			ps.BudgetChecks[key] = bs.violated
+		}
+	}
+	s.budgetMu.RUnlock()
 
 	data, err := json.Marshal(ps)
 	if err != nil {
@@ -362,5 +452,12 @@ func (s *Store) load() {
 		}
 	}
 
-	slog.Info("Loaded status store from disk", "probes", len(s.probes), "path", s.path)
+	if len(ps.BudgetChecks) > 0 {
+		s.budgetChecks = make(map[string]budgetState, len(ps.BudgetChecks))
+		for key, violated := range ps.BudgetChecks {
+			s.budgetChecks[key] = budgetState{violated: violated}
+		}
+	}
+
+	slog.Info("Loaded status store from disk", "probes", len(s.probes), "budget_checks", len(s.budgetChecks), "path", s.path)
 }

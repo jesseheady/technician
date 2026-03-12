@@ -40,7 +40,7 @@ Synthetic monitoring orchestrator. Runs health-check probes (HTTP, SMTP, tracero
 **Minimal (Go binary only):**
 
 ```bash
-go run . worker --config examples/technician.yml
+go run . worker --config config/technician.yml
 ```
 
 Metrics at [http://localhost:9394/metrics](http://localhost:9394/metrics), health at [http://localhost:9394/health](http://localhost:9394/health).
@@ -73,7 +73,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` en
 - **Budgets** — Optional `budgets.yml` with per-probe thresholds for `validate`.
 - All YAML files support `${ENV_VAR}` expansion.
 
-See [examples/](examples/) for sample configurations.
+See [examples/](examples/) for reference configs. Copy to `config/` and customise for your targets.
 
 ## Deployment
 
@@ -117,7 +117,7 @@ Technician is built around Prometheus pull-based scraping because:
 ```bash
 go test ./...
 go vet ./...
-go run . worker --config examples/technician.yml
+go run . worker --config config/technician.yml
 ```
 
 Docker rebuild after code changes:

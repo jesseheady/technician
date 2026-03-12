@@ -64,6 +64,42 @@ groups:
           summary: "High TTFB for {{ $labels.name }}"
           description: "TTFB for {{ $labels.name }} is {{ $value }}s."
 
+      - alert: HighDNS
+        expr: technician_http_dns_seconds > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High DNS latency for {{ $labels.name }}"
+          description: "DNS lookup for {{ $labels.name }} is {{ $value }}s (threshold 250ms)."
+
+      - alert: HighTLS
+        expr: technician_http_tls_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TLS latency for {{ $labels.name }}"
+          description: "TLS handshake for {{ $labels.name }} is {{ $value }}s (threshold 500ms)."
+
+      - alert: HighCLS
+        expr: technician_browser_cls > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CLS for {{ $labels.name }}"
+          description: "Cumulative Layout Shift for {{ $labels.name }} is {{ $value }} (good ≤0.1)."
+
+      - alert: HighResourceCount
+        expr: technician_browser_resource_count > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High resource count for {{ $labels.name }}"
+          description: "{{ $labels.name }} loaded {{ $value }} resources (threshold 100)."
+
       - alert: HighErrorRate
         expr: |
           sum by (name) (technician_probe_up == 0)
@@ -74,3 +110,16 @@ groups:
         annotations:
           summary: "High error rate for {{ $labels.name }}"
           description: "More than 50% of probes for {{ $labels.name }} are failing."
+
+      # ── Test alert ──────────────────────────────────────────────
+      # Uncomment to validate the full alert pipeline:
+      #   Prometheus rule → Alertmanager → receiver (Discord, Slack, etc.)
+      # Fires immediately with no conditions. Re-comment after testing.
+      # - alert: TestAlert
+      #   expr: vector(1)
+      #   for: 0m
+      #   labels:
+      #     severity: warning
+      #   annotations:
+      #     summary: "Test alert - pipeline validation"
+      #     description: "This is a test alert to verify Alertmanager routing. Safe to ignore."

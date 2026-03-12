@@ -17,6 +17,10 @@ Thumbs.db
 *.har
 *.webm
 
+# Local/production configs (may contain webhook URLs, API keys, etc.)
+# Copy from examples/ and customise: cp -r examples/ config/
+/config/
+
 # Environment
 .env
 .env.*

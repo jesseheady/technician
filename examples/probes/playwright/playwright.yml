@@ -1,24 +1,27 @@
-- name: "jesseheady.com (desktop)"
+# Example Playwright (browser) probes.
+# Requires Node.js 18+ and Playwright Chromium browser.
+
+- name: "example.com (desktop)"
   group: Marketing
   script: playwright/example_flow.js
-  base_url: "https://jesseheady.com"
+  base_url: "https://example.com"
   schedule: "0 */5 * * * *"
   timeout: 120s
 
-- name: "jesseheady.com (mobile 4g)"
+- name: "example.com (mobile 4g)"
   group: Marketing
   script: playwright/example_flow.js
-  base_url: "https://jesseheady.com"
+  base_url: "https://example.com"
   network: "4g"
   device: "iPhone 14"
   schedule: "0 */5 * * * *"
   timeout: 120s
 
-- name: "jesseheady.com (mobile 3g)"
-  group: Marketing
-  script: playwright/example_flow.js
-  base_url: "https://jesseheady.com"
-  network: "3g"
-  device: "iPhone 14"
-  schedule: "0 */5 * * * *"
-  timeout: 120s
+# Slow network example:
+# - name: "example.com (mobile 3g)"
+#   script: playwright/example_flow.js
+#   base_url: "https://example.com"
+#   network: "3g"
+#   device: "iPhone 14"
+#   schedule: "0 */10 * * * *"
+#   timeout: 180s

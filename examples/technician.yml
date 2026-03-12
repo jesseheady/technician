@@ -2,7 +2,6 @@ service: technician
 hostname: monitor.example.com
 
 sites:
-  # For local/docker development; use SITE_CODE=local so labels stay distinct from real regions
   - code: local
     city: Local
     country: US
@@ -32,3 +31,24 @@ artifacts:
 
 playwright:
   mode: local
+
+# Native webhook notifications (optional).
+# Technician sends notifications directly — no Alertmanager or Grafana needed.
+# For richer alerting (silencing, grouping, escalation, alert history),
+# use Grafana alerting instead (see docs/alerting.md).
+#
+# webhooks:
+#   - url: https://discord.com/api/webhooks/ID/TOKEN
+#     type: discord
+#     events: [probe_down, probe_up, budget_violation]
+#     cooldown: 5m
+#
+#   - url: https://hooks.slack.com/services/T.../B.../xxx
+#     type: slack
+#     events: [probe_down, probe_up]
+#     cooldown: 5m
+#
+#   - url: https://your-endpoint.example.com/alerts
+#     type: generic    # posts Event JSON to any HTTP endpoint
+#     events: [probe_down, budget_violation]
+#     cooldown: 10m

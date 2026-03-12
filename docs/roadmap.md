@@ -1,6 +1,6 @@
 # Roadmap
 
-Work that's been planned or partially designed but not yet implemented.
+Work that's been planned or partially designed but not yet implemented. See also [Recently completed](#recently-completed) for items that have shipped.
 
 ## Edge deployment adapters
 
@@ -49,46 +49,6 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 **Path B: Embedded SQLite** — Use `modernc.org/sqlite` (pure Go, no CGO) for local probe result persistence. Adds ~2 MB to the binary. Stores 30 days of results in a local file (~100 MB for 10 probes). Good for standalone workers without Prometheus access.
 
 See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-historical-data) for the full analysis.
-
-### Edge alerting (webhooks)
-
-Add built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana.
-
-**Why both edge and central alerting:**
-
-| | Central (Prometheus/Grafana) | Edge (Technician worker) |
-|--|------------------------------|--------------------------|
-| **Latency** | 30–60s (scrape interval + rule eval) | Immediate (fires in the probe goroutine) |
-| **Deduplication** | Alertmanager groups, deduplicates, silences | Simple: fire on state change (up→down, down→up) |
-| **Dependency** | Requires Prometheus + Alertmanager/Grafana to be up | Zero dependencies — just an outbound HTTP POST |
-| **Escalation** | Alertmanager routes by severity, time-of-day, team | Not built-in (keep it simple; use central for complex routing) |
-| **Works on Lambda/edge** | Only if metrics reach Prometheus in time | Yes — fires before the function exits |
-| **Best for** | Full-featured alert management, dashboards, history | Critical "probe down" notifications that must fire no matter what |
-
-**Config shape:**
-
-```yaml
-alerts:
-  webhooks:
-    - url: https://hooks.slack.com/services/T00/B00/xxx
-      events: [probe_down, probe_recovered]
-    - url: https://events.pagerduty.com/v2/enqueue
-      events: [probe_down]
-      headers:
-        x-routing-key: "${PAGERDUTY_ROUTING_KEY}"
-```
-
-**What's needed:**
-
-- New `AlertsConfig` in `internal/config` with webhook URL, events, optional headers.
-- `internal/alert` package with a `Notifier` interface and `WebhookNotifier` implementation.
-- State tracker: fire on **state change** only (up→down, down→up), not on every probe result. Avoids flooding Slack on a sustained outage.
-- Wire into the result drain loop in `cmd/worker.go` — after `store.Push(result)`, check for state change and notify.
-- Payload format: JSON with probe name, type, status, duration, timestamp, site info, and error message. Compatible with Slack incoming webhooks (use `text` field) and generic webhook consumers.
-- Recovery notifications: fire when a previously-down probe comes back up.
-- Rate limiting: cap at e.g. 1 webhook per probe per 5 minutes to prevent floods on flapping probes.
-
-**Scope:** This is intentionally simple — fire a webhook on state change. For grouping, silencing, escalation policies, and routing by severity, use Alertmanager or Grafana alerting centrally. Edge alerting is the "last line of defense" that works even when the central stack is unreachable.
 
 ### SLA reporting
 
@@ -152,3 +112,18 @@ Terraform or CloudFormation templates for common deployment patterns:
 ## Possible improvements
 
 - **Module path** — `github.com/jesseheady/technician` uses a personal GitHub account. Consider a dedicated org or project namespace if establishing Technician as an independent project.
+
+## Recently completed
+
+### Native webhook notifications
+
+Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up) and new budget violations, with per-probe cooldown to prevent notification floods.
+
+- **Package**: `internal/notify/` — `Manager` with state tracking, `Sender` interface with Discord, Slack, and generic HTTP implementations.
+- **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation), and `cooldown` (default 5m).
+- **CLI**: `technician test-webhook` sends a test notification to all configured webhooks.
+- **Docs**: [alerting.md](alerting.md) covers native webhooks, Grafana alerting (recommended), and Alertmanager.
+
+### Budget check persistence
+
+Budget badge state (pass/fail per metric) is persisted alongside probe history in `status.json`. Badges survive container restarts without waiting for probes to complete a full cycle.

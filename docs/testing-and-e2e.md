@@ -71,7 +71,7 @@ Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP probes;
 Runs all configured probes once and evaluates budgets. Use this in CI and for local e2e:
 
 ```bash
-go run . validate --config examples/technician.yml --budget examples/budgets.yml
+go run . validate --config config/technician.yml --budget config/budgets.yml
 ```
 
 - **Exit 0**: All probes ran and no budget violations.
@@ -84,7 +84,7 @@ Use a **dedicated e2e config** that points at stable or mock targets so results 
 Sanity-check one probe by name:
 
 ```bash
-go run . probe --name "Example Website" --config examples/technician.yml
+go run . probe --name "Example Website" --config config/technician.yml
 ```
 
 Inspect stdout for success/failure and timing fields.
@@ -93,7 +93,7 @@ Inspect stdout for success/failure and timing fields.
 
 1. Start the worker with a config that includes your probes:
    ```bash
-   go run . worker --config examples/technician.yml -v
+   go run . worker --config config/technician.yml -v
    ```
 2. Wait at least one schedule interval (e.g. 30s for `*/30 * * * * *`).
 3. Curl metrics and check for non-zero counters/gauges:

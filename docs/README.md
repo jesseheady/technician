@@ -3,8 +3,10 @@
 | Document | Description |
 |----------|-------------|
 | [Getting started](getting-started.md) | Prerequisites, one-time setup (Mac init script), and how to run the worker and full stack. |
+| [Alerting](alerting.md) | Native webhooks (Discord, Slack, generic), Grafana alerting (recommended), and Alertmanager. |
 | [Testing and e2e](testing-and-e2e.md) | Unit tests, `go test`/vet, and end-to-end validation (validate command, metrics scrape, Docker stack, CI canary). |
 | [Mock production](mock-production.md) | Run Technician locally with full metrics/dashboards while probing mock local endpoints. |
+| [Roadmap](roadmap.md) | Planned features: edge deployment adapters, remote-write, SLA reporting, IaC templates. |
 | [Proposals](proposals/) | Design and rollout plans. |
 | [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying probe runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when probes run on Workers or Lambda (provider location codes, metrics labels). |

@@ -119,7 +119,7 @@ Your current repo is: **Technician** (exposes `/metrics` on 9394), **Prometheus*
 ### What stays the same
 
 - **Technician binary and config** – Same Dockerfile, same `technician.yml` and `probes/` layout. Technician still listens on `:9394` and serves `/metrics`, `/health`, `/probe`.
-- **Probe definitions** – Same YAML (HTTP, SMTP, traceroute, Playwright). You can ship the same `examples/` (or a production copy) into the image or mount from a config store.
+- **Probe definitions** – Same YAML (HTTP, SMTP, traceroute, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
 - **Prometheus rules** – Same `prometheus/rules.yml` (ProbeDown, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
 - **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`site_code`, `probe`) already work with whatever sites you run.
 
@@ -146,7 +146,7 @@ Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one
    - Image: your Technician image.
    - Command: `worker --config /etc/technician/technician.yml` (same as Dockerfile CMD).
    - Env: `SITE_CODE=us-east-1` (or the region/identifier for that instance).
-   - Mount or bake in `technician.yml` and `probes/` (same structure as `examples/`).
+   - Mount or bake in `technician.yml` and `probes/` (same structure as `config/`).
    - Listen: `0.0.0.0:9394` (default) so Prometheus in the VPC can reach it.
 3. **Networking** – Security group for Technician: allow **inbound TCP 9394** from the Prometheus server(s) (or from a load balancer / service discovery you use). No public port needed if Prometheus is in the same VPC or peered.
 4. **Discovery** – Give each Technician instance a stable name (e.g. private DNS `technician-us-east-1.private` or ECS service discovery). Put those hostnames (and port 9394) in Prometheus `scrape_configs` as in the "Example: minimal central Prometheus config" above.

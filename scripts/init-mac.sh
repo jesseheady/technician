@@ -77,6 +77,7 @@ if [[ "$start_stack" -eq 1 ]]; then
   info "Grafana:    http://localhost:3000 (admin/admin if default)"
 else
   echo ""
-  info "Run the worker: ./technician worker --config examples/technician.yml"
+  info "Run the worker: ./technician worker --config config/technician.yml"
+  info "(First time? Copy examples: cp -r examples/ config/)"
   info "Or start full stack: ./scripts/init-mac.sh --stack"
 fi
