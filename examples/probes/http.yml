@@ -38,6 +38,45 @@
 #       target: '"version":"\d+\.\d+\.\d+"'
 #   schedule: "*/60 * * * * *"
 
+# ── API health check with header + body assertions ──────────────────
+# Validates status code, response body, content type, and security headers.
+# - name: api-full-check
+#   group: API
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   timeout: 10s
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+#   assertions:
+#     # Body assertions
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#     # Content-Type
+#     - type: header_contains
+#       header: Content-Type
+#       target: application/json
+#     # Security headers
+#     - type: header_contains
+#       header: Strict-Transport-Security
+#       target: max-age=
+#     - type: header_contains
+#       header: X-Content-Type-Options
+#       target: nosniff
+#     - type: header_contains
+#       header: X-Frame-Options
+#       target: DENY
+#     - type: header_regex
+#       header: Content-Security-Policy
+#       target: "default-src"
+
 # Skip TLS verification (self-signed certs):
 # - name: internal-service
 #   url: https://internal.example.com

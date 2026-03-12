@@ -8,7 +8,7 @@ Technician is a **synthetic monitoring orchestrator**: it runs health-check prob
 |------|--------|
 | `cmd/` | Cobra CLI: `root`, `worker`, `probe`, `serve`, `validate` |
 | `internal/config/` | Main YAML config + probe definitions; env var expansion `${VAR}` |
-| `internal/probe/` | Probe implementations: HTTP, TCP, DNS, ICMP, gRPC, NTP, SMTP, traceroute, Playwright |
+| `internal/probe/` | Probe implementations: HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright |
 | `internal/scheduler/` | Cron-based scheduling with per-site stagger |
 | `internal/metrics/` | Prometheus gauges, OTLP trace export, HAR parsing |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
@@ -36,11 +36,11 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 
 - **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
 - **Probes**: Loaded from directory next to config: `<config_dir>/probes/`:
-  - `http.yml`, `tcp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type. HTTP probes support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
+  - `http.yml`, `tcp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type. HTTP probes support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
   - Playwright: `probes/playwright/playwright.yml` (or `probes/playwright.yml`) + script files.
   - All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold).
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
-- **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation), and `cooldown` (default 5m). Notifications fire on state transitions, not every probe run.
+- **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m). Notifications fire on state transitions, not every probe run. Events carry severity: probe_down=critical, budget_violation=warning, cert_expiring=warning or critical based on days vs thresholds. Multiple webhook entries with different `severities` filters enable routing warnings to Slack and critical to PagerDuty.
 - **Config layout**: `examples/` has reference configs with placeholder values (checked in). Copy to `config/` for local/production use (gitignored). Docker Compose mounts from `config/`.
 - All YAML supports `${ENV_VAR}` expansion.
 
@@ -49,7 +49,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 Three strategies (see `docs/alerting.md`):
 
 1. **Grafana alerting** (recommended) – Native contact points for Discord, Slack, PagerDuty, etc. Rich UI for silencing, grouping, history.
-2. **Native webhooks** – Direct from Technician via `webhooks` config. Simple, no external stack needed. Fires on probe state transitions and new budget violations with per-probe cooldown.
+2. **Native webhooks** – Direct from Technician via `webhooks` config. Simple, no external stack needed. Fires on probe state transitions, new budget violations, and TLS cert expiry warnings with per-probe cooldown. Supports severity-based routing (`severities` filter) to fork warnings and critical alerts to different channels.
 3. **Prometheus Alertmanager** – Rule-based routing via `prometheus/rules.yml` and `prometheus/alertmanager.yml`. Discord requires a bridge container (`alertmanager-discord`); Slack/PagerDuty/Email work natively.
 
 ## Status page and persistence
@@ -60,7 +60,7 @@ Three strategies (see `docs/alerting.md`):
 ## Probe model
 
 - **Interface**: `internal/probe.Prober`: `Type() config.ProbeType` and `Run(ctx, cfg, site) *Result`.
-- **Types**: `http`, `tcp`, `dns`, `icmp`, `grpc`, `ntp`, `smtp`, `traceroute`, `playwright`.
+- **Types**: `http`, `tcp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `playwright`.
 - **Result**: `probe.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `site.Labels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a probe type**: Implement `Prober`; add `ProbeType` and config struct in `internal/config/probes.go`; add loader in `LoadProbes`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired).
 

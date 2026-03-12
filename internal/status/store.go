@@ -35,6 +35,17 @@ type Entry struct {
 
 	// NTP details
 	NTPOffsetMs float64 `json:"ntp_offset_ms,omitempty"`
+
+	// TLS certificate details
+	CertDaysRemaining int       `json:"cert_days_remaining,omitempty"`
+	CertValid         bool      `json:"cert_valid,omitempty"`
+	CertExpiry        time.Time `json:"cert_expiry,omitempty"`
+
+	// ICMP details
+	ICMPPacketLoss float64 `json:"icmp_packet_loss,omitempty"`
+
+	// gRPC details
+	GRPCStatus string `json:"grpc_status,omitempty"`
 }
 
 // BudgetCheck is a single budget metric evaluation for display on the status page.
@@ -182,7 +193,12 @@ func (s *Store) Push(r *probe.Result) {
 		DNSMs:      float64(r.DNSDuration) / float64(time.Millisecond),
 		TLSMs:      float64(r.TLSDuration) / float64(time.Millisecond),
 		TTFBMs:      float64(r.TTFBDuration) / float64(time.Millisecond),
-		NTPOffsetMs: r.NTPOffsetMs,
+		NTPOffsetMs:       r.NTPOffsetMs,
+		CertDaysRemaining: r.CertDaysRemaining,
+		CertValid:         r.CertValid,
+		CertExpiry:        r.CertExpiry,
+		ICMPPacketLoss:    r.ICMPPacketLoss,
+		GRPCStatus:        r.GRPCStatus,
 	}
 
 	s.mu.Lock()
@@ -334,7 +350,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 	}
 
 	// Collect distinct types in stable order
-	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
+	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeTLS, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
 	for _, t := range typeOrder {
 		if typesSeen[string(t)] {
 			snap.Types = append(snap.Types, string(t))

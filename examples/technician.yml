@@ -38,18 +38,26 @@ playwright:
 # For richer alerting (silencing, grouping, escalation, alert history),
 # use Grafana alerting instead (see docs/alerting.md).
 #
-# webhooks:
-#   - url: https://discord.com/api/webhooks/ID/TOKEN
-#     type: discord
-#     events: [probe_down, probe_up, budget_violation]
-#     cooldown: 5m
+# Events:    probe_down, probe_up, budget_violation, cert_expiring
+# Severities: warning, critical (omit to receive all)
 #
+# webhooks:
+#   # Slack channel for all warnings + critical (informational)
 #   - url: https://hooks.slack.com/services/T.../B.../xxx
 #     type: slack
-#     events: [probe_down, probe_up]
+#     events: [probe_down, probe_up, cert_expiring, budget_violation]
 #     cooldown: 5m
 #
+#   # Discord for warnings only (cert expiry heads-up, budget alerts)
+#   - url: https://discord.com/api/webhooks/ID/TOKEN
+#     type: discord
+#     events: [cert_expiring, budget_violation]
+#     severities: [warning]
+#     cooldown: 5m
+#
+#   # PagerDuty / opsgenie for critical only (pages on-call)
 #   - url: https://your-endpoint.example.com/alerts
-#     type: generic    # posts Event JSON to any HTTP endpoint
-#     events: [probe_down, budget_violation]
+#     type: generic
+#     events: [probe_down, cert_expiring]
+#     severities: [critical]
 #     cooldown: 10m

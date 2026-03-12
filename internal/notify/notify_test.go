@@ -43,12 +43,13 @@ func newTestManager(mock *mockSender, cooldown time.Duration) *Manager {
 	return &Manager{
 		webhooks: []webhook{{
 			sender:   mock,
-			events:   map[EventType]bool{EventProbeDown: true, EventProbeUp: true, EventBudgetViolation: true},
+			events:   map[EventType]bool{EventProbeDown: true, EventProbeUp: true, EventBudgetViolation: true, EventCertExpiring: true},
 			cooldown: cooldown,
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
 		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
 	}
 }
@@ -288,6 +289,7 @@ func TestEventFiltering(t *testing.T) {
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
 		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
 	}
 	ctx := context.Background()
@@ -413,6 +415,7 @@ func TestMultipleWebhooks(t *testing.T) {
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
 		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
 	}
 	ctx := context.Background()
@@ -438,5 +441,299 @@ func TestMultipleWebhooks(t *testing.T) {
 	}
 	if len(mock2.sent()) != 2 {
 		t.Fatalf("webhook 2: expected 2 events, got %d", len(mock2.sent()))
+	}
+}
+
+// --- Severity filtering tests ---
+
+func TestSeverityFilterBlocksWarnings(t *testing.T) {
+	mock := &mockSender{}
+	// Only subscribe to critical severity
+	m := &Manager{
+		webhooks: []webhook{{
+			sender:     mock,
+			events:     map[EventType]bool{EventProbeDown: true, EventCertExpiring: true, EventBudgetViolation: true},
+			severities: map[Severity]bool{SeverityCritical: true},
+			cooldown:   0,
+		}},
+		sem:          make(chan struct{}, maxConcurrentSends),
+		probeStates:  make(map[string]bool),
+		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
+		lastSent:     make(map[string]time.Time),
+	}
+	ctx := context.Background()
+
+	// Budget violation is severity=warning — should be filtered
+	m.HandleBudgetViolation(ctx, "test", "duration", true)
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected 0 events (warning filtered), got %d", len(mock.sent()))
+	}
+
+	// Probe down is severity=critical — should pass
+	m.HandleResult(ctx, makeResult("test", true))
+	m.HandleResult(ctx, makeResult("test", false))
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 {
+		t.Fatalf("expected 1 event (critical passes), got %d", len(mock.sent()))
+	}
+	if mock.sent()[0].Severity != SeverityCritical {
+		t.Fatalf("expected critical severity, got %s", mock.sent()[0].Severity)
+	}
+}
+
+func TestSeverityFilterAllowsWarnings(t *testing.T) {
+	mock := &mockSender{}
+	// Only subscribe to warning severity
+	m := &Manager{
+		webhooks: []webhook{{
+			sender:     mock,
+			events:     map[EventType]bool{EventProbeDown: true, EventBudgetViolation: true},
+			severities: map[Severity]bool{SeverityWarning: true},
+			cooldown:   0,
+		}},
+		sem:          make(chan struct{}, maxConcurrentSends),
+		probeStates:  make(map[string]bool),
+		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
+		lastSent:     make(map[string]time.Time),
+	}
+	ctx := context.Background()
+
+	// Budget violation = warning — should pass
+	m.HandleBudgetViolation(ctx, "test", "duration", true)
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 {
+		t.Fatalf("expected 1 event (warning passes), got %d", len(mock.sent()))
+	}
+
+	// Probe down = critical — should be filtered
+	m.HandleResult(ctx, makeResult("test2", true))
+	m.HandleResult(ctx, makeResult("test2", false))
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 {
+		t.Fatalf("expected 1 event (critical filtered), got %d", len(mock.sent()))
+	}
+}
+
+func TestNoSeverityFilterPassesAll(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// Both warning (budget) and critical (probe_down) should pass
+	m.HandleBudgetViolation(ctx, "test", "duration", true)
+	m.HandleResult(ctx, makeResult("test2", true))
+	m.HandleResult(ctx, makeResult("test2", false))
+	waitForDispatch()
+
+	if len(mock.sent()) != 2 {
+		t.Fatalf("expected 2 events (no severity filter), got %d", len(mock.sent()))
+	}
+}
+
+// --- Cert expiring notification tests ---
+
+func makeTLSResult(name string, daysRemaining, warnDays, critDays int) *probe.Result {
+	return &probe.Result{
+		Name:              name,
+		Type:              config.ProbeTypeTLS,
+		Success:           true,
+		CertDaysRemaining: daysRemaining,
+		CertValid:         true,
+		CertExpiry:        time.Now().Add(time.Duration(daysRemaining) * 24 * time.Hour),
+		CertSubject:       name,
+		CertWarnDaysVal:   warnDays,
+		CertCritDaysVal:   critDays,
+		Timestamp:         time.Now(),
+	}
+}
+
+func TestCertExpiringWarning(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// 20 days remaining, warn=30, crit=7 → warning
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 20, 30, 7))
+	waitForDispatch()
+
+	events := mock.sent()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	if events[0].Type != EventCertExpiring {
+		t.Fatalf("expected cert_expiring, got %s", events[0].Type)
+	}
+	if events[0].Severity != SeverityWarning {
+		t.Fatalf("expected warning severity, got %s", events[0].Severity)
+	}
+}
+
+func TestCertExpiringCritical(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// 5 days remaining, warn=30, crit=7 → critical
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 5, 30, 7))
+	waitForDispatch()
+
+	events := mock.sent()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	if events[0].Severity != SeverityCritical {
+		t.Fatalf("expected critical severity, got %s", events[0].Severity)
+	}
+}
+
+func TestCertExpiringHealthyCertNoNotification(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// 90 days remaining, warn=30 → healthy, no notification
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 90, 30, 7))
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected 0 events for healthy cert, got %d", len(mock.sent()))
+	}
+}
+
+func TestCertExpiringSameSeveritySuppressed(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// First warning fires
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 20, 30, 7))
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(mock.sent()))
+	}
+
+	// Same severity — suppressed
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 18, 30, 7))
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 {
+		t.Fatalf("expected 1 event (duplicate suppressed), got %d", len(mock.sent()))
+	}
+}
+
+func TestCertExpiringEscalatesWarningToCritical(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// Warning first
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 20, 30, 7))
+	waitForDispatch()
+
+	// Escalate to critical
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 5, 30, 7))
+	waitForDispatch()
+
+	events := mock.sent()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events (warning + critical), got %d", len(events))
+	}
+	if events[0].Severity != SeverityWarning {
+		t.Fatalf("first event: expected warning, got %s", events[0].Severity)
+	}
+	if events[1].Severity != SeverityCritical {
+		t.Fatalf("second event: expected critical, got %s", events[1].Severity)
+	}
+}
+
+func TestCertExpiringClearsOnRecovery(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// Warning fires
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 20, 30, 7))
+	waitForDispatch()
+
+	// Cert renewed — healthy
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 90, 30, 7))
+	waitForDispatch()
+
+	// Enter warning window again — should re-fire
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 25, 30, 7))
+	waitForDispatch()
+
+	events := mock.sent()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events (fire, recover, re-fire), got %d", len(events))
+	}
+}
+
+func TestCertExpiringNonTLSIgnored(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// HTTP probe result — should be ignored by HandleCertResult
+	httpResult := makeResult("test", true)
+	m.HandleCertResult(ctx, httpResult)
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected 0 events for non-TLS probe, got %d", len(mock.sent()))
+	}
+}
+
+func TestCertExpiringNilManagerSafe(t *testing.T) {
+	var m *Manager
+	ctx := context.Background()
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 5, 30, 7))
+	// No panic = pass
+}
+
+func TestSeverityFilterWithCertExpiring(t *testing.T) {
+	mockWarn := &mockSender{}
+	mockCrit := &mockSender{}
+	m := &Manager{
+		webhooks: []webhook{
+			{sender: mockWarn, events: map[EventType]bool{EventCertExpiring: true}, severities: map[Severity]bool{SeverityWarning: true}, cooldown: 0},
+			{sender: mockCrit, events: map[EventType]bool{EventCertExpiring: true}, severities: map[Severity]bool{SeverityCritical: true}, cooldown: 0},
+		},
+		sem:          make(chan struct{}, maxConcurrentSends),
+		probeStates:  make(map[string]bool),
+		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
+		lastSent:     make(map[string]time.Time),
+	}
+	ctx := context.Background()
+
+	// Warning-level cert expiry → only mockWarn receives
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 20, 30, 7))
+	waitForDispatch()
+
+	if len(mockWarn.sent()) != 1 {
+		t.Fatalf("warn webhook: expected 1 event, got %d", len(mockWarn.sent()))
+	}
+	if len(mockCrit.sent()) != 0 {
+		t.Fatalf("crit webhook: expected 0 events, got %d", len(mockCrit.sent()))
+	}
+
+	// Escalate to critical → only mockCrit receives
+	m.HandleCertResult(ctx, makeTLSResult("example.com", 5, 30, 7))
+	waitForDispatch()
+
+	if len(mockWarn.sent()) != 1 {
+		t.Fatalf("warn webhook: expected 1 event (critical filtered), got %d", len(mockWarn.sent()))
+	}
+	if len(mockCrit.sent()) != 1 {
+		t.Fatalf("crit webhook: expected 1 event, got %d", len(mockCrit.sent()))
 	}
 }

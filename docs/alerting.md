@@ -35,19 +35,24 @@ Add a `webhooks` section to your `technician.yml`:
 
 ```yaml
 webhooks:
-  - url: https://discord.com/api/webhooks/ID/TOKEN
-    type: discord
-    events: [probe_down, probe_up, budget_violation]
-    cooldown: 5m
-
+  # Slack channel — all events, all severities
   - url: https://hooks.slack.com/services/T.../B.../xxx
     type: slack
-    events: [probe_down, probe_up]
+    events: [probe_down, probe_up, cert_expiring, budget_violation]
     cooldown: 5m
 
+  # Discord — warnings only (cert expiry heads-up, budget alerts)
+  - url: https://discord.com/api/webhooks/ID/TOKEN
+    type: discord
+    events: [cert_expiring, budget_violation]
+    severities: [warning]
+    cooldown: 5m
+
+  # PagerDuty / OpsGenie — critical only (pages on-call)
   - url: https://your-endpoint.example.com/alerts
     type: generic
-    events: [probe_down, budget_violation]
+    events: [probe_down, cert_expiring]
+    severities: [critical]
     cooldown: 10m
 ```
 
@@ -56,21 +61,34 @@ webhooks:
 | `url` | Webhook endpoint URL. |
 | `type` | `discord`, `slack`, or `generic`. Determines payload format. |
 | `events` | Which events trigger notifications. Omit for all events. |
+| `severities` | Filter by severity: `warning`, `critical`. Omit to receive all severities. |
 | `cooldown` | Minimum interval between repeated notifications for the same probe+event. Default `5m`. |
 
 ### Event types
 
-| Event | Fires when |
-|-------|------------|
-| `probe_down` | A probe transitions from up to down (not on every failed check). |
-| `probe_up` | A probe transitions from down to up (recovery). |
-| `budget_violation` | A budget metric becomes newly violated. |
+| Event | Default severity | Fires when |
+|-------|-----------------|------------|
+| `probe_down` | `critical` | A probe transitions from up to down (not on every failed check). |
+| `probe_up` | — | A probe transitions from down to up (recovery). |
+| `budget_violation` | `warning` | A budget metric becomes newly violated. |
+| `cert_expiring` | `warning` or `critical` | A TLS certificate enters the warn or critical expiry window. Severity escalates from warning to critical as the deadline approaches. |
+
+### Severity routing
+
+Events carry a severity level that enables routing to different channels:
+
+- **`warning`** — Informational. TLS cert expiring within `warn_days` (default 30), budget violations. Good for Slack or a low-priority channel.
+- **`critical`** — Actionable. Probe failures, TLS cert within `critical_days` (default 7). Route to PagerDuty, OpsGenie, or an on-call channel.
+
+Configure multiple webhook entries with different `severities` filters to fork notifications. For example, one Slack channel receives all alerts while PagerDuty only receives critical.
+
+The `cert_expiring` event uses state tracking: it fires once when entering the warning window, then again if it escalates to critical. It does not re-fire on every probe cycle. If the cert is renewed (days remaining goes above the warn threshold), the state resets so future expiry will trigger again.
 
 ### Payload formats
 
-- **Discord**: Native embed format with color-coded status (red/green), probe details, and error info.
-- **Slack**: Incoming webhook format with colored attachments.
-- **Generic**: JSON object with `type`, `probe`, `probe_type`, `message`, `details`, and `timestamp` fields.
+- **Discord**: Native embed format with color-coded status (red for critical, amber for warning, green for recovery), probe details, error info, and cert expiry fields.
+- **Slack**: Incoming webhook format with colored attachments and `[WARNING]`/`[CRITICAL]` severity prefix.
+- **Generic**: JSON object with `type`, `severity`, `probe`, `probe_type`, `message`, `details`, and `timestamp` fields.
 
 ### Limitations vs Grafana
 
@@ -103,6 +121,7 @@ Alert rules are defined in `prometheus/rules.yml`. A `TestAlert` rule (commented
 | Feature | Native webhooks | Grafana alerting | Alertmanager |
 |---------|----------------|------------------|--------------|
 | Setup complexity | Minimal (config only) | Low (UI config) | Moderate (YAML + containers) |
+| Severity routing | Yes (`severities` filter) | Yes (notification policies) | Yes (route matching) |
 | Discord support | Native | Native | Requires bridge container |
 | Slack support | Native | Native | Native |
 | Grouping / dedup | Per-probe cooldown | Full | Full |

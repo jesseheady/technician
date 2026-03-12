@@ -82,6 +82,7 @@ Probes are defined in YAML files under the probes directory (see `examples/probe
 | `icmp.yml` | ICMP (ping) | Packet loss, round-trip time |
 | `grpc.yml` | gRPC | Health check protocol |
 | `ntp.yml` | NTP | Clock offset, stratum, round-trip time |
+| `tls.yml` | TLS | Certificate expiry, chain validity, issuer/SAN details |
 | `smtp.yml` | SMTP | Mail server connectivity |
 | `traceroute.yml` | Traceroute | Network path hops (requires mtr) |
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
@@ -113,6 +114,62 @@ All probe types support optional `retry` (count, backoff, delay) and `degraded_a
 Examples: `*/60 * * * * *` (every 60 seconds), `0 */5 * * * *` (every 5 minutes at second 0), `0 0 * * * *` (every hour).
 
 **Persistence**: Probe history and budget check state are persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures state survives container rebuilds.
+
+## Recipes
+
+### API health check with security headers
+
+HTTP probes support body and header assertions, which together cover the "test my API status and body content" use case. This example validates the status code, response body, Content-Type, and common security headers in a single probe:
+
+```yaml
+- name: api-full-check
+  group: API
+  url: https://api.example.com/health
+  expected_status: 200
+  timeout: 10s
+  schedule: "*/60 * * * * *"
+  degraded_after: 2s
+  assertions:
+    # Body: verify the health payload
+    - type: contains
+      target: '"status":"ok"'
+    - type: not_contains
+      target: '"error"'
+    - type: regex
+      target: '"version":"\d+\.\d+\.\d+"'
+
+    # Content-Type
+    - type: header_contains
+      header: Content-Type
+      target: application/json
+
+    # Security headers
+    - type: header_contains
+      header: Strict-Transport-Security
+      target: max-age=
+    - type: header_contains
+      header: X-Content-Type-Options
+      target: nosniff
+    - type: header_contains
+      header: X-Frame-Options
+      target: DENY
+    - type: header_regex
+      header: Content-Security-Policy
+      target: "default-src"
+```
+
+**Assertion types reference:**
+
+| Type | Scope | What it checks |
+|------|-------|----------------|
+| `contains` | Body | Body includes the target string |
+| `not_contains` | Body | Body does NOT include the target string |
+| `regex` | Body | Body matches the target regex |
+| `header_contains` | Header | Named header includes the target string |
+| `header_not_contains` | Header | Named header does NOT include the target string |
+| `header_regex` | Header | Named header matches the target regex |
+
+If any assertion fails, the probe is marked as failed and the failure message identifies which assertion didn't pass.
 
 ## Run a single probe (debug)
 

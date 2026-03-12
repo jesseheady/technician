@@ -28,6 +28,7 @@ const (
 	ProbeTypeICMP        ProbeType = "icmp"
 	ProbeTypeGRPC        ProbeType = "grpc"
 	ProbeTypeNTP         ProbeType = "ntp"
+	ProbeTypeTLS         ProbeType = "tls"
 )
 
 type RetryPolicy struct {
@@ -53,6 +54,7 @@ type ProbeConfig struct {
 	ICMP     *ICMPProbeConfig  `yaml:"-"`
 	GRPC     *GRPCProbeConfig  `yaml:"-"`
 	NTP      *NTPProbeConfig   `yaml:"-"`
+	TLS      *TLSProbeConfig   `yaml:"-"`
 }
 
 type Assertion struct {
@@ -104,6 +106,13 @@ type GRPCProbeConfig struct {
 type NTPProbeConfig struct {
 	Server string `yaml:"server"` // NTP server hostname or IP (e.g. "pool.ntp.org")
 	Port   int    `yaml:"port"`   // UDP port (default 123)
+}
+
+type TLSProbeConfig struct {
+	Host         string `yaml:"host"`          // host:port (e.g. "api.example.com:443")
+	CheckExpiry  bool   `yaml:"check_expiry"`  // check certificate expiry (default true)
+	WarnDays     int    `yaml:"warn_days"`     // days before expiry to warn (default 30)
+	CriticalDays int    `yaml:"critical_days"` // days before expiry to critical (default 7)
 }
 
 type SMTPProbeConfig struct {
@@ -233,6 +242,19 @@ type ntpProbeYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
+type tlsProbeYAML struct {
+	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
+	Host          string        `yaml:"host"`
+	CheckExpiry   *bool         `yaml:"check_expiry"`
+	WarnDays      int           `yaml:"warn_days"`
+	CriticalDays  int           `yaml:"critical_days"`
+	Schedule      string        `yaml:"schedule"`
+	Timeout       time.Duration `yaml:"timeout"`
+	Retry         *RetryPolicy  `yaml:"retry"`
+	DegradedAfter time.Duration `yaml:"degraded_after"`
+}
+
 type grpcProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
@@ -302,6 +324,12 @@ func LoadProbes(probesDir string) ([]ProbeConfig, error) {
 		return nil, fmt.Errorf("loading NTP probes: %w", err)
 	}
 	probes = append(probes, ntpProbes...)
+
+	tlsProbes, err := loadTLSProbes(filepath.Join(probesDir, "tls.yml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("loading TLS probes: %w", err)
+	}
+	probes = append(probes, tlsProbes...)
 
 	for i := range probes {
 		if probes[i].Timeout == 0 {
@@ -676,6 +704,52 @@ func loadNTPProbes(path string) ([]ProbeConfig, error) {
 			NTP: &NTPProbeConfig{
 				Server: r.Server,
 				Port:   r.Port,
+			},
+		}
+	}
+	return probes, nil
+}
+
+func loadTLSProbes(path string) ([]ProbeConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expanded := expandEnvVars(string(data))
+
+	var raw []tlsProbeYAML
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	probes := make([]ProbeConfig, len(raw))
+	for i, r := range raw {
+		checkExpiry := true
+		if r.CheckExpiry != nil {
+			checkExpiry = *r.CheckExpiry
+		}
+		warnDays := r.WarnDays
+		if warnDays == 0 {
+			warnDays = 30
+		}
+		criticalDays := r.CriticalDays
+		if criticalDays == 0 {
+			criticalDays = 7
+		}
+		probes[i] = ProbeConfig{
+			Name:          r.Name,
+			Type:          ProbeTypeTLS,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
+			TLS: &TLSProbeConfig{
+				Host:         r.Host,
+				CheckExpiry:  checkExpiry,
+				WarnDays:     warnDays,
+				CriticalDays: criticalDays,
 			},
 		}
 	}

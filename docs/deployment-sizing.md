@@ -8,13 +8,13 @@ Technician is a static Go binary (14 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 28 probes active across all 9 probe types (7 HTTP, 3 TCP, 4 DNS, 3 ICMP, 3 NTP, 1 SMTP, 4 traceroute, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
+Numbers below were measured with 28 probes active across all 10 probe types (7 HTTP, 3 TCP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
 
 ### Runtime memory
 
 | Component | RSS | Notes |
 |-----------|-----|-------|
-| Technician (Go process) | ~18 MB | 28 probes (9 types), status store, Prometheus registry |
+| Technician (Go process) | ~18 MB | 28 probes (10 types), status store, Prometheus registry |
 | Prometheus | ~150 MB | 15-day retention, scraping one target |
 | Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~472 MB** | |
@@ -42,6 +42,10 @@ Each Playwright probe launches a separate Chromium instance via Node.js:
 | Warm probe execution | ~3–8 s depending on page complexity |
 
 Chromium instances are not pooled — each probe invocation launches and closes a browser. The `max_browsers` setting (default 2) caps concurrent instances via a semaphore. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. See [Playwright scaling](playwright-scaling.md) for detailed resource projections and dedicated runner architecture.
+
+### TLS probe overhead
+
+The TLS probe is minimal: a single outbound TCP connection + TLS handshake per check, with no subprocess or external dependency. Memory overhead is negligible (~1 KB per probe run). Resource usage is comparable to a TCP probe with TLS enabled.
 
 ## Deployment topology
 
@@ -183,7 +187,7 @@ ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/t
 | Status page at `:9394/` | Yes — real-time probe status, history bars, latency percentiles |
 | JSON API at `/api/status` | Yes — for external integrations or a custom status page |
 | Prometheus metrics at `/metrics` | Yes — ready to scrape whenever you add Prometheus |
-| Native webhook alerts (Discord, Slack, generic) | Yes — fires on state transitions, no external stack needed |
+| Native webhook alerts (Discord, Slack, generic) | Yes — fires on probe state transitions, cert expiry, and budget violations with severity routing (warn/crit to different channels) |
 | Blackbox-exporter compat at `/probe` | Yes |
 | Grafana dashboards | No — requires Prometheus + Grafana |
 | Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per probe |
@@ -491,7 +495,7 @@ The built-in status page is intentionally lightweight — a real-time view of wh
 
 - **Uptime overview** — probe status matrix, uptime percentage, degraded state tracking
 - **HTTP timing** — DNS, TLS, connect, TTFB breakdown over time
-- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health, NTP offset/stratum/RTT
+- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health, NTP offset/stratum/RTT, TLS certificate expiry/validity
 - **Web Performance Vitals** — LCP, INP, CLS trends
 - **HAR analysis** — resource breakdown by type
 - **Budget violations** — threshold tracking over time
@@ -502,7 +506,7 @@ For a public-facing status page with extended history, use Grafana's anonymous v
 
 ### Probes only, no Playwright
 
-The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, NTP, SMTP, and/or traceroute probes.
+The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, and/or traceroute probes.
 
 | Resource | Minimum | Notes |
 |----------|---------|-------|

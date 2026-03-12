@@ -113,37 +113,6 @@ Terraform or CloudFormation templates for common deployment patterns:
 
 Features planned for the next development cycle. These are high-value, moderate-effort additions that fill real gaps without expanding Technician's scope beyond synthetic monitoring.
 
-### SSL/TLS certificate monitoring
-
-Monitor certificate expiry, chain validity, and issuer details. Natural extension of the existing HTTP/TCP TLS handshake code.
-
-**Approach options:**
-
-- **Option A: Dedicated `tls.yml` probe type** — A standalone TLS probe that connects, inspects the certificate chain, and reports expiry/issuer/SANs. Config: `config/probes/tls.yml`. Clean separation from HTTP probes.
-- **Option B: `check_certificate` flag on HTTP/TCP** — Add `check_certificate: true` to existing HTTP and TCP probe configs. Fewer moving parts but mixes probe concerns.
-
-Option A is preferred — it's a separate concern (certificate lifecycle vs service availability) and users may want different schedules (check certs daily, check uptime every 30s).
-
-**What's needed:**
-
-- New `TLSProbeConfig` struct: `host` (host:port), `check_expiry: true` (default), `warn_days: 30`, `critical_days: 7`.
-- TLS prober that dials, inspects `tls.ConnectionState().PeerCertificates`, and reports: subject, issuer, SANs, not-before, not-after, days until expiry, chain validity.
-- Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid` (0/1).
-- Probe result fields: `CertSubject`, `CertIssuer`, `CertExpiry`, `CertDaysRemaining`, `CertValid`.
-- Status page display: certificate expiry date and days remaining per TLS probe.
-- Webhook notification: fire when `days_remaining < critical_days`.
-
-**Config shape:**
-
-```yaml
-# config/probes/tls.yml
-- name: API Certificate
-  host: api.example.com:443
-  warn_days: 30
-  critical_days: 7
-  schedule: "0 0 */6 * * *"   # every 6 hours
-```
-
 ### Maintenance mode
 
 Suppress alerting and mark probes as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
@@ -261,10 +230,10 @@ Technician's scope is: **everything needed to answer "is my service up, fast, an
 
 ### What Technician owns
 
-- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, SMTP, traceroute, Playwright (and planned: TLS, WebSocket). These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
+- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright (and planned: WebSocket). These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
 - **Scheduling** — Built-in cron with stagger/jitter. Key differentiator vs pure probe executors that rely on external schedulers.
 - **Status page** — Lightweight, built-in, no external dependencies. The "is everything OK right now?" view.
-- **Notifications** — Webhook-based alerting for probe state transitions. Simple, stateless, push-based. The fallback for environments without Grafana Alerting.
+- **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical). Simple, push-based. The fallback for environments without Grafana Alerting.
 - **Performance budgets** — Unique to Technician. Threshold-based degradation tracking with three-state escalation.
 - **Prometheus metrics** — Native exposition. This is how Technician integrates with the broader observability stack.
 - **Structured logs** — slog to stdout for Loki/log aggregation. How operators observe Technician itself.
@@ -333,12 +302,14 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
-### Native webhook notifications
+### Native webhook notifications with severity routing
 
-Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up) and new budget violations, with per-probe cooldown to prevent notification floods.
+Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-probe cooldown to prevent notification floods.
 
 - **Package**: `internal/notify/` — `Manager` with state tracking, `Sender` interface with Discord, Slack, and generic HTTP implementations.
-- **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation), and `cooldown` (default 5m).
+- **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m).
+- **Severity levels**: Events carry a severity — `probe_down` = critical, `budget_violation` = warning, `cert_expiring` = warning or critical (based on days remaining vs `warn_days`/`critical_days` thresholds). Multiple webhook entries with different `severities` filters enable routing: e.g. Slack receives all alerts, PagerDuty only receives critical.
+- **Cert expiry notifications**: The `cert_expiring` event fires once when entering the warning window, escalates if it reaches critical, and resets after cert renewal. State tracking prevents duplicate notifications on every probe cycle.
 - **CLI**: `technician test-webhook` sends a test notification to all configured webhooks.
 - **Docs**: [alerting.md](alerting.md) covers native webhooks, Grafana alerting (recommended), and Alertmanager.
 
@@ -390,9 +361,13 @@ All probe types support `degraded_after` — a duration threshold. When a succes
 
 Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/probes/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
 
+### TLS certificate monitoring
+
+Dedicated `tls` probe type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/probes/tls.yml`.
+
 ### Infrastructure Probes dashboard
 
-Grafana dashboard combining TCP, DNS, ICMP, gRPC, and NTP probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset).
+Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, and TLS probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry).
 
 ### Browser concurrency limiter
 
