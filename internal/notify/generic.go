@@ -22,6 +22,7 @@ func NewGenericSender(url string) *GenericSender {
 
 type genericPayload struct {
 	Type      string            `json:"type"`
+	Severity  string            `json:"severity,omitempty"`
 	Probe     string            `json:"probe"`
 	ProbeType string            `json:"probe_type,omitempty"`
 	Message   string            `json:"message"`
@@ -32,6 +33,7 @@ type genericPayload struct {
 func (g *GenericSender) Send(ctx context.Context, event Event) error {
 	payload := genericPayload{
 		Type:      string(event.Type),
+		Severity:  string(event.Severity),
 		Probe:     event.Probe,
 		ProbeType: string(event.ProbeType),
 		Message:   event.Message,

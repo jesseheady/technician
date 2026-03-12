@@ -46,8 +46,9 @@ type discordEmbedFooter struct {
 }
 
 const (
-	colorRed   = 0xFF0000 // probe down, budget violation
-	colorGreen = 0x00FF00 // probe up (recovery)
+	colorRed    = 0xFF0000 // critical: probe down, cert expiry critical
+	colorAmber  = 0xF5A623 // warning: budget violation, cert expiry warning
+	colorGreen  = 0x00FF00 // recovery: probe up
 )
 
 func (d *DiscordSender) Send(ctx context.Context, event Event) error {
@@ -85,9 +86,34 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 
 	case EventBudgetViolation:
 		embed.Title = fmt.Sprintf("Budget Violation: %s", event.Probe)
-		embed.Color = colorRed
+		embed.Color = colorAmber
 		metric := event.Details["metric"]
 		embed.Description = fmt.Sprintf("Probe **%s** exceeds **%s** budget threshold.", event.Probe, metric)
+
+	case EventCertExpiring:
+		severityLabel := strings.ToUpper(string(event.Severity))
+		embed.Title = fmt.Sprintf("[%s] Certificate Expiring: %s", severityLabel, event.Probe)
+		if event.Severity == SeverityCritical {
+			embed.Color = colorRed
+		} else {
+			embed.Color = colorAmber
+		}
+		embed.Description = event.Message
+		if days, ok := event.Details["days_remaining"]; ok {
+			embed.Fields = append(embed.Fields, discordEmbedField{
+				Name: "Days Remaining", Value: days, Inline: true,
+			})
+		}
+		if expiry, ok := event.Details["expiry"]; ok {
+			embed.Fields = append(embed.Fields, discordEmbedField{
+				Name: "Expiry Date", Value: expiry, Inline: true,
+			})
+		}
+		if subject, ok := event.Details["subject"]; ok && subject != "" {
+			embed.Fields = append(embed.Fields, discordEmbedField{
+				Name: "Subject", Value: subject, Inline: true,
+			})
+		}
 	}
 
 	payload := discordPayload{Embeds: []discordEmbed{embed}}

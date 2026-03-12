@@ -100,6 +100,33 @@ groups:
           summary: "High resource count for {{ $labels.name }}"
           description: "{{ $labels.name }} loaded {{ $value }} resources (threshold 100)."
 
+      - alert: TLSCertExpiringSoon
+        expr: technician_tls_cert_expiry_days < 30 and technician_tls_cert_expiry_days > 7
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS cert expiring soon for {{ $labels.name }}"
+          description: "Certificate for {{ $labels.name }} expires in {{ $value }} days."
+
+      - alert: TLSCertExpiryCritical
+        expr: technician_tls_cert_expiry_days <= 7
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TLS cert expiry critical for {{ $labels.name }}"
+          description: "Certificate for {{ $labels.name }} expires in {{ $value }} days."
+
+      - alert: TLSCertInvalid
+        expr: technician_tls_cert_valid == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TLS certificate invalid for {{ $labels.name }}"
+          description: "Certificate chain validation failed for {{ $labels.name }}."
+
       - alert: HighErrorRate
         expr: |
           sum by (name) (technician_probe_up == 0)

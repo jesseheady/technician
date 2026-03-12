@@ -155,6 +155,17 @@ var (
 		Help: "NTP round-trip time in seconds",
 	}, []string{"name", "site_code", "site_city", "site_country"})
 
+	// TLS certificate metrics
+	tlsCertExpiryDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_tls_cert_expiry_days",
+		Help: "Days until TLS certificate expires",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
+	tlsCertValid = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_tls_cert_valid",
+		Help: "Whether the TLS certificate chain is valid (1=valid, 0=invalid)",
+	}, []string{"name", "site_code", "site_city", "site_country"})
+
 	// Degraded indicator
 	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
@@ -192,6 +203,8 @@ func init() {
 		ntpOffsetMs,
 		ntpStratum,
 		ntpRTT,
+		tlsCertExpiryDays,
+		tlsCertValid,
 		probeDegraded,
 	)
 }
@@ -231,6 +244,8 @@ func RecordResult(result *probe.Result) {
 		recordICMPMetrics(result, labels)
 	case config.ProbeTypeNTP:
 		recordNTPMetrics(result, labels)
+	case config.ProbeTypeTLS:
+		recordTLSMetrics(result, labels)
 	}
 
 	degraded := float64(0)
@@ -315,6 +330,15 @@ func recordNTPMetrics(result *probe.Result, labels labelSet) {
 	ntpOffsetMs.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPOffsetMs)
 	ntpStratum.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.NTPStratum))
 	ntpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPRTT.Seconds())
+}
+
+func recordTLSMetrics(result *probe.Result, labels labelSet) {
+	tlsCertExpiryDays.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.CertDaysRemaining))
+	valid := float64(0)
+	if result.CertValid {
+		valid = 1
+	}
+	tlsCertValid.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(valid)
 }
 
 func RecordBudgetViolation(probeName, metricName string, violated bool, site *config.Site) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -31,13 +32,21 @@ type slackAttachment struct {
 }
 
 func (s *SlackSender) Send(ctx context.Context, event Event) error {
-	color := "#ff0000"
-	if event.Type == EventProbeUp {
+	color := "#ff0000" // default: red (critical)
+	switch {
+	case event.Type == EventProbeUp:
 		color = "#00ff00"
+	case event.Severity == SeverityWarning:
+		color = "#f5a623"
+	}
+
+	text := event.Message
+	if event.Severity != "" {
+		text = fmt.Sprintf("[%s] %s", strings.ToUpper(string(event.Severity)), text)
 	}
 
 	payload := slackPayload{
-		Text: event.Message,
+		Text: text,
 		Attachments: []slackAttachment{
 			{Color: color, Text: formatDetails(event)},
 		},

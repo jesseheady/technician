@@ -106,6 +106,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		for result := range sched.Results() {
 			store.Push(result)
 			notifier.HandleResult(ctx, result)
+			notifier.HandleCertResult(ctx, result)
 
 			if len(budgets) > 0 && !result.InfraError {
 				for _, c := range budget.EvaluateAll(result, budgets) {

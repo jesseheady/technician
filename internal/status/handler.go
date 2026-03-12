@@ -102,10 +102,38 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		if e.NTPOffsetMs != 0 {
 			s += fmt.Sprintf(" · offset %.1fms", e.NTPOffsetMs)
 		}
+		if e.CertDaysRemaining != 0 || e.CertValid {
+			s += fmt.Sprintf(" · cert %dd", e.CertDaysRemaining)
+			if !e.CertValid {
+				s += " (invalid)"
+			}
+		}
+		if e.ICMPPacketLoss > 0 {
+			s += fmt.Sprintf(" · loss %.0f%%", e.ICMPPacketLoss)
+		}
+		if e.GRPCStatus != "" {
+			s += " · " + e.GRPCStatus
+		}
 		if e.Error != "" {
 			s += " · " + e.Error
 		}
 		return s
+	},
+	"fmtDate": func(t time.Time) string {
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format("2 Jan 2006")
+	},
+	"certExpiryClass": func(days int) string {
+		switch {
+		case days <= 7:
+			return "bad"
+		case days <= 30:
+			return "warn"
+		default:
+			return "good"
+		}
 	},
 	"isoTime": func(t time.Time) string {
 		return t.UTC().Format(time.RFC3339)
@@ -180,6 +208,29 @@ const pageHTML = `{{define "probe-card"}}
       {{if .DownSince}}<span class="down-since">{{.DownSince}}</span>{{end}}
       {{if eq .Status "error"}}<span class="error-label">probe error</span>{{end}}
     </div>
+    {{if .Latest}}
+    {{if and (eq .Type "tls") (not .Latest.CertExpiry.IsZero)}}
+    <div class="type-meta">
+      <span class="meta-badge {{certExpiryClass .Latest.CertDaysRemaining}}">expires {{fmtDate .Latest.CertExpiry}} ({{.Latest.CertDaysRemaining}}d)</span>
+      {{if .Latest.CertValid}}<span class="meta-badge good">chain valid</span>{{else}}<span class="meta-badge bad">chain invalid</span>{{end}}
+    </div>
+    {{end}}
+    {{if and (eq .Type "icmp") (ne .Latest.ICMPPacketLoss 0.0)}}
+    <div class="type-meta">
+      <span class="meta-badge {{if ge .Latest.ICMPPacketLoss 20.0}}bad{{else if ge .Latest.ICMPPacketLoss 5.0}}warn{{else}}good{{end}}">loss {{printf "%.0f" .Latest.ICMPPacketLoss}}%</span>
+    </div>
+    {{end}}
+    {{if and (eq .Type "ntp") (ne .Latest.NTPOffsetMs 0.0)}}
+    <div class="type-meta">
+      <span class="meta-badge {{if gt .Latest.NTPOffsetMs 100.0}}warn{{else if lt .Latest.NTPOffsetMs -100.0}}warn{{else}}good{{end}}">offset {{printf "%.1f" .Latest.NTPOffsetMs}}ms</span>
+    </div>
+    {{end}}
+    {{if and (eq .Type "grpc") (ne .Latest.GRPCStatus "")}}
+    <div class="type-meta">
+      <span class="meta-badge {{if eq .Latest.GRPCStatus "SERVING"}}good{{else}}bad{{end}}">{{.Latest.GRPCStatus}}</span>
+    </div>
+    {{end}}
+    {{end}}
     {{if .BudgetChecks}}
     <div class="budget-row">
       {{range .BudgetChecks}}<span class="budget-badge {{.Severity}}">{{.Metric}}</span>{{end}}
@@ -317,6 +368,13 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .budget-badge.warn{color:var(--amber);background:var(--amber-dim);font-weight:500}
 .budget-badge.fail{color:var(--red);background:var(--red-dim);font-weight:500}
 .probe.budget-warn{border-left:3px solid var(--amber)}
+
+/* type-specific metadata */
+.type-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.meta-badge{font-size:11px;font-family:var(--mono);padding:2px 8px;border-radius:3px;display:inline-flex;align-items:center}
+.meta-badge.good{color:var(--green);background:var(--green-dim)}
+.meta-badge.warn{color:var(--amber);background:var(--amber-dim)}
+.meta-badge.bad{color:var(--red);background:var(--red-dim)}
 
 .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:var(--text-mute)}

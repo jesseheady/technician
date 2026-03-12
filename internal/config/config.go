@@ -22,10 +22,11 @@ type Config struct {
 }
 
 type WebhookConfig struct {
-	URL      string        `yaml:"url"`
-	Type     string        `yaml:"type"`     // "discord", "slack", "generic"
-	Events   []string      `yaml:"events"`   // "probe_down", "probe_up", "budget_violation"
-	Cooldown time.Duration `yaml:"cooldown"` // minimum interval between repeated notifications; default 5m
+	URL        string        `yaml:"url"`
+	Type       string        `yaml:"type"`       // "discord", "slack", "generic"
+	Events     []string      `yaml:"events"`     // "probe_down", "probe_up", "budget_violation", "cert_expiring"
+	Severities []string      `yaml:"severities"` // "warning", "critical" (empty = all)
+	Cooldown   time.Duration `yaml:"cooldown"`   // minimum interval between repeated notifications; default 5m
 }
 
 type Site struct {
@@ -97,7 +98,8 @@ func Load(path string) (*Config, error) {
 }
 
 var validWebhookTypes = map[string]bool{"discord": true, "slack": true, "generic": true}
-var validWebhookEvents = map[string]bool{"probe_down": true, "probe_up": true, "budget_violation": true}
+var validWebhookEvents = map[string]bool{"probe_down": true, "probe_up": true, "budget_violation": true, "cert_expiring": true}
+var validWebhookSeverities = map[string]bool{"warning": true, "critical": true}
 
 func validateWebhooks(webhooks []WebhookConfig) error {
 	for i, wh := range webhooks {
@@ -109,7 +111,12 @@ func validateWebhooks(webhooks []WebhookConfig) error {
 		}
 		for _, e := range wh.Events {
 			if !validWebhookEvents[e] {
-				return fmt.Errorf("webhook[%d]: invalid event %q (must be probe_down, probe_up, or budget_violation)", i, e)
+				return fmt.Errorf("webhook[%d]: invalid event %q (must be probe_down, probe_up, budget_violation, or cert_expiring)", i, e)
+			}
+		}
+		for _, s := range wh.Severities {
+			if !validWebhookSeverities[s] {
+				return fmt.Errorf("webhook[%d]: invalid severity %q (must be warning or critical)", i, s)
 			}
 		}
 	}

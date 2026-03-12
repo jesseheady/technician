@@ -68,6 +68,17 @@ type Result struct {
 	NTPStratum   int           // stratum level (1 = primary reference, 2+ = secondary)
 	NTPRTT       time.Duration // round-trip time to NTP server
 
+	// TLS certificate-specific
+	CertSubject       string    // leaf certificate subject CN
+	CertIssuer        string    // issuer CN
+	CertSANs          []string  // subject alternative names
+	CertExpiry        time.Time // leaf certificate NotAfter
+	CertDaysRemaining int       // days until expiry
+	CertValid         bool      // full chain is valid (trusted root, not expired, hostname match)
+	CertChainLength   int       // number of certificates in the chain
+	CertWarnDaysVal   int       // configured warn threshold (days)
+	CertCritDaysVal   int       // configured critical threshold (days)
+
 	// Degraded flag (set when duration exceeds degraded_after threshold)
 	Degraded bool
 
@@ -105,6 +116,22 @@ type TracerouteHop struct {
 	ASN     int     `json:"asn"`
 	AvgMs   float64 `json:"avg_ms"`
 	LossPercent float64 `json:"loss_percent"`
+}
+
+// CertWarnDays returns the configured warning threshold, defaulting to 30.
+func (r *Result) CertWarnDays() int {
+	if r.CertWarnDaysVal > 0 {
+		return r.CertWarnDaysVal
+	}
+	return 30
+}
+
+// CertCriticalDays returns the configured critical threshold, defaulting to 7.
+func (r *Result) CertCriticalDays() int {
+	if r.CertCritDaysVal > 0 {
+		return r.CertCritDaysVal
+	}
+	return 7
 }
 
 type Prober interface {

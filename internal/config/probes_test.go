@@ -699,3 +699,71 @@ func TestLoadHTTPProbeHeaderAssertionValidation(t *testing.T) {
 		t.Errorf("expected error to contain 'header is required', got: %s", err.Error())
 	}
 }
+
+func TestLoadTLSProbes(t *testing.T) {
+	content := `
+- name: API Cert
+  host: api.example.com:443
+  schedule: "0 0 */6 * * *"
+  timeout: 10s
+  warn_days: 30
+  critical_days: 7
+- name: Web Cert
+  host: www.example.com
+  check_expiry: false
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "tls.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 2 {
+		t.Fatalf("expected 2 probes, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.Name != "API Cert" {
+		t.Errorf("expected name=API Cert, got %s", p.Name)
+	}
+	if p.Type != ProbeTypeTLS {
+		t.Errorf("expected type=tls, got %s", p.Type)
+	}
+	if p.TLS.Host != "api.example.com:443" {
+		t.Errorf("expected host=api.example.com:443, got %s", p.TLS.Host)
+	}
+	if !p.TLS.CheckExpiry {
+		t.Error("expected CheckExpiry=true by default")
+	}
+	if p.TLS.WarnDays != 30 {
+		t.Errorf("expected WarnDays=30, got %d", p.TLS.WarnDays)
+	}
+	if p.TLS.CriticalDays != 7 {
+		t.Errorf("expected CriticalDays=7, got %d", p.TLS.CriticalDays)
+	}
+	if p.Schedule != "0 0 */6 * * *" {
+		t.Errorf("expected schedule, got %s", p.Schedule)
+	}
+
+	p2 := probes[1]
+	if p2.TLS.Host != "www.example.com" {
+		t.Errorf("expected host=www.example.com, got %s", p2.TLS.Host)
+	}
+	if p2.TLS.CheckExpiry {
+		t.Error("expected CheckExpiry=false when explicitly set")
+	}
+	// Defaults still applied for warn/critical
+	if p2.TLS.WarnDays != 30 {
+		t.Errorf("expected default WarnDays=30, got %d", p2.TLS.WarnDays)
+	}
+	if p2.TLS.CriticalDays != 7 {
+		t.Errorf("expected default CriticalDays=7, got %d", p2.TLS.CriticalDays)
+	}
+}

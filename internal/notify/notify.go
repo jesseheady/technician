@@ -18,11 +18,21 @@ const (
 	EventProbeDown       EventType = "probe_down"
 	EventProbeUp         EventType = "probe_up"
 	EventBudgetViolation EventType = "budget_violation"
+	EventCertExpiring    EventType = "cert_expiring"
+)
+
+// Severity classifies how urgent a notification is.
+type Severity string
+
+const (
+	SeverityWarning  Severity = "warning"
+	SeverityCritical Severity = "critical"
 )
 
 // Event is a single notification payload.
 type Event struct {
 	Type      EventType
+	Severity  Severity
 	Probe     string
 	ProbeType config.ProbeType
 	Message   string
@@ -36,9 +46,10 @@ type Sender interface {
 }
 
 type webhook struct {
-	sender   Sender
-	events   map[EventType]bool
-	cooldown time.Duration
+	sender     Sender
+	events     map[EventType]bool
+	severities map[Severity]bool // nil = all severities
+	cooldown   time.Duration
 }
 
 // Manager tracks probe state transitions and dispatches notifications
@@ -51,6 +62,7 @@ type Manager struct {
 	mu           sync.Mutex
 	probeStates  map[string]bool      // probe key -> last success
 	budgetStates map[string]bool      // "probe:metric" -> last violated
+	certStates   map[string]Severity  // "cert:probeName" -> last notified severity
 	lastSent     map[string]time.Time // "probe:eventType" -> last sent
 }
 
@@ -67,6 +79,7 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
 		budgetStates: make(map[string]bool),
+		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
 	}
 
@@ -87,6 +100,7 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 			events[EventProbeDown] = true
 			events[EventProbeUp] = true
 			events[EventBudgetViolation] = true
+			events[EventCertExpiring] = true
 		} else {
 			for _, e := range wc.Events {
 				events[EventType(e)] = true
@@ -98,7 +112,15 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 			cooldown = wc.Cooldown
 		}
 
-		m.webhooks = append(m.webhooks, webhook{sender: s, events: events, cooldown: cooldown})
+		var severities map[Severity]bool
+		if len(wc.Severities) > 0 {
+			severities = make(map[Severity]bool)
+			for _, sev := range wc.Severities {
+				severities[Severity(sev)] = true
+			}
+		}
+
+		m.webhooks = append(m.webhooks, webhook{sender: s, events: events, severities: severities, cooldown: cooldown})
 	}
 
 	slog.Info("Webhook notifications enabled", "endpoints", len(m.webhooks))
@@ -139,6 +161,7 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 		}
 		event = &Event{
 			Type:      EventProbeDown,
+			Severity:  SeverityCritical,
 			Probe:     result.Name,
 			ProbeType: result.Type,
 			Message:   fmt.Sprintf("Probe %s is down", result.Name),
@@ -177,13 +200,69 @@ func (m *Manager) HandleBudgetViolation(ctx context.Context, probeName, metric s
 	// Only notify on transition to violated
 	if violated && !prevViolated {
 		m.dispatch(ctx, Event{
-			Type:    EventBudgetViolation,
-			Probe:   probeName,
-			Message: fmt.Sprintf("Budget violation: %s exceeds %s threshold", probeName, metric),
-			Details: map[string]string{"metric": metric},
+			Type:      EventBudgetViolation,
+			Severity:  SeverityWarning,
+			Probe:     probeName,
+			Message:   fmt.Sprintf("Budget violation: %s exceeds %s threshold", probeName, metric),
+			Details:   map[string]string{"metric": metric},
 			Timestamp: time.Now(),
 		})
 	}
+}
+
+// HandleCertResult checks TLS probe results for certificate expiry and sends
+// severity-appropriate notifications. It tracks per-probe cert state so that
+// notifications fire on transitions (ok→warning, warning→critical, etc.)
+// rather than every probe cycle. Safe to call on a nil Manager.
+func (m *Manager) HandleCertResult(ctx context.Context, result *probe.Result) {
+	if m == nil || result.Type != config.ProbeTypeTLS {
+		return
+	}
+	if result.CertDaysRemaining == 0 && !result.CertValid {
+		return // no cert data (connection failed, etc.)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key := "cert:" + result.Name
+	var severity Severity
+	switch {
+	case result.CertDaysRemaining <= result.CertCriticalDays():
+		severity = SeverityCritical
+	case result.CertDaysRemaining <= result.CertWarnDays():
+		severity = SeverityWarning
+	default:
+		// Cert is healthy — clear any previous state so we re-fire if it
+		// enters a warning window again later.
+		delete(m.certStates, key)
+		return
+	}
+
+	prev := m.certStates[key]
+	if prev == severity {
+		return // already notified at this severity level
+	}
+	m.certStates[key] = severity
+
+	details := map[string]string{
+		"days_remaining": fmt.Sprintf("%d", result.CertDaysRemaining),
+		"expiry":         result.CertExpiry.Format("2006-01-02"),
+		"subject":        result.CertSubject,
+	}
+	if !result.CertValid {
+		details["chain_valid"] = "false"
+	}
+
+	m.dispatch(ctx, Event{
+		Type:      EventCertExpiring,
+		Severity:  severity,
+		Probe:     result.Name,
+		ProbeType: result.Type,
+		Message:   fmt.Sprintf("TLS certificate for %s expires in %d days", result.Name, result.CertDaysRemaining),
+		Details:   details,
+		Timestamp: result.Timestamp,
+	})
 }
 
 // Wait blocks until all in-flight webhook sends have completed.
@@ -199,6 +278,10 @@ func (m *Manager) dispatch(_ context.Context, event Event) {
 	now := time.Now()
 	for i, wh := range m.webhooks {
 		if !wh.events[event.Type] {
+			continue
+		}
+		// If webhook has severity filter and event has a severity, check it
+		if wh.severities != nil && event.Severity != "" && !wh.severities[event.Severity] {
 			continue
 		}
 
