@@ -72,7 +72,21 @@ Config and probes are mounted from `config/`. To use the examples directly, chan
 
 ## Probe configuration
 
-Probes are defined in YAML files under the probes directory (see `examples/probes/` for reference). Each probe type has its own file: `http.yml`, `smtp.yml`, `traceroute.yml`, and `playwright/playwright.yml`.
+Probes are defined in YAML files under the probes directory (see `examples/probes/` for reference). Each probe type has its own file:
+
+| File | Probe type | What it checks |
+|------|-----------|----------------|
+| `http.yml` | HTTP/HTTPS | Status codes, response bodies, headers, redirects |
+| `tcp.yml` | TCP | Port reachability, TLS handshake, banner checks |
+| `dns.yml` | DNS | Record lookups (A, AAAA, MX, TXT, CNAME, NS, SRV) |
+| `icmp.yml` | ICMP (ping) | Packet loss, round-trip time |
+| `grpc.yml` | gRPC | Health check protocol |
+| `ntp.yml` | NTP | Clock offset, stratum, round-trip time |
+| `smtp.yml` | SMTP | Mail server connectivity |
+| `traceroute.yml` | Traceroute | Network path hops (requires mtr) |
+| `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
+
+All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
 
 **Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
 

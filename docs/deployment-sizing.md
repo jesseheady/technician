@@ -159,7 +159,7 @@ One repo produces multiple deployment targets. Here's what ships where and how:
 
 **VPS (any provider)**
 
-The simplest path. Copy the binary, add a systemd unit, point Prometheus at it:
+The simplest path. A single static binary, no Docker required.
 
 ```bash
 # Build
@@ -169,11 +169,64 @@ CGO_ENABLED=0 go build -ldflags="-s -w" -o technician .
 scp technician yourserver:/usr/local/bin/
 scp -r config/ yourserver:/etc/technician/
 
-# Run (or use systemd/supervisord)
+# Create data directory for status persistence
+ssh yourserver 'mkdir -p /var/lib/technician'
+
+# Run (or use systemd — see below)
 ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/technician.yml'
 ```
 
-No Docker required. The binary is static and self-contained. For Playwright probes, you'd also need Node.js and Chromium on the host — in that case, Docker is easier.
+**What you get with just the worker (no Prometheus/Grafana):**
+
+| Feature | Available? |
+|---------|-----------|
+| Status page at `:9394/` | Yes — real-time probe status, history bars, latency percentiles |
+| JSON API at `/api/status` | Yes — for external integrations or a custom status page |
+| Prometheus metrics at `/metrics` | Yes — ready to scrape whenever you add Prometheus |
+| Native webhook alerts (Discord, Slack, generic) | Yes — fires on state transitions, no external stack needed |
+| Blackbox-exporter compat at `/probe` | Yes |
+| Grafana dashboards | No — requires Prometheus + Grafana |
+| Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per probe |
+| Alert rules (ProbeDown, BudgetViolation) | No — requires Prometheus |
+
+This is a valid production deployment for teams that just need uptime monitoring with webhook alerts. The status page and `/api/status` endpoint work independently. Add Prometheus + Grafana later when you want historical trends and dashboards — the worker is already exporting metrics.
+
+**systemd unit file:**
+
+```ini
+[Unit]
+Description=Technician synthetic monitoring worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/technician worker --config /etc/technician/technician.yml
+Environment=SITE_CODE=us-east-1
+Restart=always
+RestartSec=5
+WorkingDirectory=/var/lib/technician
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/technician
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Install and start
+sudo cp technician.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now technician
+sudo journalctl -u technician -f  # tail logs
+```
+
+For Playwright probes, you'd also need Node.js and Chromium on the host — in that case, Docker is easier. For traceroute probes, install mtr (`apt install mtr-tiny`) and note that mtr requires root for raw sockets (the systemd unit runs as root by default; add `AmbientCapabilities=CAP_NET_RAW` if you add a `User=` directive). For NTP probes, ensure outbound UDP port 123 is open.
 
 **Docker / ECS / Kubernetes**
 
