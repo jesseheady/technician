@@ -55,6 +55,14 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"probeCount": func(probes []ProbeState) int {
 		return len(probes)
 	},
+	"hasViolation": func(checks []BudgetCheck) bool {
+		for _, c := range checks {
+			if c.Severity != "pass" {
+				return true
+			}
+		}
+		return false
+	},
 	"groupStatus": func(probes []ProbeState) string {
 		down := 0
 		errCount := 0
@@ -125,7 +133,7 @@ func Handler(store *Store) http.Handler {
 }
 
 const pageHTML = `{{define "probe-card"}}
-  <div class="probe" data-type="{{.Type}}">
+  <div class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}">
     <div class="probe-head">
       <div class="probe-left">
         <div class="dot {{.Status}}"></div>
@@ -144,21 +152,34 @@ const pageHTML = `{{define "probe-card"}}
       {{end}}
     </div>
     {{end}}
+    {{if .Latency}}
+    <div class="percentiles">
+      <span>p50 <span class="val">{{fmtMs .Latency.P50}}</span></span>
+      <span>p90 <span class="val">{{fmtMs .Latency.P90}}</span></span>
+      <span>p95 <span class="val">{{fmtMs .Latency.P95}}</span></span>
+      <span>p99 <span class="val">{{fmtMs .Latency.P99}}</span></span>
+    </div>
+    {{end}}
+    {{if .Timing}}
+    <div class="timing-legend">
+      {{if .Timing.DNSMs}}<span><span class="legend-dot dns"></span>dns {{fmtMs .Timing.DNSMs}}</span>{{end}}
+      {{if .Timing.TLSMs}}<span><span class="legend-dot tls"></span>tls {{fmtMs .Timing.TLSMs}}</span>{{end}}
+      <span><span class="legend-dot ttfb"></span>ttfb {{fmtMs .Timing.TTFBMs}}</span>
+      {{if .Timing.TransferMs}}<span><span class="legend-dot transfer"></span>transfer {{fmtMs .Timing.TransferMs}}</span>{{end}}
+    </div>
+    {{end}}
     <div class="probe-meta">
       {{if .Latest}}
       <span>{{relTime .Latest.Timestamp}}</span>
       {{if .Latest.StatusCode}}<span><span class="val">{{.Latest.StatusCode}}</span></span>{{end}}
       <span><span class="val">{{fmtMs .Latest.DurationMs}}</span></span>
-      {{if .Latest.DNSMs}}<span>dns <span class="val">{{fmtMs .Latest.DNSMs}}</span></span>{{end}}
-      {{if .Latest.TLSMs}}<span>tls <span class="val">{{fmtMs .Latest.TLSMs}}</span></span>{{end}}
-      {{if .Latest.TTFBMs}}<span>ttfb <span class="val">{{fmtMs .Latest.TTFBMs}}</span></span>{{end}}
       {{end}}
       {{if .DownSince}}<span class="down-since">{{.DownSince}}</span>{{end}}
       {{if eq .Status "error"}}<span class="error-label">probe error</span>{{end}}
     </div>
     {{if .BudgetChecks}}
     <div class="budget-row">
-      {{range .BudgetChecks}}<span class="budget-badge {{if .Violated}}fail{{else}}pass{{end}}">{{.Metric}}</span>{{end}}
+      {{range .BudgetChecks}}<span class="budget-badge {{.Severity}}">{{.Metric}}</span>{{end}}
     </div>
     {{end}}
   </div>
@@ -275,11 +296,24 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .down-since{color:var(--red);font-weight:500}
 .error-label{color:var(--amber);font-weight:500}
 
+/* percentiles */
+.percentiles{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-top:8px}
+
+/* timing legend */
+.timing-legend{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:4px}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.legend-dot.dns{background:#6366f1}
+.legend-dot.tls{background:#a855f7}
+.legend-dot.ttfb{background:#ec4899}
+.legend-dot.transfer{background:#f59e0b}
+
 /* budget badges */
 .budget-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
 .budget-badge{font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:3px}
 .budget-badge.pass{color:var(--green);background:var(--green-dim)}
+.budget-badge.warn{color:var(--amber);background:var(--amber-dim);font-weight:500}
 .budget-badge.fail{color:var(--red);background:var(--red-dim);font-weight:500}
+.probe.budget-warn{border-left:3px solid var(--amber)}
 
 .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:var(--text-mute)}

@@ -26,6 +26,10 @@ func NewBlackboxHandler() *BlackboxHandler {
 		probers: map[string]probe.Prober{
 			"http_2xx": probe.NewHTTPProber(),
 			"smtp":     probe.NewSMTPProber(),
+			"tcp":      probe.NewTCPProber(),
+			"dns":      probe.NewDNSProber(),
+			"icmp":     probe.NewICMPProber(),
+			"grpc":     probe.NewGRPCProber(),
 		},
 	}
 }
@@ -114,22 +118,63 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildProbeConfig(target, module string) *config.ProbeConfig {
+	timeout := 30 * time.Second
 	switch module {
 	case "smtp":
 		return &config.ProbeConfig{
 			Name:    target,
 			Type:    config.ProbeTypeSMTP,
-			Timeout: 30 * time.Second,
+			Timeout: timeout,
 			SMTP: &config.SMTPProbeConfig{
 				Host: target,
 				Port: 25,
+			},
+		}
+	case "tcp":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeTCP,
+			Timeout: timeout,
+			TCP: &config.TCPProbeConfig{
+				Host: target,
+				Port: 443,
+			},
+		}
+	case "dns":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeDNS,
+			Timeout: timeout,
+			DNS: &config.DNSProbeConfig{
+				Domain:     target,
+				Server:     "8.8.8.8:53",
+				RecordType: "A",
+			},
+		}
+	case "icmp":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeICMP,
+			Timeout: timeout,
+			ICMP: &config.ICMPProbeConfig{
+				Host:  target,
+				Count: 3,
+			},
+		}
+	case "grpc":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeGRPC,
+			Timeout: timeout,
+			GRPC: &config.GRPCProbeConfig{
+				Host: target,
 			},
 		}
 	default:
 		return &config.ProbeConfig{
 			Name:    target,
 			Type:    config.ProbeTypeHTTP,
-			Timeout: 30 * time.Second,
+			Timeout: timeout,
 			HTTP: &config.HTTPProbeConfig{
 				URL:            target,
 				Method:         "GET",

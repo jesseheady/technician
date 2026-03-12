@@ -110,8 +110,11 @@ func runWorker(cmd *cobra.Command, args []string) error {
 			if len(budgets) > 0 && !result.InfraError {
 				for _, c := range budget.EvaluateAll(result, budgets) {
 					metrics.RecordBudgetViolation(c.Probe, c.Metric, c.Violated, site)
-					store.RecordBudgetCheck(c.Probe, c.Metric, c.Violated)
-					notifier.HandleBudgetViolation(ctx, c.Probe, c.Metric, c.Violated)
+					crossedThreshold := store.RecordBudgetCheck(c.Probe, c.Metric, c.Violated)
+					// Only send webhook when crossing the fail threshold
+					if crossedThreshold {
+						notifier.HandleBudgetViolation(ctx, c.Probe, c.Metric, true)
+					}
 					if c.Violated {
 						slog.Warn("Budget violation",
 							"probe", c.Probe,
@@ -137,14 +140,18 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	// Periodically persist status store
+	// Periodically persist status store + daily backup
 	go func() {
-		ticker := time.NewTicker(60 * time.Second)
-		defer ticker.Stop()
+		saveTicker := time.NewTicker(60 * time.Second)
+		backupTicker := time.NewTicker(1 * time.Hour) // checks daily (idempotent)
+		defer saveTicker.Stop()
+		defer backupTicker.Stop()
 		for {
 			select {
-			case <-ticker.C:
+			case <-saveTicker.C:
 				store.Save()
+			case <-backupTicker.C:
+				store.SaveBackup()
 			case <-ctx.Done():
 				return
 			}

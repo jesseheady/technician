@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptrace"
+	"regexp"
 	"strings"
 	"time"
 
@@ -99,9 +100,11 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 	}
 	client := &http.Client{
 		Transport: transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	}
+	if !hcfg.FollowRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
-		},
+		}
 	}
 
 	reqStart = time.Now()
@@ -151,6 +154,24 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 		result.Error = fmt.Sprintf("expected status %d, got %d", hcfg.ExpectedStatus, resp.StatusCode)
 	}
 
+	// Evaluate assertions (body + header)
+	if len(hcfg.Assertions) > 0 {
+		bodyStr := string(respBody)
+		for _, a := range hcfg.Assertions {
+			var ar AssertionResult
+			if strings.HasPrefix(a.Type, "header_") {
+				ar = evaluateHeaderAssertion(a, resp.Header)
+			} else {
+				ar = evaluateAssertion(a, bodyStr)
+			}
+			result.Assertions = append(result.Assertions, ar)
+			if !ar.Passed && result.Success {
+				result.Success = false
+				result.Error = fmt.Sprintf("assertion failed: %s", ar.Message)
+			}
+		}
+	}
+
 	slog.Debug("HTTP probe completed",
 		"name", cfg.Name,
 		"url", hcfg.URL,
@@ -163,4 +184,63 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 	)
 
 	return result
+}
+
+func evaluateHeaderAssertion(a config.Assertion, headers http.Header) AssertionResult {
+	ar := AssertionResult{Type: a.Type, Target: a.Target, Passed: true}
+	headerVal := headers.Get(a.Header)
+	switch a.Type {
+	case "header_contains":
+		if !strings.Contains(headerVal, a.Target) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("header %q does not contain %q (got %q)", a.Header, a.Target, headerVal)
+		}
+	case "header_not_contains":
+		if strings.Contains(headerVal, a.Target) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("header %q contains %q", a.Header, a.Target)
+		}
+	case "header_regex":
+		re, err := regexp.Compile(a.Target)
+		if err != nil {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("invalid regex %q: %v", a.Target, err)
+		} else if !re.MatchString(headerVal) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("header %q does not match regex %q (got %q)", a.Header, a.Target, headerVal)
+		}
+	default:
+		ar.Passed = false
+		ar.Message = fmt.Sprintf("unknown header assertion type %q", a.Type)
+	}
+	return ar
+}
+
+func evaluateAssertion(a config.Assertion, body string) AssertionResult {
+	ar := AssertionResult{Type: a.Type, Target: a.Target, Passed: true}
+	switch a.Type {
+	case "contains":
+		if !strings.Contains(body, a.Target) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("body does not contain %q", a.Target)
+		}
+	case "not_contains":
+		if strings.Contains(body, a.Target) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("body contains %q", a.Target)
+		}
+	case "regex":
+		re, err := regexp.Compile(a.Target)
+		if err != nil {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("invalid regex %q: %v", a.Target, err)
+		} else if !re.MatchString(body) {
+			ar.Passed = false
+			ar.Message = fmt.Sprintf("body does not match regex %q", a.Target)
+		}
+	default:
+		ar.Passed = false
+		ar.Message = fmt.Sprintf("unknown assertion type %q", a.Type)
+	}
+	return ar
 }

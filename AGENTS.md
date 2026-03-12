@@ -36,7 +36,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 
 - **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright`, `webhooks`.
 - **Probes**: Loaded from directory next to config: `<config_dir>/probes/`:
-  - `http.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type.
+  - `http.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type. HTTP probes support `assertions` (contains, not_contains, regex) for response body validation.
   - Playwright: `probes/playwright/playwright.yml` (or `probes/playwright.yml`) + script files.
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
 - **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation), and `cooldown` (default 5m). Notifications fire on state transitions, not every probe run.
@@ -53,14 +53,14 @@ Three strategies (see `docs/alerting.md`):
 
 ## Status page and persistence
 
-- **Status page**: HTML at `/`, JSON API at `/api/status`. Shows probe health, history bars, budget badges (pass/fail per metric), and overall status (operational/degraded/down).
+- **Status page**: HTML at `/`, JSON API at `/api/status`. Shows probe health, history bars, latency percentiles (P50/P90/P95/P99), HTTP timing breakdown (DNS/TLS/TTFB/transfer as stacked bar), budget badges (pass/fail per metric), and overall status (operational/degraded/down).
 - **Persistence**: Probe history (90-entry ring buffer per probe), down-since timestamps, and budget check state are persisted to `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). Budget badges survive restarts.
 
 ## Probe model
 
 - **Interface**: `internal/probe.Prober`: `Type() config.ProbeType` and `Run(ctx, cfg, site) *Result`.
 - **Types**: `http`, `smtp`, `traceroute`, `playwright`.
-- **Result**: `probe.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, plus type-specific fields (e.g. HTTP timings, WebVitals, HAR, traceroute hops). `Labels` are populated from `site.Labels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
+- **Result**: `probe.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, plus type-specific fields (e.g. HTTP timings, WebVitals, HAR, traceroute hops, assertion results). `Labels` are populated from `site.Labels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a probe type**: Implement `Prober`; add `ProbeType` and config struct in `internal/config/probes.go`; add loader in `LoadProbes`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired).
 
 ## Sites and deployment

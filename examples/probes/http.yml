@@ -25,6 +25,19 @@
 #   expected_status: 200
 #   schedule: "*/60 * * * * *"
 
+# Response body assertions:
+# - name: api-health
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   assertions:
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#   schedule: "*/60 * * * * *"
+
 # Skip TLS verification (self-signed certs):
 # - name: internal-service
 #   url: https://internal.example.com
