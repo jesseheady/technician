@@ -138,22 +138,26 @@ type httpProbeYAML struct {
 }
 
 type smtpProbeYAML struct {
-	Name     string        `yaml:"name"`
-	Group    string        `yaml:"group"`
-	Host     string        `yaml:"host"`
-	Port     int           `yaml:"port"`
-	Schedule string        `yaml:"schedule"`
-	Timeout  time.Duration `yaml:"timeout"`
+	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
+	Host          string        `yaml:"host"`
+	Port          int           `yaml:"port"`
+	Schedule      string        `yaml:"schedule"`
+	Timeout       time.Duration `yaml:"timeout"`
+	Retry         *RetryPolicy  `yaml:"retry"`
+	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
 type tracerouteProbeYAML struct {
-	Name     string        `yaml:"name"`
-	Group    string        `yaml:"group"`
-	Host     string        `yaml:"host"`
-	MaxHops  int           `yaml:"max_hops"`
-	Count    int           `yaml:"count"`
-	Schedule string        `yaml:"schedule"`
-	Timeout  time.Duration `yaml:"timeout"`
+	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
+	Host          string        `yaml:"host"`
+	MaxHops       int           `yaml:"max_hops"`
+	Count         int           `yaml:"count"`
+	Schedule      string        `yaml:"schedule"`
+	Timeout       time.Duration `yaml:"timeout"`
+	Retry         *RetryPolicy  `yaml:"retry"`
+	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
 type playwrightProbeYAML struct {
@@ -167,6 +171,8 @@ type playwrightProbeYAML struct {
 	Device        string        `yaml:"device"`
 	Schedule      string        `yaml:"schedule"`
 	Timeout       time.Duration `yaml:"timeout"`
+	Retry         *RetryPolicy  `yaml:"retry"`
+	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
 type tcpProbeYAML struct {
@@ -354,8 +360,10 @@ func loadSMTPProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []smtpProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
@@ -365,11 +373,13 @@ func loadSMTPProbes(path string) ([]ProbeConfig, error) {
 			r.Port = 25
 		}
 		probes[i] = ProbeConfig{
-			Name:     r.Name,
-			Type:     ProbeTypeSMTP,
-			Group:    r.Group,
-			Schedule: r.Schedule,
-			Timeout:  r.Timeout,
+			Name:          r.Name,
+			Type:          ProbeTypeSMTP,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
 			SMTP: &SMTPProbeConfig{
 				Host:    r.Host,
 				Port:    r.Port,
@@ -386,8 +396,10 @@ func loadTracerouteProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []tracerouteProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
@@ -400,11 +412,13 @@ func loadTracerouteProbes(path string) ([]ProbeConfig, error) {
 			r.Count = 3
 		}
 		probes[i] = ProbeConfig{
-			Name:     r.Name,
-			Type:     ProbeTypeTraceroute,
-			Group:    r.Group,
-			Schedule: r.Schedule,
-			Timeout:  r.Timeout,
+			Name:          r.Name,
+			Type:          ProbeTypeTraceroute,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
 			Traceroute: &TracerouteProbeConfig{
 				Host:    r.Host,
 				MaxHops: r.MaxHops,
@@ -443,11 +457,13 @@ func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
 			script = filepath.Join(probesDir, script)
 		}
 		probes[i] = ProbeConfig{
-			Name:     r.Name,
-			Type:     ProbeTypePlaywright,
-			Group:    r.Group,
-			Schedule: r.Schedule,
-			Timeout:  r.Timeout,
+			Name:          r.Name,
+			Type:          ProbeTypePlaywright,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
 			Playwright: &PlaywrightProbeConfig{
 				Script:        script,
 				Authenticator: r.Authenticator,
@@ -467,8 +483,10 @@ func loadTCPProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []tcpProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
@@ -501,8 +519,10 @@ func loadDNSProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []dnsProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
@@ -539,8 +559,10 @@ func loadICMPProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []icmpProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
@@ -573,8 +595,10 @@ func loadGRPCProbes(path string) ([]ProbeConfig, error) {
 		return nil, err
 	}
 
+	expanded := expandEnvVars(string(data))
+
 	var raw []grpcProbeYAML
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
