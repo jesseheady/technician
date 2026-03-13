@@ -30,6 +30,7 @@ func NewBlackboxHandler() *BlackboxHandler {
 			"dns":      probe.NewDNSProber(),
 			"icmp":     probe.NewICMPProber(),
 			"grpc":     probe.NewGRPCProber(),
+			"udp":      probe.NewUDPProber(),
 		},
 	}
 }
@@ -68,7 +69,7 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 	probeDuration := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_duration_seconds",
-		Help: "End-to-end probe execution time in seconds",
+		Help: "Total probe duration in seconds",
 	})
 
 	registry.MustRegister(probeSuccess, probeDuration)
@@ -168,6 +169,17 @@ func buildProbeConfig(target, module string) *config.ProbeConfig {
 			Timeout: timeout,
 			GRPC: &config.GRPCProbeConfig{
 				Host: target,
+			},
+		}
+	case "udp":
+		return &config.ProbeConfig{
+			Name:    target,
+			Type:    config.ProbeTypeUDP,
+			Timeout: timeout,
+			UDP: &config.UDPProbeConfig{
+				Host: target,
+				Port: 53,
+				Send: "\x00",
 			},
 		}
 	default:

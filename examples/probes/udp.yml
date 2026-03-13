@@ -1,0 +1,23 @@
+# UDP probe examples.
+#
+# send or send_hex is required — UDP is connectionless, so there is nothing
+# to probe without sending a datagram.
+#
+# expect_response defaults to true.  Set it to false for fire-and-forget
+# protocols (syslog, StatsD) where no reply is expected.
+
+# - name: DNS over UDP
+#   host: 8.8.8.8
+#   port: 53
+#   send_hex: "002a01000001000000000000076578616d706c6503636f6d0000010001"
+#   expect_response: true
+#   schedule: "*/30 * * * * *"
+#   timeout: 5s
+
+# - name: StatsD fire-and-forget
+#   host: statsd.internal
+#   port: 8125
+#   send: "test.metric:1|c"
+#   expect_response: false
+#   schedule: "*/30 * * * * *"
+#   timeout: 2s

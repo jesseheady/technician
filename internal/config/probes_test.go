@@ -534,6 +534,14 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
   server: ${TEST_HOST}
 `), 0o644)
 
+	// UDP
+	os.WriteFile(filepath.Join(probesDir, "udp.yml"), []byte(`
+- name: UDP Test
+  host: ${TEST_HOST}
+  port: 5000
+  send: PING
+`), 0o644)
+
 	probes, err := LoadProbes(probesDir)
 	if err != nil {
 		t.Fatal(err)
@@ -568,6 +576,10 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
 		case ProbeTypeNTP:
 			if p.NTP.Server != "expanded.example.com" {
 				t.Errorf("NTP: env expansion failed, got server=%s", p.NTP.Server)
+			}
+		case ProbeTypeUDP:
+			if p.UDP.Host != "expanded.example.com" {
+				t.Errorf("UDP: env expansion failed, got host=%s", p.UDP.Host)
 			}
 		}
 	}
@@ -765,5 +777,86 @@ func TestLoadTLSProbes(t *testing.T) {
 	}
 	if p2.TLS.CriticalDays != 7 {
 		t.Errorf("expected default CriticalDays=7, got %d", p2.TLS.CriticalDays)
+	}
+}
+
+func TestLoadUDPProbes(t *testing.T) {
+	content := `
+- name: DNS over UDP
+  host: 8.8.8.8
+  port: 53
+  send_hex: "002a0100"
+  schedule: "*/30 * * * * *"
+  timeout: 5s
+- name: StatsD
+  host: statsd.internal
+  port: 8125
+  send: "test.metric:1|c"
+  expect_response: false
+  max_response_bytes: 1024
+  degraded_after: 1s
+  retry:
+    count: 2
+    backoff: linear
+    delay: 500ms
+`
+	dir := t.TempDir()
+	probesDir := filepath.Join(dir, "probes")
+	os.MkdirAll(probesDir, 0o755)
+
+	if err := os.WriteFile(filepath.Join(probesDir, "udp.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	probes, err := LoadProbes(probesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(probes) != 2 {
+		t.Fatalf("expected 2 probes, got %d", len(probes))
+	}
+
+	p := probes[0]
+	if p.Name != "DNS over UDP" {
+		t.Errorf("expected name=DNS over UDP, got %s", p.Name)
+	}
+	if p.Type != ProbeTypeUDP {
+		t.Errorf("expected type=udp, got %s", p.Type)
+	}
+	if p.UDP.Host != "8.8.8.8" {
+		t.Errorf("expected host=8.8.8.8, got %s", p.UDP.Host)
+	}
+	if p.UDP.Port != 53 {
+		t.Errorf("expected port=53, got %d", p.UDP.Port)
+	}
+	if p.UDP.SendHex != "002a0100" {
+		t.Errorf("expected send_hex=002a0100, got %s", p.UDP.SendHex)
+	}
+	if p.UDP.MaxResponseBytes != 4096 {
+		t.Errorf("expected default max_response_bytes=4096, got %d", p.UDP.MaxResponseBytes)
+	}
+
+	p2 := probes[1]
+	if p2.UDP.Send != "test.metric:1|c" {
+		t.Errorf("expected send=test.metric:1|c, got %s", p2.UDP.Send)
+	}
+	if p2.UDP.ExpectResponse == nil || *p2.UDP.ExpectResponse != false {
+		t.Error("expected expect_response=false")
+	}
+	if p2.UDP.MaxResponseBytes != 1024 {
+		t.Errorf("expected max_response_bytes=1024, got %d", p2.UDP.MaxResponseBytes)
+	}
+	if p2.DegradedAfter != 1*time.Second {
+		t.Errorf("expected DegradedAfter=1s, got %s", p2.DegradedAfter)
+	}
+	if p2.Retry == nil {
+		t.Fatal("expected Retry to be set")
+	}
+	if p2.Retry.Count != 2 {
+		t.Errorf("expected retry count=2, got %d", p2.Retry.Count)
+	}
+	if p2.Retry.Backoff != "linear" {
+		t.Errorf("expected retry backoff=linear, got %s", p2.Retry.Backoff)
 	}
 }

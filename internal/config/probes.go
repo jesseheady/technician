@@ -29,6 +29,7 @@ const (
 	ProbeTypeGRPC        ProbeType = "grpc"
 	ProbeTypeNTP         ProbeType = "ntp"
 	ProbeTypeTLS         ProbeType = "tls"
+	ProbeTypeUDP         ProbeType = "udp"
 )
 
 type RetryPolicy struct {
@@ -55,6 +56,7 @@ type ProbeConfig struct {
 	GRPC     *GRPCProbeConfig  `yaml:"-"`
 	NTP      *NTPProbeConfig   `yaml:"-"`
 	TLS      *TLSProbeConfig   `yaml:"-"`
+	UDP      *UDPProbeConfig   `yaml:"-"`
 }
 
 type Assertion struct {
@@ -113,6 +115,17 @@ type TLSProbeConfig struct {
 	CheckExpiry  bool   `yaml:"check_expiry"`  // check certificate expiry (default true)
 	WarnDays     int    `yaml:"warn_days"`     // days before expiry to warn (default 30)
 	CriticalDays int    `yaml:"critical_days"` // days before expiry to critical (default 7)
+}
+
+type UDPProbeConfig struct {
+	Host             string `yaml:"host"`
+	Port             int    `yaml:"port"`
+	IPVersion        string `yaml:"ip_version"`      // "4", "6", or "" (any)
+	Send             string `yaml:"send"`             // payload to send (plain text)
+	SendHex          string `yaml:"send_hex"`         // payload to send (hex-encoded bytes)
+	ExpectResponse   *bool  `yaml:"expect_response"`  // nil defaults to true
+	ExpectRecv       string `yaml:"expect_recv"`      // expected substring in response
+	MaxResponseBytes int    `yaml:"max_response_bytes"` // default 4096
 }
 
 type SMTPProbeConfig struct {
@@ -255,6 +268,23 @@ type tlsProbeYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
+type udpProbeYAML struct {
+	Name             string        `yaml:"name"`
+	Group            string        `yaml:"group"`
+	Host             string        `yaml:"host"`
+	Port             int           `yaml:"port"`
+	IPVersion        string        `yaml:"ip_version"`
+	Send             string        `yaml:"send"`
+	SendHex          string        `yaml:"send_hex"`
+	ExpectResponse   *bool         `yaml:"expect_response"`
+	ExpectRecv       string        `yaml:"expect_recv"`
+	MaxResponseBytes int           `yaml:"max_response_bytes"`
+	Schedule         string        `yaml:"schedule"`
+	Timeout          time.Duration `yaml:"timeout"`
+	Retry            *RetryPolicy  `yaml:"retry"`
+	DegradedAfter    time.Duration `yaml:"degraded_after"`
+}
+
 type grpcProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
@@ -324,6 +354,12 @@ func LoadProbes(probesDir string) ([]ProbeConfig, error) {
 		return nil, fmt.Errorf("loading NTP probes: %w", err)
 	}
 	probes = append(probes, ntpProbes...)
+
+	udpProbes, err := loadUDPProbes(filepath.Join(probesDir, "udp.yml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("loading UDP probes: %w", err)
+	}
+	probes = append(probes, udpProbes...)
 
 	tlsProbes, err := loadTLSProbes(filepath.Join(probesDir, "tls.yml"))
 	if err != nil && !os.IsNotExist(err) {
@@ -750,6 +786,48 @@ func loadTLSProbes(path string) ([]ProbeConfig, error) {
 				CheckExpiry:  checkExpiry,
 				WarnDays:     warnDays,
 				CriticalDays: criticalDays,
+			},
+		}
+	}
+	return probes, nil
+}
+
+func loadUDPProbes(path string) ([]ProbeConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expanded := expandEnvVars(string(data))
+
+	var raw []udpProbeYAML
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	probes := make([]ProbeConfig, len(raw))
+	for i, r := range raw {
+		maxResp := r.MaxResponseBytes
+		if maxResp == 0 {
+			maxResp = 4096
+		}
+		probes[i] = ProbeConfig{
+			Name:          r.Name,
+			Type:          ProbeTypeUDP,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
+			UDP: &UDPProbeConfig{
+				Host:             r.Host,
+				Port:             r.Port,
+				IPVersion:        r.IPVersion,
+				Send:             r.Send,
+				SendHex:          r.SendHex,
+				ExpectResponse:   r.ExpectResponse,
+				ExpectRecv:       r.ExpectRecv,
+				MaxResponseBytes: maxResp,
 			},
 		}
 	}
