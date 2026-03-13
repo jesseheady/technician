@@ -30,11 +30,11 @@ type WebhookConfig struct {
 }
 
 type Site struct {
-	Code     string `yaml:"code"`
-	City     string `yaml:"city"`
-	Country  string `yaml:"country"`
-	Geohash  string `yaml:"geohash"`
-	Provider string `yaml:"provider"`
+	Code          string `yaml:"code"`
+	City          string `yaml:"city"`
+	Country       string `yaml:"country"`
+	LocationHash  string `yaml:"location_hash"`
+	InfraProvider string `yaml:"infra_provider"`
 }
 
 type MetricsConfig struct {
@@ -78,7 +78,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	if cfg.Metrics.Prometheus.Listen == "" {
-		cfg.Metrics.Prometheus.Listen = ":9394"
+		cfg.Metrics.Prometheus.Listen = ":9590"
 	}
 	if cfg.Artifacts.Driver == "" {
 		cfg.Artifacts.Driver = "none"
@@ -159,9 +159,9 @@ func (c *Config) ResolveSite(code string) *Site {
 
 func (s Site) Labels() map[string]string {
 	return map[string]string{
-		"site_code":    s.Code,
-		"site_city":    s.City,
-		"site_country": s.Country,
+		"region":  s.Code,
+		"city":    s.City,
+		"country": s.Country,
 	}
 }
 

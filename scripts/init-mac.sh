@@ -72,7 +72,7 @@ if [[ "$start_stack" -eq 1 ]]; then
   info "Starting Technician + Prometheus + Grafana..."
   docker compose up -d
   echo ""
-  info "Technician: http://localhost:9394/metrics"
+  info "Technician: http://localhost:9590/metrics"
   info "Prometheus: http://localhost:9090"
   info "Grafana:    http://localhost:3000 (admin/admin if default)"
 else

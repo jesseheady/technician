@@ -98,7 +98,7 @@ Native webhooks are intentionally simple. They do not provide:
 - Silencing or maintenance windows.
 - Escalation policies.
 - Alert history or state timeline.
-- Rich notification templates.
+- Custom notification templates.
 
 For these features, use Grafana alerting.
 

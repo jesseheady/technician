@@ -94,12 +94,12 @@ go run . worker --config config/technician.yml
    ```bash
    go run . worker --config config/local/technician.yml
    ```
-   In another terminal, run only Prometheus + Grafana (e.g. temporarily edit `docker-compose.yml` to remove the `technician` service and set Prometheus to scrape `host.docker.internal:9394` or your host IP).
+   In another terminal, run only Prometheus + Grafana (e.g. temporarily edit `docker-compose.yml` to remove the `technician` service and set Prometheus to scrape `host.docker.internal:9590` or your host IP).
 
    **All-in-Docker**: Run the mock HTTP server as another service in `docker-compose.yml` (e.g. image `python:3-slim` with a one-line server), and point probe URLs at that service name (e.g. `http://mock-http:8080/`). Mount local config and probes into the Technician container.
 
 3. **Verify**
-   - [http://localhost:9394/metrics](http://localhost:9394/metrics) – should show `technician_*` metrics updating.
+   - [http://localhost:9590/metrics](http://localhost:9590/metrics) – should show `technician_*` metrics updating.
    - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_probe_up`.
    - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock probes.
 

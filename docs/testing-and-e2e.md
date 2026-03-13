@@ -100,7 +100,7 @@ Inspect stdout for success/failure and timing fields.
 2. Wait at least one schedule interval (e.g. 30s for `*/30 * * * * *`).
 3. Curl metrics and check for non-zero counters/gauges:
    ```bash
-   curl -s http://localhost:9394/metrics | grep technician_
+   curl -s http://localhost:9590/metrics | grep technician_
    ```
 
 ### 4. Blackbox-style probe endpoint
@@ -108,7 +108,7 @@ Inspect stdout for success/failure and timing fields.
 Hit the `/probe` endpoint (same semantics as Prometheus blackbox_exporter):
 
 ```bash
-curl -s "http://localhost:9394/probe?target=https://example.com&module=http_2xx"
+curl -s "http://localhost:9590/probe?target=https://example.com&module=http_2xx"
 ```
 
 Expect Prometheus exposition format with `technician_probe_up` and timing metrics.

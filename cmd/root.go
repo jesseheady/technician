@@ -15,8 +15,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "technician",
-	Short: "Synthetic monitoring orchestrator",
-	Long:  "Technician is a synthetic monitoring orchestrator that runs health check probes from multiple geographic sites, exporting rich metrics to Prometheus and traces via OTLP.",
+	Short: "Multi-region infrastructure probe runner",
+	Long:  "Technician is a self-hosted probe runner that checks your infrastructure over the network. Deploy one worker per region, point Prometheus at them — ten probe types, performance budgets, OTLP traces, and Grafana dashboards included.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		level := slog.LevelInfo
 		if verbose {

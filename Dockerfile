@@ -23,7 +23,7 @@ COPY --from=builder /technician /usr/local/bin/technician
 WORKDIR /
 RUN mkdir -p /tmp/technician/artifacts /tmp/technician-videos
 
-EXPOSE 9394
+EXPOSE 9590
 
 ENTRYPOINT ["technician"]
 CMD ["worker", "--config", "/etc/technician/technician.yml"]

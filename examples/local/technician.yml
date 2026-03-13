@@ -11,12 +11,12 @@ sites:
   - code: local
     city: Local
     country: XX
-    geohash: local
-    provider: mock
+    location_hash: local
+    infra_provider: mock
 
 metrics:
   prometheus:
-    listen: ":9394"
+    listen: ":9590"
   otel:
     endpoint: ""
 

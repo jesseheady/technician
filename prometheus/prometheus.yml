@@ -25,5 +25,5 @@ scrape_configs:
   - job_name: technician
     static_configs:
       - targets:
-          - technician:9394
+          - technician:9590
     scrape_interval: 15s

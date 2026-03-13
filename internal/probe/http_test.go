@@ -44,8 +44,8 @@ func TestHTTPProberSuccess(t *testing.T) {
 	if result.ResponseBytes != 2 {
 		t.Errorf("expected 2 response bytes, got %d", result.ResponseBytes)
 	}
-	if result.Labels["site_code"] != "test" {
-		t.Errorf("expected site_code=test, got %s", result.Labels["site_code"])
+	if result.Labels["region"] != "test" {
+		t.Errorf("expected region=test, got %s", result.Labels["region"])
 	}
 }
 

@@ -1,10 +1,10 @@
 # Technician
 
-Synthetic monitoring orchestrator. Runs health-check probes (HTTP, SMTP, traceroute, browser) from configurable geographic sites, exports metrics to Prometheus, and traces via OTLP.
+A single Go binary that probes your infrastructure over the network. Ten probe types (HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
 
 ## What it does
 
-- **Scheduled probes** — HTTP (with full httptrace timing: DNS, TLS, connect, TTFB, transfer), SMTP (EHLO handshake), traceroute (mtr), and browser (Playwright with Core Web Vitals and HAR recording).
+- **Scheduled probes** — HTTP (with full httptrace timing: DNS, TLS, connect, TTFB, transfer), SMTP (mail server connectivity), traceroute (mtr), and browser (Playwright with Core Web Vitals and HAR recording).
 - **Prometheus metrics** — 20 gauges covering uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations. Exposed on `/metrics`.
 - **Blackbox-compatible `/probe` endpoint** — Accepts `?target=&module=` queries so Prometheus can scrape ad-hoc probe targets via relabeling, the same contract as [prometheus/blackbox_exporter](https://github.com/prometheus/blackbox_exporter).
 - **OTLP traces** — One span per probe run with timing attributes and HAR entries as span events.
@@ -20,7 +20,7 @@ Synthetic monitoring orchestrator. Runs health-check probes (HTTP, SMTP, tracero
   technician.yml ──────►│  Scheduler (cron + stagger)      │
   probes/*.yml ────────►│    │                              │
                         │    ├─► HTTP Prober (httptrace)    │
-                        │    ├─► SMTP Prober (EHLO)        │
+                        │    ├─► SMTP Prober               │
                         │    ├─► Traceroute Prober (mtr)   │
                         │    └─► Playwright Prober (Node)  │
                         │           │                      │
@@ -43,7 +43,7 @@ Synthetic monitoring orchestrator. Runs health-check probes (HTTP, SMTP, tracero
 go run . worker --config config/technician.yml
 ```
 
-Metrics at [http://localhost:9394/metrics](http://localhost:9394/metrics), health at [http://localhost:9394/health](http://localhost:9394/health).
+Metrics at [http://localhost:9590/metrics](http://localhost:9590/metrics), health at [http://localhost:9590/health](http://localhost:9590/health).
 
 **Full stack (Technician + Prometheus + Grafana):**
 
@@ -51,7 +51,7 @@ Metrics at [http://localhost:9394/metrics](http://localhost:9394/metrics), healt
 docker compose up
 ```
 
-- Technician: port 9394
+- Technician: port 9590
 - Prometheus: [http://localhost:9090](http://localhost:9090)
 - Grafana: [http://localhost:3000](http://localhost:3000) (admin / admin)
 
@@ -68,7 +68,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` en
 
 ## Configuration
 
-- **Main config** — `technician.yml`: service name, sites (code, city, country, geohash, provider), metrics listen address, artifact storage, Playwright mode.
+- **Main config** — `technician.yml`: service name, sites (code, city, country, location_hash, infra_provider), metrics listen address, artifact storage, Playwright mode.
 - **Probes** — `probes/http.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), and timeout.
 - **Budgets** — Optional `budgets.yml` with per-probe thresholds for `validate`.
 - All YAML files support `${ENV_VAR}` expansion.
@@ -94,7 +94,7 @@ Technician is built around Prometheus pull-based scraping because:
 - **Self-hosted and open source** — No vendor lock-in. Runs in your VPC alongside the workers it scrapes.
 - **Pull model fits long-lived workers** — Each Technician instance exposes `/metrics`; Prometheus scrapes them on an interval. No push infrastructure needed for VPS/container deployments.
 - **Blackbox-exporter compatibility** — The `/probe` endpoint lets Prometheus drive ad-hoc probes with its native relabeling, the same pattern used across the Prometheus ecosystem.
-- **Grafana integration** — Pre-built dashboards and alert rules work out of the box.
+- **Grafana integration** — Dashboards and alert rules are included and work immediately.
 
 **When you might not need Technician:**
 - If "is it up?" from managed infra is enough, consider **Route 53 Health Checks** or **Cloudflare Health Checks** — no custom code to maintain.
@@ -110,7 +110,12 @@ Technician is built around Prometheus pull-based scraping because:
 - [Testing and E2E](docs/testing-and-e2e.md) — Test guide.
 - [Core Web Vitals](docs/core-web-vitals.md) — LCP, INP, CLS thresholds and measurement.
 - [Roadmap](docs/roadmap.md) — Planned work: Lambda adapter, Cloudflare Workers adapter, incomplete features.
+- [Migrating between versions](docs/migrating.md) — Breaking changes, label renames, and cutover steps.
 - [AGENTS.md](AGENTS.md) — Architecture reference and conventions for contributors.
+
+## Acknowledgments
+
+Technician was inspired by [Upright](https://github.com/basecamp/upright) by 37signals. Technician is an independent implementation in Go with a different architecture and feature set.
 
 ## Development
 

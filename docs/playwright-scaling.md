@@ -155,7 +155,7 @@ All probes on one host. `max_browsers` prevents OOM.
 │  Technician worker       │
 │  HTTP, TCP, DNS, ...     │
 │  Playwright (max: 2)     │
-│  :9394                   │
+│  :9590                   │
 └─────────────────────────┘
 ```
 
@@ -168,7 +168,7 @@ Split into two workers at the same site. One runs lightweight probes, the other 
 │  Worker (lightweight)    │  │  Worker (browser)        │
 │  HTTP, TCP, DNS, ICMP,   │  │  Playwright only         │
 │  NTP, SMTP, gRPC         │  │  max_browsers: 4         │
-│  :9394                   │  │  :9395                   │
+│  :9590                   │  │  :9395                   │
 │  256 MB, 1 vCPU          │  │  4 GB, 4 vCPU            │
 └─────────────────────────┘  └─────────────────────────┘
          │                             │
@@ -187,7 +187,7 @@ technician worker --config /etc/technician/light/technician.yml --site us-east-1
 technician worker --config /etc/technician/browser/technician.yml --site us-east-1
 ```
 
-Prometheus scrapes both on different ports. Grafana sees all metrics with the same `site_code` label.
+Prometheus scrapes both on different ports. Grafana sees all metrics with the same `region` label.
 
 ### Stage 3: Remote browser service (future)
 
@@ -197,7 +197,7 @@ For teams running many browser probes across regions, a dedicated Playwright ser
 ┌──────────────┐       ┌──────────────────────┐
 │  Worker       │──────►│  Playwright server     │
 │  us-east-1    │  gRPC │  (pool of browsers)    │
-│  :9394        │       │  max_browsers: 10       │
+│  :9590        │       │  max_browsers: 10       │
 └──────────────┘       │  4 vCPU, 8 GB           │
                        └──────────────────────┘
 ┌──────────────┐

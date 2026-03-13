@@ -14,13 +14,13 @@ sites:
   - code: us-east-1
     city: N. Virginia
     country: US
-    geohash: dqcjq
-    provider: aws
+    location_hash: dqcjq
+    infra_provider: aws
   - code: us-west-2
     city: Oregon
     country: US
-    geohash: c20y
-    provider: aws
+    location_hash: c20y
+    infra_provider: aws
 metrics:
   prometheus:
     listen: ":9999"
@@ -69,8 +69,8 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cfg.Metrics.Prometheus.Listen != ":9394" {
-		t.Errorf("expected default listen=:9394, got %s", cfg.Metrics.Prometheus.Listen)
+	if cfg.Metrics.Prometheus.Listen != ":9590" {
+		t.Errorf("expected default listen=:9590, got %s", cfg.Metrics.Prometheus.Listen)
 	}
 	if cfg.Artifacts.Driver != "none" {
 		t.Errorf("expected default driver=none, got %s", cfg.Artifacts.Driver)
@@ -154,13 +154,13 @@ func TestSiteLabels(t *testing.T) {
 	site := Site{Code: "us-east-1", City: "N. Virginia", Country: "US"}
 	labels := site.Labels()
 
-	if labels["site_code"] != "us-east-1" {
-		t.Errorf("expected site_code=us-east-1, got %s", labels["site_code"])
+	if labels["region"] != "us-east-1" {
+		t.Errorf("expected region=us-east-1, got %s", labels["region"])
 	}
-	if labels["site_city"] != "N. Virginia" {
-		t.Errorf("expected site_city=N. Virginia, got %s", labels["site_city"])
+	if labels["city"] != "N. Virginia" {
+		t.Errorf("expected city=N. Virginia, got %s", labels["city"])
 	}
-	if labels["site_country"] != "US" {
-		t.Errorf("expected site_country=US, got %s", labels["site_country"])
+	if labels["country"] != "US" {
+		t.Errorf("expected country=US, got %s", labels["country"])
 	}
 }

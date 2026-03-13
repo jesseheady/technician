@@ -48,7 +48,7 @@ No changes. Continue spawning `node run.js` with JSON config.
 - npm dependency management (package.json, node_modules, version pinning)
 - `npx playwright install` downloads browsers separately from the Go build
 
-**Best for:** Teams that want the richest browser API, need user-authored JS probe scripts, or want to minimize implementation risk.
+**Best for:** Teams that need user-authored JS probe scripts or want to minimize implementation risk. Playwright has the broadest browser API of the options listed.
 
 ### Option B: chromedp (pure Go, CDP direct)
 
@@ -178,7 +178,7 @@ Go orchestrator
 
 ## Recommendation
 
-**Short term: Stay with Option A (Node.js Playwright).** It works, covers all features, and the JS probe script model is the most flexible for end users. The Node.js overhead (~40 MB RSS, ~180 MB image) is manageable at current scale.
+**Short term: Stay with Option A (Node.js Playwright).** It works, covers all features, and the JS probe script model gives users the most control over what the browser does. The Node.js overhead (~40 MB RSS, ~180 MB image) is manageable at current scale.
 
 **Medium term: Evaluate Option C (rod) as a parallel prober.** Add a `rod`-based `BrowserProber` alongside the existing `PlaywrightProber`. This lets us:
 - Compare resource usage and reliability side-by-side

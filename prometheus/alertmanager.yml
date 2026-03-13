@@ -74,9 +74,9 @@ receivers:
     #     send_resolved: true
 
 inhibit_rules:
-  # If a probe is down (critical), suppress the budget violation warnings for it.
+  # If a probe is failing (critical), suppress the budget violation warnings for it.
   - source_match:
-      alertname: ProbeDown
+      alertname: ProbeFailing
     target_match:
       severity: warning
     equal: ['name']

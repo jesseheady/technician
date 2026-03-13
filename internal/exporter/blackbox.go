@@ -64,11 +64,11 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	probeSuccess := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_success",
-		Help: "Whether the probe was successful",
+		Help: "1 if the target responded successfully, 0 otherwise",
 	})
 	probeDuration := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_duration_seconds",
-		Help: "Total probe duration in seconds",
+		Help: "End-to-end probe execution time in seconds",
 	})
 
 	registry.MustRegister(probeSuccess, probeDuration)
@@ -83,7 +83,7 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if result.StatusCode > 0 {
 		httpStatus := prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "probe_http_status_code",
-			Help: "HTTP response status code",
+			Help: "Status code returned by the HTTP target",
 		})
 		registry.MustRegister(httpStatus)
 		httpStatus.Set(float64(result.StatusCode))

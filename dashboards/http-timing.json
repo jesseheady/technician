@@ -16,15 +16,15 @@
   "templating": {
     "list": [
       {
-        "name": "site_code",
+        "name": "region",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_http_dns_seconds, site_code)",
+        "definition": "label_values(technician_http_dns_seconds, region)",
         "query": {
-          "query": "label_values(technician_http_dns_seconds, site_code)",
+          "query": "label_values(technician_http_dns_seconds, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)",
+        "definition": "label_values(technician_http_dns_seconds{region=~\"$region\"}, name)",
         "query": {
-          "query": "label_values(technician_http_dns_seconds{site_code=~\"$site_code\"}, name)",
+          "query": "label_values(technician_http_dns_seconds{region=~\"$region\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -92,27 +92,27 @@
       },
       "targets": [
         {
-          "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "DNS - {{name}}",
           "refId": "A"
         },
         {
-          "expr": "technician_http_tls_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "TLS - {{name}}",
           "refId": "B"
         },
         {
-          "expr": "technician_http_connect_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "Connect - {{name}}",
           "refId": "C"
         },
         {
-          "expr": "technician_http_ttfb_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "TTFB - {{name}}",
           "refId": "D"
         },
         {
-          "expr": "technician_http_transfer_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "Transfer - {{name}}",
           "refId": "E"
         }
@@ -161,8 +161,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_dns_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -208,8 +208,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_tls_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -255,8 +255,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_connect_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -302,8 +302,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_ttfb_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -349,8 +349,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_transfer_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -396,8 +396,8 @@
       },
       "targets": [
         {
-          "expr": "technician_http_response_bytes{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_http_response_bytes{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -453,7 +453,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_response_status{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_http_response_status{region=~\"$region\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -518,7 +518,7 @@
             },
             "renameByName": {
               "name": "Probe",
-              "site_code": "Site"
+              "region": "Site"
             }
           }
         }
