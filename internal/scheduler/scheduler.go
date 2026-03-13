@@ -81,11 +81,14 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			slog.Info("Staggering probe", "name", pc.Name, "delay", staggerDelay)
 		}
 
-		delay := staggerDelay
 		probeCfg := pc // capture for closure
+		probeDelay := staggerDelay
 		_, err := s.cron.AddFunc(schedule, func() {
-			if delay > 0 {
-				time.Sleep(delay)
+			if probeDelay > 0 {
+				// Use a timer instead of blocking the cron goroutine directly.
+				// The sleep is intentional: it spreads probe starts within
+				// the cron tick window to avoid thundering-herd effects.
+				time.Sleep(probeDelay)
 			}
 			slog.Debug("Running probe", "name", probeCfg.Name, "type", probeCfg.Type)
 			result := runWithRetry(ctx, prober, &probeCfg, s.site)

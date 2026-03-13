@@ -153,7 +153,33 @@ type probeRing struct {
 	group     string
 	target    string // canonical hostname/domain
 	entries   []Entry
+	head      int  // next write position (circular)
+	full      bool // true once the buffer has wrapped
 	downSince time.Time // zero if currently up
+}
+
+// push appends an entry to the circular ring buffer.
+func (r *probeRing) push(e Entry) {
+	if len(r.entries) < maxHistory {
+		// Still filling up — just append
+		r.entries = append(r.entries, e)
+		return
+	}
+	// Buffer is full — overwrite oldest
+	r.entries[r.head] = e
+	r.head = (r.head + 1) % maxHistory
+	r.full = true
+}
+
+// ordered returns entries in chronological order (oldest first).
+func (r *probeRing) ordered() []Entry {
+	if !r.full || r.head == 0 {
+		return r.entries
+	}
+	out := make([]Entry, len(r.entries))
+	copy(out, r.entries[r.head:])
+	copy(out[len(r.entries)-r.head:], r.entries[:r.head])
+	return out
 }
 
 // NewStore creates a new store. If path is non-empty, the store will persist
@@ -227,10 +253,7 @@ func (s *Store) Push(r *probe.Result) {
 		ring.downSince = r.Timestamp
 	}
 
-	ring.entries = append(ring.entries, e)
-	if len(ring.entries) > maxHistory {
-		ring.entries = ring.entries[len(ring.entries)-maxHistory:]
-	}
+	ring.push(e)
 
 	s.invalidateCache()
 }
@@ -309,20 +332,20 @@ func (s *Store) computeSnapshot() *Snapshot {
 		ring := s.probes[key]
 		typesSeen[string(ring.typ)] = true
 
+		entries := ring.ordered()
 		ps := ProbeState{
 			Name:    ring.name,
 			Type:    ring.typ,
 			Domain:  ring.target,
 			Status:  "pending",
-			Uptime:  uptimePercent(ring.entries),
-			Latency: computeLatency(ring.entries),
-			Timing:  computeTiming(ring.entries),
-			History: make([]Entry, len(ring.entries)),
+			Uptime:  uptimePercent(entries),
+			Latency: computeLatency(entries),
+			Timing:  computeTiming(entries),
+			History: entries,
 		}
-		copy(ps.History, ring.entries)
 
-		if len(ring.entries) > 0 {
-			last := ring.entries[len(ring.entries)-1]
+		if len(entries) > 0 {
+			last := entries[len(entries)-1]
 			ps.Latest = &last
 			if last.Success {
 				ps.Status = "up"
@@ -581,7 +604,7 @@ func (s *Store) Save() {
 			Type:      ring.typ,
 			Group:     ring.group,
 			Target:    ring.target,
-			Entries:   ring.entries,
+			Entries:   ring.ordered(),
 			DownSince: ring.downSince,
 		}
 	}

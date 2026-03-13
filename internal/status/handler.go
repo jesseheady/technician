@@ -2,6 +2,7 @@ package status
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -207,14 +208,31 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	},
 }).Parse(pageHTML))
 
+// serveWithETag writes body with ETag/If-None-Match support. Returns 304 if
+// the client already has the current version.
+func serveWithETag(w http.ResponseWriter, r *http.Request, body []byte, contentType string) {
+	hash := sha256.Sum256(body)
+	etag := fmt.Sprintf(`"%x"`, hash[:8])
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("ETag", etag)
+
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Write(body)
+}
+
 // Handler returns an http.Handler that serves the status page and API.
 func Handler(store *Store) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-cache")
-		json.NewEncoder(w).Encode(store.Snapshot())
+		var buf bytes.Buffer
+		json.NewEncoder(&buf).Encode(store.Snapshot())
+		serveWithETag(w, r, buf.Bytes(), "application/json")
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -227,9 +245,7 @@ func Handler(store *Store) http.Handler {
 			http.Error(w, "template error", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		buf.WriteTo(w)
+		serveWithETag(w, r, buf.Bytes(), "text/html; charset=utf-8")
 	})
 
 	return mux
