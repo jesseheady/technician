@@ -6,15 +6,40 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
 )
 
-type DNSProber struct{}
+type DNSProber struct {
+	mu        sync.Mutex
+	resolvers map[string]*net.Resolver // keyed by DNS server address
+}
 
 func NewDNSProber() *DNSProber {
-	return &DNSProber{}
+	return &DNSProber{
+		resolvers: make(map[string]*net.Resolver),
+	}
+}
+
+// getResolver returns a cached *net.Resolver for the given DNS server address,
+// reusing the resolver across probe runs to benefit from connection reuse.
+func (p *DNSProber) getResolver(server string) *net.Resolver {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if r, ok := p.resolvers[server]; ok {
+		return r
+	}
+	r := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{}
+			return d.DialContext(ctx, "udp", server)
+		},
+	}
+	p.resolvers[server] = r
+	return r
 }
 
 func (p *DNSProber) Type() config.ProbeType {
@@ -38,13 +63,7 @@ func (p *DNSProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{}
-			return d.DialContext(ctx, "udp", dcfg.Server)
-		},
-	}
+	resolver := p.getResolver(dcfg.Server)
 
 	domain := dcfg.Domain
 	recordType := strings.ToUpper(dcfg.RecordType)
