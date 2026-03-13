@@ -55,7 +55,7 @@ golint ./...
 | Package            | Focus |
 |--------------------|--------|
 | `internal/probe`   | HTTP (httptest), TCP, DNS, Playwright (concurrency limiter), behavior |
-| `internal/config`  | YAML loading, env expansion, defaults, probe config for all 10 types |
+| `internal/config`  | YAML loading, env expansion, defaults, probe config for all 11 types |
 | `internal/budget`  | Threshold evaluation, wildcards |
 | `internal/metrics` | HAR parsing, recording |
 | `internal/scheduler` | Stagger, cron, retry logic |

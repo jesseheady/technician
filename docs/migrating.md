@@ -4,7 +4,7 @@ When Technician ships breaking changes to config fields, metric label names, or 
 
 ## What breaks on a label or config rename
 
-Prometheus indexes every time series by its full label set. If a label name changes (say `site_code` becomes `region`), Prometheus treats the new label as an entirely new series. The old series stops receiving data and ages out after your configured retention period. Any dashboards, alert rules, or recording rules that reference the old label name will silently return empty results until you update them.
+Prometheus indexes every time series by its full label set. If a label name changes (say `regional` becomes `region`), Prometheus treats the new label as an entirely new series. The old series stops receiving data and ages out after your configured retention period. Any dashboards, alert rules, or recording rules that reference the old label name will silently return empty results until you update them.
 
 The local status store (`status.json`) has a similar issue. Probe results carry their labels as a `map[string]string`. When Technician restarts with new label names, it reads the old snapshot and tries to extract labels by the new keys — getting empty strings instead of the actual values. This doesn't crash anything, but metrics recorded from stale results will have blank label values until fresh probe runs replace them.
 
@@ -95,13 +95,10 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 - Recording rule `technician:probe_uptime_daily` → `technician:daily_availability`
 - Alert `ProbeDown` → `ProbeFailing` (also changed `for:` from 5m to 3m)
 
-**Default port:**
-- Listen port changed from `9394` to `9590`
-
 **Action required:**
 1. Update `technician.yml` site fields (`location_hash`, `infra_provider`).
-2. Update `prometheus/prometheus.yml` scrape target to port `9590`.
-3. Update `docker-compose.yml` port mapping to `9590:9590`.
+2. Ensure `prometheus/prometheus.yml` scrape target uses port `9590`.
+3. Ensure `docker-compose.yml` port mapping is `9590:9590`.
 4. Replace `prometheus/rules.yml` with the new version.
 5. Update `prometheus/alertmanager.yml` inhibit rules (`ProbeFailing`).
 6. Re-import Grafana dashboards from `dashboards/`.

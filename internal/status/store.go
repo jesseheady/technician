@@ -350,7 +350,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 	}
 
 	// Collect distinct types in stable order
-	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeTLS, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
+	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeUDP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeTLS, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypePlaywright}
 	for _, t := range typeOrder {
 		if typesSeen[string(t)] {
 			snap.Types = append(snap.Types, string(t))

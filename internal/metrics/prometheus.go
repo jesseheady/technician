@@ -155,6 +155,17 @@ var (
 		Help: "NTP round-trip time in seconds",
 	}, []string{"name", "region", "city", "country"})
 
+	// UDP metrics
+	udpRTT = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_udp_rtt_seconds",
+		Help: "UDP round-trip time in seconds (send to response)",
+	}, []string{"name", "region", "city", "country"})
+
+	udpResponseBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_udp_response_bytes",
+		Help: "UDP response size in bytes",
+	}, []string{"name", "region", "city", "country"})
+
 	// TLS certificate metrics
 	tlsCertExpiryDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tls_cert_expiry_days",
@@ -203,6 +214,8 @@ func init() {
 		ntpOffsetMs,
 		ntpStratum,
 		ntpRTT,
+		udpRTT,
+		udpResponseBytes,
 		tlsCertExpiryDays,
 		tlsCertValid,
 		probeDegraded,
@@ -246,6 +259,8 @@ func RecordResult(result *probe.Result) {
 		recordNTPMetrics(result, labels)
 	case config.ProbeTypeTLS:
 		recordTLSMetrics(result, labels)
+	case config.ProbeTypeUDP:
+		recordUDPMetrics(result, labels)
 	}
 
 	degraded := float64(0)
@@ -330,6 +345,11 @@ func recordNTPMetrics(result *probe.Result, labels labelSet) {
 	ntpOffsetMs.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPOffsetMs)
 	ntpStratum.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.NTPStratum))
 	ntpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPRTT.Seconds())
+}
+
+func recordUDPMetrics(result *probe.Result, labels labelSet) {
+	udpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.UDPRTT.Seconds())
+	udpResponseBytes.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.UDPResponseBytes))
 }
 
 func recordTLSMetrics(result *probe.Result, labels labelSet) {

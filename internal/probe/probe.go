@@ -68,6 +68,10 @@ type Result struct {
 	NTPStratum   int           // stratum level (1 = primary reference, 2+ = secondary)
 	NTPRTT       time.Duration // round-trip time to NTP server
 
+	// UDP-specific
+	UDPRTT           time.Duration // round-trip time (send to response)
+	UDPResponseBytes int           // number of bytes received
+
 	// TLS certificate-specific
 	CertSubject       string    // leaf certificate subject CN
 	CertIssuer        string    // issuer CN
