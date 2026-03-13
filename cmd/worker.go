@@ -16,6 +16,7 @@ import (
 	"github.com/monkeyWzr/technician/internal/metrics"
 	"github.com/monkeyWzr/technician/internal/notify"
 	"github.com/monkeyWzr/technician/internal/scheduler"
+	"github.com/monkeyWzr/technician/internal/server"
 	"github.com/monkeyWzr/technician/internal/status"
 	"github.com/spf13/cobra"
 )
@@ -85,14 +86,18 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	mux.Handle("/api/", status.Handler(store))
 	mux.Handle("/", status.Handler(store))
 
-	server := &http.Server{
-		Addr:    cfg.Metrics.Prometheus.Listen,
-		Handler: mux,
+	httpServer := &http.Server{
+		Addr:           cfg.Metrics.Prometheus.Listen,
+		Handler:        server.Gzip(mux),
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   30 * time.Second, // allow time for /probe endpoint (up to 30s)
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	go func() {
 		slog.Info("Starting server", "addr", cfg.Metrics.Prometheus.Listen)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 		}
 	}()
@@ -170,5 +175,5 @@ func runWorker(cmd *cobra.Command, args []string) error {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	return server.Shutdown(shutdownCtx)
+	return httpServer.Shutdown(shutdownCtx)
 }

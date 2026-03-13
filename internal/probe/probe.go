@@ -19,6 +19,7 @@ type Result struct {
 	Name      string
 	Type      config.ProbeType
 	Group     string
+	Target    string // canonical hostname/domain for status page grouping
 	Success    bool
 	InfraError bool // true when the probe infrastructure itself failed (not the target)
 	Duration   time.Duration

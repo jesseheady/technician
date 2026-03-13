@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.dockerignore
+docs
+dashboards
+scripts
+config
+examples
+*.md
+LICENSE
+technician
