@@ -90,6 +90,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			slog.Debug("Running probe", "name", probeCfg.Name, "type", probeCfg.Type)
 			result := runWithRetry(ctx, prober, &probeCfg, s.site)
 			result.Group = probeCfg.Group
+			result.Target = probeCfg.Target()
 
 			// Mark as degraded if duration exceeds threshold
 			if probeCfg.DegradedAfter > 0 && result.Success && result.Duration > probeCfg.DegradedAfter {
@@ -116,7 +117,9 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		slog.Info("Stopping scheduler")
-		s.cron.Stop()
+		cronCtx := s.cron.Stop()
+		<-cronCtx.Done() // wait for running jobs to finish
+		close(s.results)
 	}()
 
 	return nil

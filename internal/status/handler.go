@@ -1,6 +1,7 @@
 package status
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -8,6 +9,12 @@ import (
 	"net/http"
 	"time"
 )
+
+// DomainGroup groups probes that share the same target domain/host.
+type DomainGroup struct {
+	Domain string
+	Probes []ProbeState
+}
 
 var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"sub": func(a, b int) int { return a - b },
@@ -138,6 +145,66 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"isoTime": func(t time.Time) string {
 		return t.UTC().Format(time.RFC3339)
 	},
+	"groupByDomain": func(probes []ProbeState) []DomainGroup {
+		var order []string
+		m := make(map[string]*DomainGroup)
+		for _, p := range probes {
+			key := p.Domain
+			if key == "" {
+				key = p.Name // fallback: ungrouped
+			}
+			if g, ok := m[key]; ok {
+				g.Probes = append(g.Probes, p)
+			} else {
+				m[key] = &DomainGroup{Domain: key, Probes: []ProbeState{p}}
+				order = append(order, key)
+			}
+		}
+		groups := make([]DomainGroup, 0, len(order))
+		for _, k := range order {
+			groups = append(groups, *m[k])
+		}
+		return groups
+	},
+	"domainStatus": func(probes []ProbeState) string {
+		down, errCount := 0, 0
+		for _, p := range probes {
+			if p.Status == "down" {
+				down++
+			} else if p.Status == "error" {
+				errCount++
+			}
+		}
+		if down > 0 {
+			if down == len(probes) {
+				return "down"
+			}
+			return "degraded"
+		}
+		if errCount > 0 {
+			return "error"
+		}
+		return "up"
+	},
+	"domainTypes": func(probes []ProbeState) string {
+		seen := make(map[string]bool)
+		var types []string
+		for _, p := range probes {
+			t := string(p.Type)
+			if !seen[t] {
+				seen[t] = true
+				types = append(types, t)
+			}
+		}
+		s := ""
+		for i, t := range types {
+			if i > 0 {
+				s += ", "
+			}
+			s += t
+		}
+		return s
+	},
 }).Parse(pageHTML))
 
 // Handler returns an http.Handler that serves the status page and API.
@@ -155,17 +222,22 @@ func Handler(store *Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		var buf bytes.Buffer
+		if err := pageTmpl.Execute(&buf, store.Snapshot()); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		pageTmpl.Execute(w, store.Snapshot())
+		buf.WriteTo(w)
 	})
 
 	return mux
 }
 
 const pageHTML = `{{define "probe-card"}}
-  <div class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}">
-    <div class="probe-head">
+  <details class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}" data-name="{{.Name}}"{{if ne .Status "up"}} open{{end}}>
+    <summary class="probe-head">
       <div class="probe-left">
         <div class="dot {{.Status}}"></div>
         <span class="name">{{.Name}}</span>
@@ -174,7 +246,7 @@ const pageHTML = `{{define "probe-card"}}
         <span class="probe-type">{{.Type}}</span>
         <span class="uptime {{if eq .Uptime "100%"}}perfect{{else if eq .Uptime "—"}}{{else}}good{{end}}">{{.Uptime}}</span>
       </div>
-    </div>
+    </summary>
     {{if .History}}
     {{$max := maxDuration .History}}
     <div class="bars">
@@ -236,8 +308,17 @@ const pageHTML = `{{define "probe-card"}}
       {{range .BudgetChecks}}<span class="budget-badge {{.Severity}}">{{.Metric}}</span>{{end}}
     </div>
     {{end}}
-  </div>
-{{end}}<!DOCTYPE html>
+  </details>
+{{end}}{{define "domain-probes"}}{{$domains := groupByDomain .}}{{range $domains}}{{if eq (len .Probes) 1}}{{template "probe-card" (index .Probes 0)}}{{else}}<details class="domain-wrap" data-domain="{{.Domain}}"{{if ne (domainStatus .Probes) "up"}} open{{end}}>
+    <summary class="domain-head">
+      <div class="dot {{domainStatus .Probes}}"></div>
+      <span class="domain-name">{{.Domain}}</span>
+      <span class="domain-info">{{len .Probes}} probes · {{domainTypes .Probes}}</span>
+    </summary>
+    <div class="domain-probes">
+      {{range .Probes}}{{template "probe-card" .}}{{end}}
+    </div>
+  </details>{{end}}{{end}}{{end}}<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -304,9 +385,13 @@ input[name=type-filter]+label{font-size:11px;font-family:var(--mono);color:var(-
 input[name=type-filter]+label:hover{color:var(--text-dim);border-color:var(--border-hi)}
 input[name=type-filter]:checked+label{color:var(--text);border-color:var(--border-hi);background:var(--bg)}
 
-/* filter mechanics: hide probes that don't match selected type (works through details) */
+/* filter mechanics: hide probes that don't match selected type (works through details + domain wraps) */
 {{range .Types}}#filter-{{.}}:checked ~ .probes .probe:not([data-type="{{.}}"]){display:none}
 #filter-{{.}}:checked ~ .group .probes .probe:not([data-type="{{.}}"]){display:none}
+#filter-{{.}}:checked ~ .group .domain-probes .probe:not([data-type="{{.}}"]){display:none}
+#filter-{{.}}:checked ~ .probes .domain-probes .probe:not([data-type="{{.}}"]){display:none}
+#filter-{{.}}:checked ~ .group .domain-wrap:not(:has(.probe[data-type="{{.}}"])){display:none}
+#filter-{{.}}:checked ~ .probes > .domain-wrap:not(:has(.probe[data-type="{{.}}"])){display:none}
 {{end}}
 
 /* groups — collapsible via <details> */
@@ -321,10 +406,33 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 /* probe list */
 .probes{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius)}
 .probe{background:var(--surface);padding:16px 20px;position:relative}
-.probe:first-child{border-radius:var(--radius) var(--radius) 0 0}
-.probe:last-child{border-radius:0 0 var(--radius) var(--radius)}
-.probe:only-child{border-radius:var(--radius)}
-.probe-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.probe>summary{cursor:pointer;list-style:none;user-select:none;border-radius:inherit;transition:background .15s}
+.probe>summary::-webkit-details-marker{display:none}
+.probe>summary:hover{background:color-mix(in srgb,var(--border) 30%,var(--surface))}
+.probe-left::before{content:"";display:inline-block;width:0;height:0;border-left:4px solid var(--text-mute);border-top:3px solid transparent;border-bottom:3px solid transparent;transition:transform .15s;flex-shrink:0;opacity:.35}
+.probe[open] .probe-left::before{transform:rotate(90deg);opacity:.55}
+.probe:first-child,.domain-wrap:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.probe:last-child,.domain-wrap:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.probe:only-child,.domain-wrap:only-child{border-radius:var(--radius)}
+
+/* domain grouping within probe list */
+.domain-wrap{background:var(--surface);position:relative}
+.domain-wrap>summary{display:flex;align-items:center;gap:8px;padding:12px 20px;cursor:pointer;list-style:none;user-select:none;font-size:13px}
+.domain-wrap>summary::-webkit-details-marker{display:none}
+.domain-wrap>summary::before{content:"";display:inline-block;width:0;height:0;border-left:4px solid var(--text-mute);border-top:3px solid transparent;border-bottom:3px solid transparent;transition:transform .15s;flex-shrink:0}
+.domain-wrap[open]>summary::before{transform:rotate(90deg)}
+.domain-name{font-weight:500;color:var(--text)}
+.domain-info{font-size:11px;font-family:var(--mono);color:var(--text-mute)}
+.domain-probes{border-top:1px solid var(--border)}
+.domain-probes .probe{padding:12px 20px 12px 36px}
+.domain-probes .probe:last-child{border-radius:0}
+.domain-wrap:last-child .domain-probes .probe:last-child{border-radius:0 0 var(--radius) var(--radius)}
+
+/* expand/collapse toggle */
+.toggle-btn{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 10px;cursor:pointer;transition:all .15s;user-select:none;margin:0 2px 12px 0}
+.toggle-btn:hover{color:var(--text-dim);border-color:var(--border-hi)}
+.probe-head{display:flex;align-items:center;justify-content:space-between}
+.probe[open]>.probe-head{margin-bottom:10px}
 .probe-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
 .probe-left .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .probe-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
@@ -423,6 +531,7 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 <input type="radio" name="type-filter" id="filter-{{.}}">
 <label for="filter-{{.}}">{{.}}</label>
 {{end}}
+<button class="toggle-btn" id="toggle-all" title="Expand or collapse all domain groups">expand all</button>
 {{end}}
 
 {{if gt (len .Groups) 1}}
@@ -434,13 +543,13 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       <span class="group-count">{{probeCount .Probes}}</span>
     </summary>
     <div class="probes">
-      {{range .Probes}}{{template "probe-card" .}}{{end}}
+      {{template "domain-probes" .Probes}}
     </div>
   </details>
   {{end}}
 {{else}}
 <div class="probes">
-  {{range .Probes}}{{template "probe-card" .}}{{end}}
+  {{template "domain-probes" .Probes}}
 </div>
 {{end}}
 {{else}}
@@ -454,7 +563,48 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 <script>
 (function(){
   var KEY='techst';
-  // Restore open/closed state from localStorage
+  var DKEY='techst-d';
+  var PKEY='techst-p';
+  // Helper: capture open states for domain-wraps and probe cards within a container
+  function captureStates(container){
+    var dw={},pw={};
+    container.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
+      dw[d.getAttribute('data-domain')]=d.open;
+    });
+    container.querySelectorAll('.probe[data-name]').forEach(function(d){
+      pw[d.getAttribute('data-name')]=d.open;
+    });
+    return {dw:dw,pw:pw};
+  }
+  // Helper: restore open states for domain-wraps and probe cards within a container
+  function restoreStates(container,snap){
+    container.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
+      var dom=d.getAttribute('data-domain');
+      if(dom in snap.dw) d.open=snap.dw[dom];
+    });
+    container.querySelectorAll('.probe[data-name]').forEach(function(d){
+      var nm=d.getAttribute('data-name');
+      if(nm in snap.pw) d.open=snap.pw[nm];
+    });
+  }
+  // Expand/collapse all toggle
+  var toggleBtn=document.getElementById('toggle-all');
+  if(toggleBtn){
+    toggleBtn.addEventListener('click',function(){
+      var all=document.querySelectorAll('details.group,.domain-wrap,details.probe');
+      var allOpen=true;
+      all.forEach(function(d){if(!d.open)allOpen=false;});
+      var next=!allOpen;
+      all.forEach(function(d){d.open=next;});
+      toggleBtn.textContent=next?'collapse all':'expand all';
+      var s={};
+      document.querySelectorAll('details[data-group]').forEach(function(d){
+        s[d.getAttribute('data-group')]=d.open;
+      });
+      localStorage.setItem(KEY,JSON.stringify(s));
+    });
+  }
+  // Restore group open/closed state from localStorage
   var saved=JSON.parse(localStorage.getItem(KEY)||'{}');
   document.querySelectorAll('details[data-group]').forEach(function(d,i){
     var g=d.getAttribute('data-group');
@@ -466,6 +616,34 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       localStorage.setItem(KEY,JSON.stringify(s));
     });
   });
+  // Restore domain-wrap and probe card states from localStorage
+  var dSaved=JSON.parse(localStorage.getItem(DKEY)||'{}');
+  document.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
+    var g=d.closest('[data-group]');
+    var k=(g?g.getAttribute('data-group'):'')+'\0'+d.getAttribute('data-domain');
+    if(k in dSaved) d.open=dSaved[k];
+  });
+  var pSaved=JSON.parse(localStorage.getItem(PKEY)||'{}');
+  document.querySelectorAll('.probe[data-name]').forEach(function(d){
+    var nm=d.getAttribute('data-name');
+    if(nm in pSaved) d.open=pSaved[nm];
+  });
+  // Persist domain-wrap and probe card toggles (capture phase — toggle doesn't bubble)
+  document.addEventListener('toggle',function(e){
+    var t=e.target;
+    if(!t.matches) return;
+    if(t.matches('.domain-wrap[data-domain]')){
+      var g=t.closest('[data-group]');
+      var k=(g?g.getAttribute('data-group'):'')+'\0'+t.getAttribute('data-domain');
+      var s=JSON.parse(localStorage.getItem(DKEY)||'{}');
+      s[k]=t.open;
+      localStorage.setItem(DKEY,JSON.stringify(s));
+    } else if(t.matches('.probe[data-name]')){
+      var s=JSON.parse(localStorage.getItem(PKEY)||'{}');
+      s[t.getAttribute('data-name')]=t.open;
+      localStorage.setItem(PKEY,JSON.stringify(s));
+    }
+  },true);
   // Augment tooltips with local time
   function addLocalTime(bar){
     if(bar.dataset.done) return;
@@ -481,40 +659,40 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
     var bar=e.target.closest('.bar[data-ts]');
     if(bar) addLocalTime(bar);
   });
-  // Auto-refresh via fetch (no full page reload)
+  // Auto-refresh via JSON API (lightweight delta updates)
   setInterval(function(){
-    fetch(location.href,{headers:{'Accept':'text/html'}}).then(function(r){return r.text()}).then(function(html){
-      var doc=new DOMParser().parseFromString(html,'text/html');
-      // Preserve details open state
-      var states={};
-      document.querySelectorAll('details[data-group]').forEach(function(d){
-        states[d.getAttribute('data-group')]=d.open;
-      });
-      // Update banner + summary
-      var nb=doc.querySelector('.banner'), ob=document.querySelector('.banner');
-      if(nb&&ob) ob.replaceWith(nb);
-      var ns2=doc.getElementById('summary'), os2=document.getElementById('summary');
-      if(ns2&&os2) os2.replaceWith(ns2);
-      // Update probe groups/list
-      var groups=document.querySelectorAll('.group');
-      var newGroups=doc.querySelectorAll('.group');
-      if(groups.length&&newGroups.length===groups.length){
-        groups.forEach(function(g,i){
-          var ng=newGroups[i];
-          var gName=g.getAttribute('data-group');
-          // Update probes content but keep open state
-          var op=g.querySelector('.probes'), np=ng.querySelector('.probes');
-          if(op&&np) op.innerHTML=np.innerHTML;
-          // Update summary (status dot + count)
-          var os=g.querySelector('summary'), ns=ng.querySelector('summary');
-          if(os&&ns) os.innerHTML=ns.innerHTML;
-          g.open=gName in states?states[gName]:(i===0);
+    fetch('/api/status').then(function(r){return r.json()}).then(function(data){
+      // Update banner
+      var banner=document.querySelector('.banner');
+      if(banner){
+        banner.className='banner '+data.overall;
+        var dot=banner.querySelector('.dot');
+        if(dot) dot.className='dot '+data.overall;
+        var txt=banner.querySelector('.banner-text');
+        if(txt){
+          var labels={operational:'All systems operational',degraded:'Partial degradation',down:'Major outage',pending:'Waiting for probes\u2026'};
+          txt.textContent=labels[data.overall]||data.overall;
+        }
+      }
+      // Update summary counts
+      var sum=document.getElementById('summary');
+      if(sum&&data.summary){
+        var s=data.summary;
+        sum.innerHTML='<span class="stat"><span class="stat-val '+(s.down===0?'good':'bad')+'">'+s.up+'/'+s.total+'</span> probes up</span>'
+          +(s.down>0?' <span class="sep">&middot;</span> <span class="stat"><span class="stat-val bad">'+s.down+'</span> down</span>':'')
+          +(s.error>0?' <span class="sep">&middot;</span> <span class="stat"><span class="stat-val warn">'+s.error+'</span> errors</span>':'')
+          +(s.budget_total>0?' <span class="sep">&middot;</span> <span class="stat">Budgets: <span class="stat-val '+(s.budget_violations===0?'good':s.budget_violations>2?'bad':'warn')+'">'+(s.budget_total-s.budget_violations)+'/'+s.budget_total+'</span> passing</span>':'');
+        }
+      // Update individual probe status dots
+      if(data.probes){
+        data.probes.forEach(function(p){
+          var card=document.querySelector('.probe[data-name="'+p.name+'"]');
+          if(!card) return;
+          var dot=card.querySelector('.probe-head .dot');
+          if(dot) dot.className='dot '+p.status;
+          var uptime=card.querySelector('.uptime');
+          if(uptime) uptime.textContent=p.uptime;
         });
-      } else {
-        // Fallback: replace entire content area
-        var flat=document.querySelector('.probes:not(.group .probes)');
-        var nf=doc.querySelector('.probes:not(.group .probes)');
-        if(flat&&nf) flat.innerHTML=nf.innerHTML;
       }
     }).catch(function(){});
   },10000);

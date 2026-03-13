@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -57,6 +59,67 @@ type ProbeConfig struct {
 	NTP      *NTPProbeConfig   `yaml:"-"`
 	TLS      *TLSProbeConfig   `yaml:"-"`
 	UDP      *UDPProbeConfig   `yaml:"-"`
+}
+
+// Target returns the canonical hostname or IP that this probe checks.
+// Used for domain-level grouping on the status page.
+func (p *ProbeConfig) Target() string {
+	var raw string
+	switch p.Type {
+	case ProbeTypeHTTP:
+		if p.HTTP != nil {
+			if u, err := url.Parse(p.HTTP.URL); err == nil {
+				raw = u.Hostname()
+			}
+		}
+	case ProbeTypeTCP:
+		if p.TCP != nil {
+			raw = p.TCP.Host
+		}
+	case ProbeTypeUDP:
+		if p.UDP != nil {
+			raw = p.UDP.Host
+		}
+	case ProbeTypeDNS:
+		if p.DNS != nil {
+			raw = p.DNS.Domain
+		}
+	case ProbeTypeICMP:
+		if p.ICMP != nil {
+			raw = p.ICMP.Host
+		}
+	case ProbeTypeGRPC:
+		if p.GRPC != nil {
+			raw = p.GRPC.Host
+		}
+	case ProbeTypeNTP:
+		if p.NTP != nil {
+			raw = p.NTP.Server
+		}
+	case ProbeTypeTLS:
+		if p.TLS != nil {
+			raw = p.TLS.Host
+		}
+	case ProbeTypeSMTP:
+		if p.SMTP != nil {
+			raw = p.SMTP.Host
+		}
+	case ProbeTypeTraceroute:
+		if p.Traceroute != nil {
+			raw = p.Traceroute.Host
+		}
+	case ProbeTypePlaywright:
+		if p.Playwright != nil {
+			if u, err := url.Parse(p.Playwright.BaseURL); err == nil {
+				raw = u.Hostname()
+			}
+		}
+	}
+	// Strip port from host:port patterns (e.g. gRPC "host:443", TLS "host:443")
+	if h, _, err := net.SplitHostPort(raw); err == nil {
+		return h
+	}
+	return raw
 }
 
 type Assertion struct {

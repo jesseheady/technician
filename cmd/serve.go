@@ -11,6 +11,7 @@ import (
 
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/metrics"
+	"github.com/jesseheady/technician/internal/server"
 	"github.com/spf13/cobra"
 )
 
@@ -37,14 +38,18 @@ func runServe(cmd *cobra.Command, args []string) error {
 		w.Write([]byte("ok"))
 	})
 
-	server := &http.Server{
-		Addr:    cfg.Metrics.Prometheus.Listen,
-		Handler: mux,
+	httpServer := &http.Server{
+		Addr:           cfg.Metrics.Prometheus.Listen,
+		Handler:        server.Gzip(mux),
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	go func() {
 		slog.Info("Starting metrics server", "addr", cfg.Metrics.Prometheus.Listen)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Metrics server error", "error", err)
 		}
 	}()
@@ -56,5 +61,5 @@ func runServe(cmd *cobra.Command, args []string) error {
 	slog.Info("Shutting down")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	return server.Shutdown(shutdownCtx)
+	return httpServer.Shutdown(shutdownCtx)
 }

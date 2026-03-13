@@ -78,7 +78,8 @@ type TimingBreakdown struct {
 type ProbeState struct {
 	Name         string           `json:"name"`
 	Type         config.ProbeType `json:"type"`
-	Status       string           `json:"status"`    // "up", "down", "pending"
+	Domain       string           `json:"domain,omitempty"` // canonical hostname for domain grouping
+	Status       string           `json:"status"`           // "up", "down", "pending"
 	DownSince    string           `json:"down_since"` // human-readable, e.g. "for 2h 15m"
 	Uptime       string           `json:"uptime"`    // e.g. "99.7%"
 	Latency      *Latency         `json:"latency,omitempty"`
@@ -150,6 +151,7 @@ type probeRing struct {
 	name      string
 	typ       config.ProbeType
 	group     string
+	target    string // canonical hostname/domain
 	entries   []Entry
 	downSince time.Time // zero if currently up
 }
@@ -207,12 +209,15 @@ func (s *Store) Push(r *probe.Result) {
 	key := probeKey(r.Type, r.Name)
 	ring, ok := s.probes[key]
 	if !ok {
-		ring = &probeRing{name: r.Name, typ: r.Type, group: r.Group}
+		ring = &probeRing{name: r.Name, typ: r.Type, group: r.Group, target: r.Target}
 		s.probes[key] = ring
 		s.order = append(s.order, key)
 	}
 	if r.Group != "" {
 		ring.group = r.Group
+	}
+	if r.Target != "" {
+		ring.target = r.Target
 	}
 
 	// Track down-since (infra errors don't count as the target being down)
@@ -307,6 +312,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 		ps := ProbeState{
 			Name:    ring.name,
 			Type:    ring.typ,
+			Domain:  ring.target,
 			Status:  "pending",
 			Uptime:  uptimePercent(ring.entries),
 			Latency: computeLatency(ring.entries),
@@ -534,6 +540,7 @@ type persistedRing struct {
 	Name      string           `json:"name"`
 	Type      config.ProbeType `json:"type"`
 	Group     string           `json:"group,omitempty"`
+	Target    string           `json:"target,omitempty"`
 	Entries   []Entry          `json:"entries"`
 	DownSince time.Time        `json:"down_since,omitempty"`
 }
@@ -573,6 +580,7 @@ func (s *Store) Save() {
 			Name:      ring.name,
 			Type:      ring.typ,
 			Group:     ring.group,
+			Target:    ring.target,
 			Entries:   ring.entries,
 			DownSince: ring.downSince,
 		}
@@ -732,6 +740,7 @@ func (s *Store) tryLoadData(data []byte) bool {
 			name:      pr.Name,
 			typ:       pr.Type,
 			group:     pr.Group,
+			target:    pr.Target,
 			entries:   pr.Entries,
 			downSince: pr.DownSince,
 		}

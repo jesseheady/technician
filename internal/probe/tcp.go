@@ -95,6 +95,7 @@ func (p *TCPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 		}
 		conn.SetReadDeadline(time.Now().Add(remaining))
 
+		const maxRecvSize = 1 << 20 // 1 MB limit
 		buf := make([]byte, 4096)
 		var received strings.Builder
 		for {
@@ -104,6 +105,11 @@ func (p *TCPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 			}
 			if strings.Contains(received.String(), tcfg.ExpectRecv) {
 				break
+			}
+			if received.Len() > maxRecvSize {
+				result.Duration = time.Since(start)
+				result.Error = fmt.Sprintf("response from %s exceeded %d bytes without matching expected string", addr, maxRecvSize)
+				return result
 			}
 			if err != nil {
 				if err == io.EOF {

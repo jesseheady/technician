@@ -10,25 +10,47 @@ services:
       - technician_data:/var/lib/technician
     environment:
       - SITE_CODE=local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9590/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
-      - prometheus
-      - grafana
+      prometheus:
+        condition: service_healthy
+      grafana:
+        condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.2.1
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.28.1
     ports:
       - "9093:9093"
     volumes:
       - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # alertmanager-discord bridge (optional - only needed if using Alertmanager
   # with Discord; native webhooks in technician.yml are simpler).
@@ -39,7 +61,7 @@ services:
   #     - DISCORD_WEBHOOK=https://discord.com/api/webhooks/YOUR/WEBHOOK
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     ports:
       - "3000:3000"
     environment:
@@ -51,8 +73,16 @@ services:
       - ./prometheus/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
       - ./prometheus/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
       - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
 
 volumes:
   technician_data:

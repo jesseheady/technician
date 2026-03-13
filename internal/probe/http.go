@@ -10,15 +10,53 @@ import (
 	"net/http/httptrace"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
 )
 
-type HTTPProber struct{}
+type httpClientKey struct {
+	skipTLS         bool
+	followRedirects bool
+}
+
+type HTTPProber struct {
+	mu      sync.Mutex
+	clients map[httpClientKey]*http.Client
+}
 
 func NewHTTPProber() *HTTPProber {
-	return &HTTPProber{}
+	return &HTTPProber{
+		clients: make(map[httpClientKey]*http.Client),
+	}
+}
+
+// getClient returns a shared *http.Client for the given config, reusing
+// transports so TCP/TLS connections are pooled across probe runs.
+func (p *HTTPProber) getClient(skipTLS, followRedirects bool) *http.Client {
+	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if c, ok := p.clients[key]; ok {
+		return c
+	}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: skipTLS,
+		},
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
+	if !followRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+	p.clients[key] = client
+	return client
 }
 
 func (p *HTTPProber) Type() config.ProbeType {
@@ -93,19 +131,7 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 		req.Header.Set(k, v)
 	}
 
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: hcfg.SkipTLS,
-		},
-	}
-	client := &http.Client{
-		Transport: transport,
-	}
-	if !hcfg.FollowRedirects {
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
-	}
+	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects)
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)
@@ -186,6 +212,22 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 	return result
 }
 
+// regexCache caches compiled regular expressions used in assertions to avoid
+// recompiling the same pattern on every probe run.
+var regexCache sync.Map // map[string]*regexp.Regexp
+
+func cachedCompile(pattern string) (*regexp.Regexp, error) {
+	if v, ok := regexCache.Load(pattern); ok {
+		return v.(*regexp.Regexp), nil
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	regexCache.Store(pattern, re)
+	return re, nil
+}
+
 func evaluateHeaderAssertion(a config.Assertion, headers http.Header) AssertionResult {
 	ar := AssertionResult{Type: a.Type, Target: a.Target, Passed: true}
 	headerVal := headers.Get(a.Header)
@@ -201,7 +243,7 @@ func evaluateHeaderAssertion(a config.Assertion, headers http.Header) AssertionR
 			ar.Message = fmt.Sprintf("header %q contains %q", a.Header, a.Target)
 		}
 	case "header_regex":
-		re, err := regexp.Compile(a.Target)
+		re, err := cachedCompile(a.Target)
 		if err != nil {
 			ar.Passed = false
 			ar.Message = fmt.Sprintf("invalid regex %q: %v", a.Target, err)
@@ -230,7 +272,7 @@ func evaluateAssertion(a config.Assertion, body string) AssertionResult {
 			ar.Message = fmt.Sprintf("body contains %q", a.Target)
 		}
 	case "regex":
-		re, err := regexp.Compile(a.Target)
+		re, err := cachedCompile(a.Target)
 		if err != nil {
 			ar.Passed = false
 			ar.Message = fmt.Sprintf("invalid regex %q: %v", a.Target, err)
