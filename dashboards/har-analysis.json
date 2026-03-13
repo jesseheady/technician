@@ -16,15 +16,15 @@
   "templating": {
     "list": [
       {
-        "name": "site_code",
+        "name": "region",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_har_resource_bytes, site_code)",
+        "definition": "label_values(technician_har_resource_bytes, region)",
         "query": {
-          "query": "label_values(technician_har_resource_bytes, site_code)",
+          "query": "label_values(technician_har_resource_bytes, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_har_resource_bytes{site_code=~\"$site_code\"}, name)",
+        "definition": "label_values(technician_har_resource_bytes{region=~\"$region\"}, name)",
         "query": {
-          "query": "label_values(technician_har_resource_bytes{site_code=~\"$site_code\"}, name)",
+          "query": "label_values(technician_har_resource_bytes{region=~\"$region\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -92,7 +92,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }
@@ -141,7 +141,7 @@
       },
       "targets": [
         {
-          "expr": "sum(technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
+          "expr": "sum(technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
           "legendFormat": "Total Bytes",
           "refId": "A"
         }
@@ -198,7 +198,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_resource_count{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_browser_resource_count{region=~\"$region\", name=~\"$probe\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -237,7 +237,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_bytes{site_code=~\"$site_code\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }
@@ -293,7 +293,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_duration_ms{site_code=~\"$site_code\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_duration_ms{region=~\"$region\", name=~\"$probe\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }

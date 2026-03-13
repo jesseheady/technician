@@ -17,7 +17,7 @@ Prometheus is **pull** by default: it scrapes HTTP endpoints. So the shape of yo
 
 ### 1. Workers that Prometheus can scrape (same VPC or reachable)
 
-When Technician runs as a long‑lived process **inside your AWS footprint** (EC2, ECS, EKS, Lambda container, etc.) and exposes `:9394/metrics` on a reachable host:
+When Technician runs as a long‑lived process **inside your AWS footprint** (EC2, ECS, EKS, Lambda container, etc.) and exposes `:9590/metrics` on a reachable host:
 
 - **Central Prometheus** runs in the same VPC (or a peered VPC / VPN) and scrapes those targets.
 - No push needed; use normal `scrape_configs` with static targets or service discovery (e.g. DNS, EC2, ECS).
@@ -32,17 +32,17 @@ scrape_configs:
     static_configs:
       # Option A: explicit list (good for a few fixed instances)
       - targets:
-          - technician-us-east-1.internal:9394
-          - technician-us-west-2.internal:9394
+          - technician-us-east-1.internal:9590
+          - technician-us-west-2.internal:9590
         labels:
           environment: production
       # Option B: DNS A records (e.g. technician-probes.private.local → multiple IPs)
       # - targets:
-      #     - technician-probes.private.local:9394
+      #     - technician-probes.private.local:9590
       #   dns_sd_configs:
       #     - names: ['technician-probes.private.local']
       #       type: A
-      #       port: 9394
+      #       port: 9590
 ```
 
 Each Technician instance should be started with the appropriate `SITE_CODE` (e.g. `us-east-1`, `us-west-2`) and the same `technician.yml` (or region‑specific) so labels are consistent. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
@@ -66,12 +66,12 @@ Edge runs are request‑driven and don’t expose a long‑lived `/metrics` endp
 - **Push per run** – When an edge probe finishes, the Worker or Lambda pushes that probe’s metrics (e.g. in Prometheus exposition or remote‑write format) to a **Pushgateway** or **remote‑write endpoint** in your VPC (reachable from the public internet over HTTPS with auth, or via a private path if Lambda runs in the VPC).
 - **Aggregator** – A small service in the VPC is scraped by Prometheus. On a schedule (or on demand), it calls your edge probe endpoints, collects results, and exposes them as Prometheus metrics. Then central Prometheus only scrapes the aggregator.
 
-In both cases, edge metrics should use the same **site identifier** convention (e.g. `provider=cloudflare`, `site_code=IAD`) so central Grafana can filter and group like other sites. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
+In both cases, edge metrics should use the same **site identifier** convention (e.g. `infra_provider=cloudflare`, `region=IAD`) so central Grafana can filter and group like other sites. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
 
 ## Central Grafana
 
 - **Datasource:** Configure Grafana with a Prometheus datasource pointing at your **central Prometheus** (e.g. `http://prometheus.vpc.internal:9090` or the internal URL you use).
-- **Dashboards:** Use the same Technician dashboards (uptime, HTTP timing, budgets, etc.); they already use `site_code` and `probe` variables, so they work with local, VPC, and (if you push) edge sites.
+- **Dashboards:** Use the same Technician dashboards (uptime, HTTP timing, budgets, etc.); they already use `region` and `probe` variables, so they work with local, VPC, and (if you push) edge sites.
 - **Alerts:** Define alert rules in central Prometheus (or Grafana) so that deployed probes drive notifications. Your existing `prometheus/rules.yml` is a good base; deploy it with central Prometheus and adjust for your VPC targets.
 
 ## Example: minimal central Prometheus config (VPC)
@@ -83,13 +83,13 @@ global:
   evaluation_interval: 30s
 
 rule_files:
-  - rules.yml   # same Technician rules (ProbeDown, BudgetViolation, etc.)
+  - rules.yml   # same Technician rules (ProbeFailing, BudgetViolation, etc.)
 
 scrape_configs:
   - job_name: technician
     scrape_interval: 30s
     static_configs:
-      - targets: ['technician-us-east-1.private:9394', 'technician-us-west-2.private:9394']
+      - targets: ['technician-us-east-1.private:9590', 'technician-us-west-2.private:9590']
         labels:
           environment: production
   # Optional: scrape Pushgateway if you use it for edge or local push
@@ -105,7 +105,7 @@ Replace hostnames with your real VPC DNS or IPs. Use IAM, security groups, and p
 
 - **Local/Docker:** Proves probes and tests; metrics stay in the local stack unless you add an optional push to central.
 - **Central Prometheus (VPC):** Scrapes all reachable Technician instances in your AWS footprint; optionally scrapes a Pushgateway or aggregator for edge/pushed metrics.
-- **Central Grafana:** Single source of record for deployed probes; datasource = central Prometheus; same dashboards and alerts, keyed by `site_code` and provider.
+- **Central Grafana:** Single source of record for deployed probes; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and infra_provider.
 - **Edge:** Push to a VPC-hosted Pushgateway or remote-write endpoint, or use an in-VPC aggregator that Prometheus scrapes, so edge results appear in central Grafana with consistent site labels.
 
 This keeps a clear split: local stack for development and validation, central Prometheus + Grafana for production reporting from deployed and edge workers.
@@ -114,27 +114,27 @@ This keeps a clear split: local stack for development and validation, central Pr
 
 ## How the current setup works when deployed to a VPC
 
-Your current repo is: **Technician** (exposes `/metrics` on 9394), **Prometheus** (scrapes that URL), **Grafana** (datasource = Prometheus, dashboards from `dashboards/`). In Docker Compose, Prometheus reaches Technician via the hostname `technician` on the compose network. Here's how that same setup maps to a VPC.
+Your current repo is: **Technician** (exposes `/metrics` on 9590), **Prometheus** (scrapes that URL), **Grafana** (datasource = Prometheus, dashboards from `dashboards/`). In Docker Compose, Prometheus reaches Technician via the hostname `technician` on the compose network. Here's how that same setup maps to a VPC.
 
 ### What stays the same
 
-- **Technician binary and config** – Same Dockerfile, same `technician.yml` and `probes/` layout. Technician still listens on `:9394` and serves `/metrics`, `/health`, `/probe`.
+- **Technician binary and config** – Same Dockerfile, same `technician.yml` and `probes/` layout. Technician still listens on `:9590` and serves `/metrics`, `/health`, `/probe`.
 - **Probe definitions** – Same YAML (all 10 probe types: HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
-- **Prometheus rules** – Same `prometheus/rules.yml` (ProbeDown, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
-- **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`site_code`, `probe`) already work with whatever sites you run.
+- **Prometheus rules** – Same `prometheus/rules.yml` (ProbeFailing, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
+- **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`region`, `probe`) already work with whatever sites you run.
 
 ### What changes in the VPC
 
 | Piece | Local (compose) | In VPC |
 |-------|------------------|--------|
-| **Technician** | One container, hostname `technician`, `SITE_CODE=local`. | One or more instances (e.g. EC2, ECS), each with a **reachable hostname or IP** and **per-instance `SITE_CODE`** (e.g. `us-east-1`, `us-west-2`). Must listen on an interface Prometheus can reach (e.g. `0.0.0.0:9394`). |
-| **Prometheus** | Scrapes `technician:9394` (compose DNS). | Scrapes **VPC hostnames or IPs** (e.g. `technician-us-east-1.private:9394`). Same `rule_files`; targets come from static config or service discovery. |
+| **Technician** | One container, hostname `technician`, `SITE_CODE=local`. | One or more instances (e.g. EC2, ECS), each with a **reachable hostname or IP** and **per-instance `SITE_CODE`** (e.g. `us-east-1`, `us-west-2`). Must listen on an interface Prometheus can reach (e.g. `0.0.0.0:9590`). |
+| **Prometheus** | Scrapes `technician:9590` (compose DNS). | Scrapes **VPC hostnames or IPs** (e.g. `technician-us-east-1.private:9590`). Same `rule_files`; targets come from static config or service discovery. |
 | **Grafana** | Same network as Prometheus; datasource `http://prometheus:9090`. | Central Grafana's datasource is **central Prometheus** (e.g. `http://prometheus.private:9090`). No need to run Grafana next to each Technician. |
 
 ### Two deployment patterns
 
 **Pattern A – Full stack in VPC (mirror of compose)**  
-Run Technician + Prometheus + Grafana together in the VPC (e.g. one EC2 or ECS task per region, or a single cluster with all three). Prometheus scrape target is the Technician service hostname in that network (e.g. `technician:9394` if you keep the same service names). Good for a self-contained "single region" or "single cluster" deployment. Each Technician instance still gets its own `SITE_CODE`.
+Run Technician + Prometheus + Grafana together in the VPC (e.g. one EC2 or ECS task per region, or a single cluster with all three). Prometheus scrape target is the Technician service hostname in that network (e.g. `technician:9590` if you keep the same service names). Good for a self-contained "single region" or "single cluster" deployment. Each Technician instance still gets its own `SITE_CODE`.
 
 **Pattern B – Technician only in VPC, central Prometheus + Grafana**  
 Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one** Grafana elsewhere in the VPC (or in a shared observability account). Prometheus scrape config lists every Technician endpoint (by private DNS or IP). This is the central reporting model: many workers, one central Prometheus and one central Grafana.
@@ -147,11 +147,11 @@ Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one
    - Command: `worker --config /etc/technician/technician.yml` (same as Dockerfile CMD).
    - Env: `SITE_CODE=us-east-1` (or the region/identifier for that instance).
    - Mount or bake in `technician.yml` and `probes/` (same structure as `config/`).
-   - Listen: `0.0.0.0:9394` (default) so Prometheus in the VPC can reach it.
-3. **Networking** – Security group for Technician: allow **inbound TCP 9394** from the Prometheus server(s) (or from a load balancer / service discovery you use). No public port needed if Prometheus is in the same VPC or peered.
-4. **Discovery** – Give each Technician instance a stable name (e.g. private DNS `technician-us-east-1.private` or ECS service discovery). Put those hostnames (and port 9394) in Prometheus `scrape_configs` as in the "Example: minimal central Prometheus config" above.
+   - Listen: `0.0.0.0:9590` (default) so Prometheus in the VPC can reach it.
+3. **Networking** – Security group for Technician: allow **inbound TCP 9590** from the Prometheus server(s) (or from a load balancer / service discovery you use). No public port needed if Prometheus is in the same VPC or peered.
+4. **Discovery** – Give each Technician instance a stable name (e.g. private DNS `technician-us-east-1.private` or ECS service discovery). Put those hostnames (and port 9590) in Prometheus `scrape_configs` as in the "Example: minimal central Prometheus config" above.
 5. **Prometheus** – Run in the VPC with that scrape config and `rule_files: [rules.yml]`. Storage and retention as you normally would for Prometheus.
-6. **Grafana** – Point its Prometheus datasource at central Prometheus. Import or provision the same dashboards from `dashboards/`. No change to dashboard logic; they already filter by `site_code` and `probe`.
+6. **Grafana** – Point its Prometheus datasource at central Prometheus. Import or provision the same dashboards from `dashboards/`. No change to dashboard logic; they already filter by `region` and `probe`.
 
 ### Summary
 

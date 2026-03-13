@@ -1,12 +1,12 @@
 groups:
   - name: technician_recording
     rules:
-      - record: technician:probe_down_fraction
+      - record: technician:failure_ratio
         expr: |
           count by (name, type) (technician_probe_up == 0)
           / count by (name, type) (technician_probe_up)
 
-      - record: technician:probe_uptime_daily
+      - record: technician:daily_availability
         expr: |
           avg_over_time((
             sum by (name, type) (technician_probe_up)
@@ -19,14 +19,14 @@ groups:
 
   - name: technician_alerts
     rules:
-      - alert: ProbeDown
+      - alert: ProbeFailing
         expr: technician_probe_up == 0
-        for: 5m
+        for: 3m
         labels:
           severity: critical
         annotations:
-          summary: "Probe {{ $labels.name }} is down"
-          description: "Probe {{ $labels.name }} ({{ $labels.type }}) from site {{ $labels.site_code }} has been down for 5 minutes."
+          summary: "{{ $labels.name }} failing from {{ $labels.region }}"
+          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing from {{ $labels.region }} for 3 minutes."
 
       - alert: HighLCP
         expr: technician_browser_lcp_ms > 2500

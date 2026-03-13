@@ -15,5 +15,6 @@
 | [Deployment sizing](deployment-sizing.md) | Resource requirements, cost estimates, and sizing by deployment mode (VPS, Lambda, Workers, full stack). |
 | [CI](ci.md) | GitHub Actions workflow, generic CI pipelines (GitLab, CircleCI, Jenkins), budget validation, Playwright in CI. |
 | [Playwright scaling](playwright-scaling.md) | Browser probe resource analysis, concurrency controls (`max_browsers`), and dedicated runner architecture (stages 1-4). |
+| [Migrating between versions](migrating.md) | Breaking changes, label renames, port changes, Prometheus/Grafana cutover, and version-specific migration steps. |
 
 See also [AGENTS.md](../AGENTS.md) for architecture and conventions.

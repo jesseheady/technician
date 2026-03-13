@@ -16,15 +16,15 @@
   "templating": {
     "list": [
       {
-        "name": "site_code",
+        "name": "region",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up, site_code)",
+        "definition": "label_values(technician_probe_up, region)",
         "query": {
-          "query": "label_values(technician_probe_up, site_code)",
+          "query": "label_values(technician_probe_up, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up{site_code=~\"$site_code\"}, name)",
+        "definition": "label_values(technician_probe_up{region=~\"$region\"}, name)",
         "query": {
-          "query": "label_values(technician_probe_up{site_code=~\"$site_code\"}, name)",
+          "query": "label_values(technician_probe_up{region=~\"$region\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -92,8 +92,8 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -159,7 +159,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}[$__range])) * 100",
+          "expr": "avg(avg_over_time(technician_probe_up{region=~\"$region\", name=~\"$probe\"}[$__range])) * 100",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -222,8 +222,8 @@
       "description": "Probes where response time exceeds the degraded_after threshold",
       "targets": [
         {
-          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -289,19 +289,19 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "technician_probe_duration_seconds{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
+          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "C"
@@ -441,7 +441,7 @@
             "renameByName": {
               "name": "Probe",
               "type": "Type",
-              "site_code": "Site"
+              "region": "Site"
             }
           }
         }
@@ -463,8 +463,8 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -530,8 +530,8 @@
       "description": "Tracks which probes are in degraded state (response time exceeds degraded_after threshold)",
       "targets": [
         {
-          "expr": "technician_probe_degraded{site_code=~\"$site_code\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],

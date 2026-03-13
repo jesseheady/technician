@@ -2,7 +2,7 @@ services:
   technician:
     build: .
     ports:
-      - "9394:9394"
+      - "9590:9590"
     volumes:
       - ./config/technician.yml:/etc/technician/technician.yml:ro
       - ./config/probes:/etc/technician/probes:ro
@@ -12,6 +12,7 @@ services:
       - SITE_CODE=local
     depends_on:
       - prometheus
+      - grafana
 
   prometheus:
     image: prom/prometheus:latest

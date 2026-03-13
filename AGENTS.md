@@ -1,6 +1,6 @@
 # Technician – Agent guide
 
-Technician is a **synthetic monitoring orchestrator**: it runs health-check probes from configurable sites, exports metrics to Prometheus and traces via OTLP, and supports performance budgets and browser (Playwright) flows.
+Technician is a **multi-region probe runner** — a single Go binary that probes your infrastructure over the network. Ten probe types, Prometheus metrics on `/metrics`, OTLP traces, performance budgets for CI, and Playwright browser flows.
 
 ## Repository layout
 
@@ -48,7 +48,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 
 Three strategies (see `docs/alerting.md`):
 
-1. **Grafana alerting** (recommended) – Native contact points for Discord, Slack, PagerDuty, etc. Rich UI for silencing, grouping, history.
+1. **Grafana alerting** (recommended) – Native contact points for Discord, Slack, PagerDuty, etc. UI for silencing, grouping, history.
 2. **Native webhooks** – Direct from Technician via `webhooks` config. Simple, no external stack needed. Fires on probe state transitions, new budget violations, and TLS cert expiry warnings with per-probe cooldown. Supports severity-based routing (`severities` filter) to fork warnings and critical alerts to different channels.
 3. **Prometheus Alertmanager** – Rule-based routing via `prometheus/rules.yml` and `prometheus/alertmanager.yml`. Discord requires a bridge container (`alertmanager-discord`); Slack/PagerDuty/Email work natively.
 
@@ -66,8 +66,8 @@ Three strategies (see `docs/alerting.md`):
 
 ## Sites and deployment
 
-- **Sites** are defined in `technician.yml` (`code`, `city`, `country`, `geohash`, `provider`). Example config has `local` (provider `docker`) for local/Docker, and `us-east-1` / `us-west-2` (provider `aws`) for US regions. `SITE_CODE` (env or `--site`) selects which site labels are emitted; unset or unknown falls back to first site.
-- **Local/Docker**: Use `SITE_CODE=local`; the example config includes a `local` site so labels stay distinct. Prometheus in compose scrapes `technician:9394` (Docker service name = hostname on the compose network).
+- **Sites** are defined in `technician.yml` (`code`, `city`, `country`, `location_hash`, `infra_provider`). Example config has `local` (infra_provider `docker`) for local/Docker, and `us-east-1` / `us-west-2` (infra_provider `aws`) for US regions. `SITE_CODE` (env or `--site`) selects which site labels are emitted; unset or unknown falls back to first site.
+- **Local/Docker**: Use `SITE_CODE=local`; the example config includes a `local` site so labels stay distinct. Prometheus in compose scrapes `technician:9590` (Docker service name = hostname on the compose network).
 - **VPC / central observability**: Deployed workers in a VPC are scraped by central Prometheus (static or service discovery). Central Grafana uses that Prometheus as source of record. See `docs/architecture/central-prometheus-grafana.md` for scrape config, discovery, and optional edge push.
 - **Edge (Workers, Lambda)**: Site/location is derived from the platform at request time (e.g. Cloudflare colo, AWS region). See `docs/proposals/site-identifiers-edge.md`.
 

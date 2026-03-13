@@ -8,7 +8,7 @@ Three tiers of visualization, each with a clear owner:
 
 | Tier | Owner | What it shows | Examples |
 |------|-------|---------------|---------|
-| **Real-time operational** | Technician status page (`:9394/`) | Is it up? How fast? What failed? | Status bars, probe detail modal, group view |
+| **Real-time operational** | Technician status page (`:9590/`) | Is it up? How fast? What failed? | Status bars, probe detail modal, group view |
 | **Historical trends** | Grafana dashboards | How has it performed over time? | LCP trend, uptime %, budget violation rate |
 | **Deep protocol analysis** | Playwright Trace Viewer / HAR viewers | What exactly happened in this request? | Network waterfall, DOM snapshots, console logs |
 
@@ -53,7 +53,7 @@ Things that belong on the built-in status page because they're real-time, operat
 ### What NOT to build on the status page
 - Time-series charts (use Grafana)
 - HAR waterfall (use Playwright Trace Viewer)
-- Multi-site comparison matrix (use Grafana with site_code filter)
+- Multi-site comparison matrix (use Grafana with region filter)
 - Alert management (use Alertmanager/Grafana alerting)
 
 ## Tier 2: Grafana dashboard additions

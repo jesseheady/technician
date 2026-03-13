@@ -49,11 +49,11 @@ Or with the example configs directly (placeholder targets):
 go run . worker --config examples/technician.yml
 ```
 
-- Status page: [http://localhost:9394/](http://localhost:9394/) — real-time probe status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
-- Status API: [http://localhost:9394/api/status](http://localhost:9394/api/status) — JSON snapshot of all probe state
-- Metrics: [http://localhost:9394/metrics](http://localhost:9394/metrics)
-- Health: [http://localhost:9394/health](http://localhost:9394/health)
-- Blackbox-style probe: [http://localhost:9394/probe?target=https://example.com&module=http_2xx](http://localhost:9394/probe?target=https://example.com&module=http_2xx)
+- Status page: [http://localhost:9590/](http://localhost:9590/) — real-time probe status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
+- Status API: [http://localhost:9590/api/status](http://localhost:9590/api/status) — JSON snapshot of all probe state
+- Metrics: [http://localhost:9590/metrics](http://localhost:9590/metrics)
+- Health: [http://localhost:9590/health](http://localhost:9590/health)
+- Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
 
 Use `--site <code>` to run as a specific site (e.g. `--site us-east-1`). Use `-v` for debug logging.
 
@@ -63,12 +63,12 @@ Use `--site <code>` to run as a specific site (e.g. `--site us-east-1`). Use `-v
 docker compose up
 ```
 
-- **Technician**: metrics on port 9394 (inside the compose network).
+- **Technician**: metrics on port 9590 (inside the compose network).
 - **Prometheus**: [http://localhost:9090](http://localhost:9090) – scrapes Technician, evaluates alert rules.
 - **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Slack, Discord, PagerDuty, etc. Configure receivers in `prometheus/alertmanager.yml`.
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
-Config and probes are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`site_code`, `site_city`, `site_country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
+Config and probes are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`region`, `city`, `country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
 
 ## Probe configuration
 

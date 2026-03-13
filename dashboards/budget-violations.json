@@ -16,15 +16,15 @@
   "templating": {
     "list": [
       {
-        "name": "site_code",
+        "name": "region",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_budget_violation, site_code)",
+        "definition": "label_values(technician_budget_violation, region)",
         "query": {
-          "query": "label_values(technician_budget_violation, site_code)",
+          "query": "label_values(technician_budget_violation, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)",
+        "definition": "label_values(technician_budget_violation{region=~\"$region\"}, name)",
         "query": {
-          "query": "label_values(technician_budget_violation{site_code=~\"$site_code\"}, name)",
+          "query": "label_values(technician_budget_violation{region=~\"$region\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -92,7 +92,7 @@
       },
       "targets": [
         {
-          "expr": "count(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1)",
+          "expr": "count(technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1)",
           "legendFormat": "Violations",
           "refId": "A"
         }
@@ -149,8 +149,8 @@
       },
       "targets": [
         {
-          "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
-          "legendFormat": "{{metric}} ({{name}} @ {{site_code}})",
+          "expr": "technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1",
+          "legendFormat": "{{metric}} ({{name}} @ {{region}})",
           "refId": "A"
         }
       ],
@@ -216,8 +216,8 @@
       },
       "targets": [
         {
-          "expr": "max by (name, site_code) (technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"})",
-          "legendFormat": "{{name}} @ {{site_code}}",
+          "expr": "max by (name, region) (technician_budget_violation{region=~\"$region\", name=~\"$probe\"})",
+          "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
       ],
@@ -284,8 +284,8 @@
       },
       "targets": [
         {
-          "expr": "avg_over_time(technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"}[5m])",
-          "legendFormat": "{{metric}} ({{name}} @ {{site_code}})",
+          "expr": "avg_over_time(technician_budget_violation{region=~\"$region\", name=~\"$probe\"}[5m])",
+          "legendFormat": "{{metric}} ({{name}} @ {{region}})",
           "refId": "A"
         }
       ],
@@ -364,7 +364,7 @@
       },
       "targets": [
         {
-          "expr": "technician_budget_violation{site_code=~\"$site_code\", name=~\"$probe\"} == 1",
+          "expr": "technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -419,7 +419,7 @@
             },
             "renameByName": {
               "name": "Probe",
-              "site_code": "Site",
+              "region": "Site",
               "metric": "Metric"
             }
           }

@@ -59,7 +59,7 @@ Technician is designed as a set of independent components. You can run everythin
 │  │  Technician   │  │  Technician   │  │  Technician   │     │
 │  │  worker       │  │  worker       │  │  worker       │     │
 │  │  us-east-1    │  │  us-west-2    │  │  eu-west-1    │     │
-│  │  :9394        │  │  :9394        │  │  :9394        │     │
+│  │  :9590        │  │  :9590        │  │  :9590        │     │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
 │         │                  │                  │               │
 │         │    ┌─────────────┴─────────────┐   │               │
@@ -107,7 +107,7 @@ All components on one host. This is the `docker compose up` default:
 
 - Technician worker + Prometheus + Grafana on one machine
 - Fine for monitoring a handful of sites from one vantage point
-- The status page at `:9394/` gives real-time view; Grafana at `:3000` gives historical
+- The status page at `:9590/` gives real-time view; Grafana at `:3000` gives historical
 
 **Production deploy (multi-region)**
 
@@ -115,7 +115,7 @@ Separate concerns for reliability and geographic coverage:
 
 - **Workers**: One per region/vantage point. Each runs independently with its own `SITE_CODE`. If a worker goes down, other regions keep probing. Workers are stateless — no data loss on restart (metrics are scraped by Prometheus before they're lost).
 - **Prometheus + Grafana**: Central, on a single host or managed service. Should not run on the same box as a worker — if the worker's host dies, you lose your monitoring history.
-- **Alertmanager**: Alongside Prometheus. Fires notifications when `ProbeDown` or `BudgetViolation` rules trigger.
+- **Alertmanager**: Alongside Prometheus. Fires notifications when `ProbeFailing` or `BudgetViolation` rules trigger.
 
 **Why workers should be separate from the central stack:**
 
@@ -154,8 +154,8 @@ One repo produces multiple deployment targets. Here's what ships where and how:
 
 | Target | Binary / image | Subcommand | Metrics flow | Status page |
 |--------|---------------|------------|--------------|-------------|
-| **VPS / EC2** | Go binary or Docker image | `technician worker` | Prometheus scrapes `:9394/metrics` | Built-in at `:9394/` |
-| **ECS / Kubernetes** | Docker image | `technician worker` | Prometheus scrapes via service discovery | Built-in at `:9394/` |
+| **VPS / EC2** | Go binary or Docker image | `technician worker` | Prometheus scrapes `:9590/metrics` | Built-in at `:9590/` |
+| **ECS / Kubernetes** | Docker image | `technician worker` | Prometheus scrapes via service discovery | Built-in at `:9590/` |
 | **Lambda (scheduled)** | Go binary (zip) or Docker image | `technician validate` or Lambda handler (planned) | Push to Pushgateway or remote-write | None (headless) |
 | **Cloudflare Worker** | JS bundle (planned) | N/A (JS runtime) | Push to Pushgateway | None (headless) |
 
@@ -184,14 +184,14 @@ ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/t
 
 | Feature | Available? |
 |---------|-----------|
-| Status page at `:9394/` | Yes — real-time probe status, history bars, latency percentiles |
+| Status page at `:9590/` | Yes — real-time probe status, history bars, latency percentiles |
 | JSON API at `/api/status` | Yes — for external integrations or a custom status page |
 | Prometheus metrics at `/metrics` | Yes — ready to scrape whenever you add Prometheus |
 | Native webhook alerts (Discord, Slack, generic) | Yes — fires on probe state transitions, cert expiry, and budget violations with severity routing (warn/crit to different channels) |
 | Blackbox-exporter compat at `/probe` | Yes |
 | Grafana dashboards | No — requires Prometheus + Grafana |
 | Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per probe |
-| Alert rules (ProbeDown, BudgetViolation) | No — requires Prometheus |
+| Alert rules (ProbeFailing, BudgetViolation) | No — requires Prometheus |
 
 This is a valid production deployment for teams that just need uptime monitoring with webhook alerts. The status page and `/api/status` endpoint work independently. Add Prometheus + Grafana later when you want historical trends and dashboards — the worker is already exporting metrics.
 
@@ -199,7 +199,7 @@ This is a valid production deployment for teams that just need uptime monitoring
 
 ```ini
 [Unit]
-Description=Technician synthetic monitoring worker
+Description=Technician probe runner
 After=network-online.target
 Wants=network-online.target
 
@@ -287,7 +287,7 @@ The **central dashboard** is separate from all probe workers:
 | **Pushgateway** | Receives metric pushes from Lambda and Cloudflare Workers. Prometheus scrapes it like any other target. | Same host as Prometheus (port 9091). |
 | **Alertmanager** | Routes alerts from Prometheus rules to Slack, PagerDuty, email, webhooks. | Same host as Prometheus (port 9093). |
 
-The built-in status page at each worker's `:9394/` is a **per-worker view** — it shows what that one worker sees in real time. Grafana is the aggregated view across all workers and regions. For a public-facing status page, use Grafana's anonymous viewer role or a static page that queries the Prometheus API.
+The built-in status page at each worker's `:9590/` is a **per-worker view** — it shows what that one worker sees in real time. Grafana is the aggregated view across all workers and regions. For a public-facing status page, use Grafana's anonymous viewer role or a static page that queries the Prometheus API.
 
 ### Putting it all together
 
@@ -311,7 +311,7 @@ A complete multi-region deployment from this repo:
 └───────────────────────────────────────────────────────────┘
 ```
 
-All probe results — from VPS workers, ECS tasks, Lambda functions, and Cloudflare Workers — end up in the same central Prometheus. Grafana queries that one Prometheus and shows everything on the same dashboards, filterable by `site_code` and probe type.
+All probe results — from VPS workers, ECS tasks, Lambda functions, and Cloudflare Workers — end up in the same central Prometheus. Grafana queries that one Prometheus and shows everything on the same dashboards, filterable by `region` and probe type.
 
 ## Using managed services
 
@@ -335,13 +335,13 @@ AMP can scrape ECS and EC2 targets natively via its managed scraper feature. Con
 
 **Option B: Sidecar agent (works anywhere)**
 
-Run Grafana Alloy, Prometheus in agent mode, or AWS Distro for OpenTelemetry (ADOT) alongside each Technician worker. The agent scrapes local `:9394/metrics` and remote-writes to AMP.
+Run Grafana Alloy, Prometheus in agent mode, or AWS Distro for OpenTelemetry (ADOT) alongside each Technician worker. The agent scrapes local `:9590/metrics` and remote-writes to AMP.
 
 Example with Grafana Alloy:
 
 ```hcl
 prometheus.scrape "technician" {
-  targets    = [{"__address__" = "localhost:9394"}]
+  targets    = [{"__address__" = "localhost:9590"}]
   forward_to = [prometheus.remote_write.amp.receiver]
 }
 
@@ -359,17 +359,17 @@ A future enhancement would add native Prometheus remote-write to Technician itse
 
 ### AWS Managed Grafana (AMG)
 
-No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`site_code`, `probe`, and for browser dashboards `network` and `device`) that work identically with AMP.
+No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`region`, `probe`, and for browser dashboards `network` and `device`) that work identically with AMP.
 
 ### Alerting
 
 Technician supports two complementary alerting layers:
 
-**Central alerting** — alerts evaluated by Prometheus or Grafana against scraped metrics. Best for full-featured alert management with grouping, silencing, escalation, and dashboards.
+**Central alerting** — alerts evaluated by Prometheus or Grafana against scraped metrics. Supports grouping, silencing, escalation, and dashboards.
 
 | Approach | How |
 |----------|-----|
-| **Prometheus alert rules** | Deploy `prometheus/rules.yml` to AMP or self-hosted Prometheus. Rules like `ProbeDown` and `BudgetViolation` fire as native Prometheus alerts. |
+| **Prometheus alert rules** | Deploy `prometheus/rules.yml` to AMP or self-hosted Prometheus. Rules like `ProbeFailing` and `BudgetViolation` fire as native Prometheus alerts. |
 | **Grafana alerting** | Define alert rules in AMG/Grafana that query AMP. Route to SNS, PagerDuty, Slack, etc. via Grafana contact points. |
 | **Alertmanager** | Self-hosted Alertmanager receives alerts from Prometheus rules. Routes to Slack, PagerDuty, email, webhooks. |
 
@@ -382,7 +382,7 @@ Technician supports two complementary alerting layers:
 | **Dependency** | Requires Prometheus + Alertmanager/Grafana to be up | Zero — just an outbound HTTP POST |
 | **Escalation** | Routes by severity, time-of-day, team | Not built-in (use central for complex routing) |
 | **Works on Lambda/edge** | Only if metrics reach Prometheus in time | Yes — fires before the function exits |
-| **Best for** | Full-featured alert management, dashboards, history | Critical "probe down" notifications that must fire no matter what |
+| **Best for** | Alert management with grouping, silencing, escalation, history | "Probe down" notifications that fire regardless of central stack health |
 
 Native webhooks are configured in `technician.yml` under `webhooks` and support Discord, Slack, and generic HTTP endpoints. See [alerting.md](alerting.md) for configuration details and comparison of all three alerting strategies.
 
@@ -454,7 +454,7 @@ This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, rete
 
 ### Enriching the status page with historical data
 
-The built-in status page at `:9394/` currently shows only what's in the in-memory ring buffer (~45 minutes). To show 30-day uptime bars like the Grafana dashboards, two approaches:
+The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (~45 minutes). To show 30-day uptime bars like the Grafana dashboards, two approaches:
 
 **Approach A: Query Prometheus API from the status page (recommended)**
 
@@ -491,7 +491,7 @@ SQLite adds ~2 MB to the binary size and negligible runtime overhead. It doesn't
 
 ### Scaling the status page
 
-The built-in status page is intentionally lightweight — a real-time view of what this worker sees. For richer views (30-day uptime bars, multi-site matrix, incident history), Grafana is the answer. The Technician dashboards already provide:
+The built-in status page shows real-time data from this worker's ring buffer. For historical views (30-day uptime bars, multi-site matrix, incident history), use Grafana. The included dashboards provide:
 
 - **Uptime overview** — probe status matrix, uptime percentage, degraded state tracking
 - **HTTP timing** — DNS, TLS, connect, TTFB breakdown over time
@@ -592,17 +592,17 @@ JS/TS-only HTTP probes (no Go binary, no Playwright). See [Cloudflare Workers pr
 | RAM | 128 MB |
 | Deploy size | < 1 MB (JS bundle) |
 
-Workers run at the edge with no cold start. Ideal for lightweight HTTP uptime checks from many PoPs.
+Workers run at the edge with no cold start. Suited for HTTP uptime checks from many PoPs.
 
 ## Firewall rules
 
 | Port | Protocol | Direction | Purpose |
 |------|----------|-----------|---------|
-| 9394 | TCP | Inbound | Technician status page, `/metrics`, `/probe` |
+| 9590 | TCP | Inbound | Technician status page, `/metrics`, `/probe` |
 | 9090 | TCP | Inbound | Prometheus UI (if running full stack) |
 | 3000 | TCP | Inbound | Grafana UI (if running full stack) |
 | 25 | TCP | Outbound | SMTP probes (if used) |
 | 123 | UDP | Outbound | NTP probes (if used) |
 | 443 | TCP | Outbound | HTTPS probes + Playwright CDN fetches |
 
-Most cloud providers block outbound port 25 by default. Request an unblock if you use SMTP probes.
+SMTP probes need outbound port 25, which most cloud vendors firewall by default. You'll need to submit a support request to have it opened before SMTP checks will work.

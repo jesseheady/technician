@@ -5,22 +5,22 @@ sites:
   - code: local
     city: Local
     country: US
-    geohash: local
-    provider: docker
+    location_hash: local
+    infra_provider: docker
   - code: us-east-1
     city: N. Virginia
     country: US
-    geohash: dqcjq
-    provider: aws
+    location_hash: dqcjq
+    infra_provider: aws
   - code: us-west-2
     city: Oregon
     country: US
-    geohash: c20y
-    provider: aws
+    location_hash: c20y
+    infra_provider: aws
 
 metrics:
   prometheus:
-    listen: ":9394"
+    listen: ":9590"
   otel:
     endpoint: ""
 

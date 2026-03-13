@@ -13,164 +13,164 @@ import (
 var (
 	probeUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_up",
-		Help: "Whether the probe was successful (1=up, 0=down)",
-	}, []string{"type", "name", "site_code", "site_city", "site_country"})
+		Help: "1 if the target responded successfully, 0 if the check failed",
+	}, []string{"type", "name", "region", "city", "country"})
 
 	probeDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_duration_seconds",
-		Help: "Total probe duration in seconds",
-	}, []string{"type", "name", "site_code", "site_city", "site_country"})
+		Help: "End-to-end probe execution time in seconds",
+	}, []string{"type", "name", "region", "city", "country"})
 
 	httpResponseStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_response_status",
-		Help: "HTTP response status code",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+		Help: "Status code returned by the HTTP target",
+	}, []string{"name", "region", "city", "country"})
 
 	httpDNS = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_dns_seconds",
 		Help: "HTTP DNS lookup duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	httpTLS = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_tls_seconds",
 		Help: "HTTP TLS handshake duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	httpConnect = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_connect_seconds",
 		Help: "HTTP TCP connect duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	httpTTFB = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_ttfb_seconds",
 		Help: "HTTP time to first byte in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	httpTransfer = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_transfer_seconds",
 		Help: "HTTP response transfer duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	httpResponseBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_http_response_bytes",
 		Help: "HTTP response body size in bytes",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	browserTTFB = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_ttfb_ms",
 		Help: "Browser Time to First Byte in milliseconds",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserFCP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_fcp_ms",
 		Help: "Browser First Contentful Paint in milliseconds",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserLCP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_lcp_ms",
 		Help: "Browser Largest Contentful Paint in milliseconds",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserCLS = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_cls",
 		Help: "Browser Cumulative Layout Shift score",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserINP = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_inp_ms",
 		Help: "Browser Interaction to Next Paint in milliseconds (Core Web Vital; good ≤200ms)",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserDOMComplete = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_dom_complete_ms",
 		Help: "Browser DOM complete time in milliseconds",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserTotalTransfer = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_total_transfer_bytes",
 		Help: "Browser total transfer size in bytes",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	browserResourceCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_browser_resource_count",
 		Help: "Browser total resource count",
-	}, []string{"name", "network", "device", "site_code", "site_city", "site_country"})
+	}, []string{"name", "network", "device", "region", "city", "country"})
 
 	harResourceDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_har_resource_duration_ms",
 		Help: "HAR resource duration in milliseconds by resource type",
-	}, []string{"name", "resource_type", "site_code", "site_city", "site_country"})
+	}, []string{"name", "resource_type", "region", "city", "country"})
 
 	harResourceBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_har_resource_bytes",
 		Help: "HAR resource size in bytes by resource type",
-	}, []string{"name", "resource_type", "site_code", "site_city", "site_country"})
+	}, []string{"name", "resource_type", "region", "city", "country"})
 
 	budgetViolation = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_budget_violation",
 		Help: "Whether a performance budget is violated (1=violated, 0=ok)",
-	}, []string{"name", "metric", "site_code", "site_city", "site_country"})
+	}, []string{"name", "metric", "region", "city", "country"})
 
 	// TCP metrics
 	tcpConnDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tcp_connect_seconds",
 		Help: "TCP connection duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	tcpTLSDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tcp_tls_seconds",
 		Help: "TCP TLS handshake duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	// DNS metrics
 	dnsQueryDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_dns_query_seconds",
 		Help: "DNS query duration in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	// ICMP metrics
 	icmpPacketLoss = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_icmp_packet_loss_percent",
 		Help: "ICMP packet loss percentage",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	icmpAvgRTT = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_icmp_avg_rtt_seconds",
 		Help: "ICMP average round-trip time in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	// NTP metrics
 	ntpOffsetMs = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_ntp_offset_ms",
 		Help: "NTP clock offset in milliseconds (positive = local ahead of server)",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	ntpStratum = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_ntp_stratum",
 		Help: "NTP server stratum level (1 = primary reference)",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	ntpRTT = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_ntp_rtt_seconds",
 		Help: "NTP round-trip time in seconds",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	// TLS certificate metrics
 	tlsCertExpiryDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tls_cert_expiry_days",
 		Help: "Days until TLS certificate expires",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	tlsCertValid = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tls_cert_valid",
 		Help: "Whether the TLS certificate chain is valid (1=valid, 0=invalid)",
-	}, []string{"name", "site_code", "site_city", "site_country"})
+	}, []string{"name", "region", "city", "country"})
 
 	// Degraded indicator
 	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
 		Help: "Whether the probe response time exceeds the degraded threshold (1=degraded, 0=ok)",
-	}, []string{"type", "name", "site_code", "site_city", "site_country"})
+	}, []string{"type", "name", "region", "city", "country"})
 )
 
 func init() {
@@ -358,9 +358,9 @@ type labelSet struct {
 
 func siteLabels(result *probe.Result) labelSet {
 	return labelSet{
-		code:    result.Labels["site_code"],
-		city:    result.Labels["site_city"],
-		country: result.Labels["site_country"],
+		code:    result.Labels["region"],
+		city:    result.Labels["city"],
+		country: result.Labels["country"],
 	}
 }
 

@@ -111,7 +111,7 @@ Terraform or CloudFormation templates for common deployment patterns:
 
 ## Near-term MVP
 
-Features planned for the next development cycle. These are high-value, moderate-effort additions that fill real gaps without expanding Technician's scope beyond synthetic monitoring.
+Features planned for the next development cycle.
 
 ### Maintenance mode
 
@@ -170,7 +170,7 @@ Technician already uses Go's `slog` for structured logging to stdout. Enhance th
 
 **What's needed:**
 
-- **Health log line per probe execution** — After each probe run, emit a structured log with: probe name, type, success, duration, site_code, degraded flag, retry count (if retried). This gives Loki a complete record of probe execution independent of Prometheus metrics.
+- **Health log line per probe execution** — After each probe run, emit a structured log with: probe name, type, success, duration, region, degraded flag, retry count (if retried). This gives Loki a complete record of probe execution independent of Prometheus metrics.
 - **Technician self-health metrics** — Log scheduler loop timing, goroutine count, memory usage, and config reload events. Useful for diagnosing "is Technician itself healthy?" without needing a separate monitoring stack.
 - **Log format config** — `logging.format` in `technician.yml`: `json` (default, Loki-native) or `text` (human-readable for local dev). `logging.level`: `debug`, `info` (default), `warn`, `error`.
 - **Correlation IDs** — Each probe execution gets a trace ID logged alongside the result, linking slog output to OTLP traces when tracing is enabled.
@@ -186,13 +186,13 @@ logging:
 **Example log output (JSON):**
 
 ```json
-{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"probe_complete","probe":"API Health","type":"http","success":true,"duration_ms":142,"site_code":"us-east-1","degraded":false,"retries":0}
+{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"probe_complete","probe":"API Health","type":"http","success":true,"duration_ms":142,"region":"us-east-1","degraded":false,"retries":0}
 {"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"scheduler_tick","active_probes":12,"goroutines":28,"heap_mb":8.2}
 ```
 
 ### Status page redesign
 
-Redesign the built-in status page with a cleaner, more informative layout inspired by modern open-source status pages.
+Redesign the built-in status page. Reference layout based on Upptime, Cachet, and Gatus.
 
 **Current state:** Minimal HTML template with probe rows, history bars, timing breakdown, and budget badges.
 
@@ -226,16 +226,16 @@ Monitors are grouped under collapsible section headers: group name (left), "N/N 
 
 ## Scope principles
 
-Technician's scope is: **everything needed to answer "is my service up, fast, and correct?" from multiple locations, as a single binary.** Anything beyond that boundary belongs to the Grafana stack or specialized tools.
+Technician's scope: **probe execution, scheduling, metrics export, status page, and performance budgets — as a single binary.** Visualization, incident management, and complex alerting belong to Grafana and dedicated tools.
 
 ### What Technician owns
 
-- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright (and planned: WebSocket). These are the core. Every probe type must earn its place by being a standard synthetic monitoring primitive.
-- **Scheduling** — Built-in cron with stagger/jitter. Key differentiator vs pure probe executors that rely on external schedulers.
-- **Status page** — Lightweight, built-in, no external dependencies. The "is everything OK right now?" view.
-- **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical). Simple, push-based. The fallback for environments without Grafana Alerting.
-- **Performance budgets** — Unique to Technician. Threshold-based degradation tracking with three-state escalation.
-- **Prometheus metrics** — Native exposition. This is how Technician integrates with the broader observability stack.
+- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright (and planned: WebSocket).
+- **Scheduling** — Built-in cron with stagger/jitter. No external scheduler needed.
+- **Status page** — Built-in, no external dependencies.
+- **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
+- **Performance budgets** — Threshold-based degradation tracking with three-state escalation.
+- **Prometheus metrics** — Native exposition on `/metrics`.
 - **Structured logs** — slog to stdout for Loki/log aggregation. How operators observe Technician itself.
 
 ### What Technician defers to other tools
@@ -264,7 +264,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Native HTTP Basic/Bearer auth fields** — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
 
-- **SMTP STARTTLS and auth** — Current SMTP probe does EHLO connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
+- **SMTP STARTTLS and auth** — The SMTP probe currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
 
 ### Observability and export
 
@@ -276,7 +276,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Latency percentile Grafana panels** — The Grafana dashboards have latency trend graphs but no dedicated P50/P90/P99 panels. Add percentile stat panels and histogram panels to the HTTP Timing and Uptime Overview dashboards.
 
-- **Per-region latency comparison** — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `site_code` label grouping.
+- **Per-region latency comparison** — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
 
 - **Latency trend sparklines on status page** — Small inline SVG sparklines per probe row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
 
