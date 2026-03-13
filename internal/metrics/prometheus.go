@@ -1,13 +1,27 @@
 package metrics
 
 import (
+	"log/slog"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/probe"
+)
+
+// maxProbeCardinality is the maximum number of distinct probe names that will
+// be tracked as Prometheus labels. Beyond this limit, new names are ignored
+// and a warning is logged. This prevents accidental label-cardinality
+// explosion in Prometheus (each unique name × 33 metrics × site labels).
+const maxProbeCardinality = 500
+
+var (
+	cardinalityMu    sync.Mutex
+	seenProbeNames   = make(map[string]struct{})
+	cardinalityLimit bool // true once we've logged the warning
 )
 
 var (
@@ -232,6 +246,23 @@ func RecordResult(result *probe.Result) {
 	if result.InfraError {
 		return
 	}
+
+	// Guard against label-cardinality explosion. If more unique probe names
+	// appear than maxProbeCardinality, skip recording to protect Prometheus.
+	cardinalityMu.Lock()
+	if _, ok := seenProbeNames[result.Name]; !ok {
+		if len(seenProbeNames) >= maxProbeCardinality {
+			if !cardinalityLimit {
+				slog.Warn("Probe cardinality limit reached, new probe names will not be recorded as metrics",
+					"limit", maxProbeCardinality)
+				cardinalityLimit = true
+			}
+			cardinalityMu.Unlock()
+			return
+		}
+		seenProbeNames[result.Name] = struct{}{}
+	}
+	cardinalityMu.Unlock()
 
 	labels := siteLabels(result)
 	typeStr := string(result.Type)

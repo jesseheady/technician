@@ -442,6 +442,40 @@ The in-memory status store is persisted to a single JSON file (`status.json`) ev
 
 All backup storage fits comfortably on a minimal EBS volume at any realistic probe count. S3 would only be relevant for cross-region archival or decoupling storage from the worker instance.
 
+### Prometheus metrics cardinality
+
+Each unique probe name creates a set of Prometheus time-series (one per metric × site label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
+
+Technician enforces a default limit of **500 unique probe names** for metrics recording. This is controlled by `maxProbeCardinality` in `internal/metrics/prometheus.go`. When the limit is reached, new probe names are silently dropped from `/metrics` and a warning is logged.
+
+**What the limit affects and doesn't affect:**
+
+| Feature | Affected by limit? |
+|---------|-------------------|
+| Probe execution (scheduling, retries) | No — all probes run normally |
+| Status page and `/api/status` | No — all results appear |
+| Native webhook alerts | No — fire on all probe state changes |
+| Prometheus `/metrics` endpoint | **Yes** — new names beyond the limit are not recorded |
+| Grafana dashboards and Prometheus alert rules | **Yes** — only probes with metrics will appear |
+
+**Scaling strategies if you approach the limit:**
+
+1. **Consolidate probe names** — If many probes target variants of the same endpoint (e.g. per-customer health checks), group them under fewer names using labels or a shared name prefix. The status page still shows individual results.
+2. **Use recording rules** — Pre-aggregate high-cardinality series in Prometheus with recording rules, then drop the raw series. This reduces storage cost without losing visibility.
+3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each probe name creates up to ~33 series (across all metric types and site labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
+4. **Shard by worker** — Run multiple Technician workers, each responsible for a subset of probes. Each worker has its own cardinality counter, effectively multiplying the limit.
+5. **Use metric relabeling** — Configure Prometheus `metric_relabel_configs` to drop series you don't need (e.g. HAR resource breakdowns for non-browser probes), freeing cardinality budget for more probe names.
+
+**Recommended limits by Prometheus sizing:**
+
+| Prometheus RAM | Active series budget | Suggested maxProbeCardinality |
+|---------------|---------------------|-------------------------------|
+| 1 GB | ~100K series | 500 (default) |
+| 2–4 GB | ~500K series | 1000–2000 |
+| 8+ GB / managed (AMP) | 1M+ series | 5000+ |
+
+For most deployments (< 100 probes), the limit is never reached. If you're operating at 500+ probes with Prometheus metrics needed for all of them, consider either bumping the constant or making it a config-file option — a future enhancement tracked in TODO.md.
+
 ### Getting 30-day uptime without an application database
 
 Prometheus **is** the time-series database. When Grafana (or the status page) needs "30-day uptime for probe X", it queries:
