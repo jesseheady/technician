@@ -17,11 +17,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    depends_on:
-      prometheus:
-        condition: service_healthy
-      grafana:
-        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v3.2.1
