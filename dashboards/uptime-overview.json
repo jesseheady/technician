@@ -78,7 +78,8 @@
     },
     {
       "id": 1,
-      "title": "Probe Status Matrix",
+      "title": "Failing Probes",
+      "description": "Probes currently reporting DOWN. Click a tile to drill into details.",
       "type": "stat",
       "gridPos": {
         "h": 6,
@@ -92,13 +93,15 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{region}}",
+          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"} == 0",
+          "instant": true,
+          "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
+          "noValue": "All systems operational",
           "mappings": [
             {
               "type": "value",
@@ -106,10 +109,6 @@
                 "0": {
                   "text": "DOWN",
                   "color": "red"
-                },
-                "1": {
-                  "text": "UP",
-                  "color": "green"
                 }
               }
             }
@@ -117,27 +116,21 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "title": "Drill Down →",
+              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+            }
+          ]
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "auto"
@@ -171,35 +164,17 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 95
-              },
-              {
-                "color": "yellow",
-                "value": 99
-              },
-              {
-                "color": "green",
-                "value": 99.9
-              }
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 95 },
+              { "color": "yellow", "value": 99 },
+              { "color": "green", "value": 99.9 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "color": { "mode": "thresholds" }
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "auto"
@@ -219,55 +194,44 @@
         "type": "prometheus",
         "uid": "Prometheus"
       },
-      "description": "Probes where response time exceeds the degraded_after threshold",
+      "description": "Probes where response time exceeds the degraded_after threshold. Only shows currently degraded probes.",
       "targets": [
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
-          "legendFormat": "{{name}} @ {{region}}",
+          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"} == 1",
+          "instant": true,
+          "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
+          "noValue": "None degraded",
           "mappings": [
             {
               "type": "value",
               "options": {
-                "0": {
-                  "text": "OK",
-                  "color": "green"
-                },
-                "1": {
-                  "text": "DEGRADED",
-                  "color": "orange"
-                }
+                "1": { "text": "DEGRADED", "color": "orange" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "title": "Drill Down →",
+              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+            }
+          ]
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "auto"
@@ -305,121 +269,140 @@
           "format": "table",
           "instant": true,
           "refId": "C"
+        },
+        {
+          "expr": "technician_http_response_status{region=~\"$region\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        },
+        {
+          "expr": "technician_tls_cert_expiry_days{region=~\"$region\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "E"
         }
       ],
       "fieldConfig": {
         "defaults": {},
         "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Value #A"
-            },
+            "matcher": { "id": "byName", "options": "Value #A" },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Status"
-              },
+              { "id": "displayName", "value": "Status" },
               {
                 "id": "mappings",
                 "value": [
                   {
                     "type": "value",
                     "options": {
-                      "0": {
-                        "text": "DOWN",
-                        "color": "red"
-                      },
-                      "1": {
-                        "text": "UP",
-                        "color": "green"
-                      }
+                      "0": { "text": "DOWN", "color": "red" },
+                      "1": { "text": "UP", "color": "green" }
                     }
                   }
                 ]
               },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Value #B"
-            },
+            "matcher": { "id": "byName", "options": "Value #B" },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Duration"
-              },
-              {
-                "id": "unit",
-                "value": "s"
-              }
+              { "id": "displayName", "value": "Duration" },
+              { "id": "unit", "value": "s" }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Value #C"
-            },
+            "matcher": { "id": "byName", "options": "Value #C" },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Degraded"
-              },
+              { "id": "displayName", "value": "Degraded" },
               {
                 "id": "mappings",
                 "value": [
                   {
                     "type": "value",
                     "options": {
-                      "0": {
-                        "text": "OK",
-                        "color": "green"
-                      },
-                      "1": {
-                        "text": "DEGRADED",
-                        "color": "orange"
-                      }
+                      "0": { "text": "OK", "color": "green" },
+                      "1": { "text": "DEGRADED", "color": "orange" }
                     }
                   }
                 ]
               },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #D" },
+            "properties": [
+              { "id": "displayName", "value": "HTTP Code" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "green", "value": 200 },
+                    { "color": "yellow", "value": 300 },
+                    { "color": "orange", "value": 400 },
+                    { "color": "red", "value": 500 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "noValue", "value": "\u2014" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #E" },
+            "properties": [
+              { "id": "displayName", "value": "Cert Expiry" },
+              { "id": "unit", "value": "d" },
+              { "id": "decimals", "value": 0 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "orange", "value": 7 },
+                    { "color": "yellow", "value": 30 },
+                    { "color": "green", "value": 60 }
+                  ]
+                }
+              },
               {
                 "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
+                "value": { "type": "gauge", "mode": "basic" }
+              },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 365 },
+              { "id": "noValue", "value": "\u2014" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "name" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Drill Down →",
+                    "url": "/d/technician-uptime-overview?var-probe=${__data.fields.name}&var-region=${__data.fields.region}&${__url_time_range}"
+                  }
+                ]
               }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
+            "matcher": { "id": "byName", "options": "Time" },
             "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
+              { "id": "custom.hidden", "value": true }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "__name__"
-            },
+            "matcher": { "id": "byName", "options": "__name__" },
             "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
+              { "id": "custom.hidden", "value": true }
             ]
           }
         ]
@@ -483,29 +466,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
             ]
           },
-          "color": {
-            "mode": "palette-classic"
-          }
+          "color": { "mode": "palette-classic" }
         }
       },
       "options": {
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ]
+          "calcs": ["mean", "lastNotNull"]
         },
         "tooltip": {
           "mode": "multi",
@@ -550,34 +522,132 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
             ]
           },
-          "color": {
-            "mode": "palette-classic"
-          }
+          "color": { "mode": "palette-classic" }
         }
       },
       "options": {
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ]
+          "calcs": ["mean", "lastNotNull"]
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
+      }
+    },
+    {
+      "id": 100,
+      "title": "$probe",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "repeat": "probe",
+      "repeatDirection": "h",
+      "panels": []
+    },
+    {
+      "id": 101,
+      "title": "Status",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "instant": true,
+          "legendFormat": "{{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 102,
+      "title": "Response Time",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "instant": true,
+          "legendFormat": "{{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 103,
+      "title": "Duration Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 16, "x": 8, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "pointSize": 5, "showPoints": "auto", "spanNulls": false, "gradientMode": "scheme" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     }
   ],
