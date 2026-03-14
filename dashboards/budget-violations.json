@@ -77,22 +77,54 @@
       }
     },
     {
-      "id": 1,
-      "title": "Current Violation Count",
+      "id": 6,
+      "title": "Budget Compliance",
+      "description": "Percentage of all budget checks currently passing",
       "type": "stat",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 0,
-        "y": 2
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "(1 - avg(technician_budget_violation{region=~\"$region\", name=~\"$probe\"})) * 100",
+          "instant": true,
+          "legendFormat": "Compliance",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 80 },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 100 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "noValue": "No budgets configured"
+        }
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 1,
+      "title": "Violation Count",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
           "expr": "count(technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1)",
+          "instant": true,
           "legendFormat": "Violations",
           "refId": "A"
         }
@@ -102,32 +134,17 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 3
-              }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          },
+          "color": { "mode": "thresholds" },
           "noValue": "0"
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
@@ -137,19 +154,12 @@
       "id": 2,
       "title": "Violations by Metric",
       "type": "stat",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 2
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
           "expr": "technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1",
+          "instant": true,
           "legendFormat": "{{metric}} ({{name}} @ {{region}})",
           "refId": "A"
         }
@@ -160,41 +170,24 @@
             {
               "type": "value",
               "options": {
-                "0": {
-                  "text": "PASS",
-                  "color": "green"
-                },
-                "1": {
-                  "text": "FAIL",
-                  "color": "red"
-                }
+                "0": { "text": "PASS", "color": "green" },
+                "1": { "text": "FAIL", "color": "red" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "color": { "mode": "thresholds" },
+          "noValue": "All budgets passing"
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "name"
@@ -202,21 +195,14 @@
     },
     {
       "id": 3,
-      "title": "Budget Status (Pass/Fail by Probe)",
+      "title": "Failing Probes",
       "type": "stat",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 2
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "max by (name, region) (technician_budget_violation{region=~\"$region\", name=~\"$probe\"})",
+          "expr": "max by (name, region) (technician_budget_violation{region=~\"$region\", name=~\"$probe\"}) == 1",
+          "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -227,144 +213,45 @@
             {
               "type": "value",
               "options": {
-                "0": {
-                  "text": "PASS",
-                  "color": "green"
-                },
-                "1": {
-                  "text": "FAIL",
-                  "color": "red"
-                }
+                "0": { "text": "PASS", "color": "green" },
+                "1": { "text": "FAIL", "color": "red" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "color": { "mode": "thresholds" },
+          "noValue": "All probes within budget",
+          "links": [
+            {
+              "title": "Drill Down →",
+              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+            }
+          ]
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "auto"
       }
     },
     {
-      "id": 4,
-      "title": "Budget Violation Rate Over Time",
-      "description": "Percentage of checks violating budget per 5m window (median smoothing dampens outliers)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "targets": [
-        {
-          "expr": "avg_over_time(technician_budget_violation{region=~\"$region\", name=~\"$probe\"}[5m])",
-          "legendFormat": "{{metric}} ({{name}} @ {{region}})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "pointSize": 5,
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "mode": "none"
-            },
-            "gradientMode": "scheme"
-          },
-          "min": 0,
-          "max": 1,
-          "unit": "percentunit",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.25
-              },
-              {
-                "color": "orange",
-                "value": 0.5
-              },
-              {
-                "color": "red",
-                "value": 0.75
-              }
-            ]
-          },
-          "color": {
-            "mode": "continuous-GrYlRd"
-          }
-        }
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 5,
-      "title": "All Current Violations",
+      "id": 7,
+      "title": "All Budget Checks",
+      "description": "Current status of every budget check. Violations sort to the top.",
       "type": "table",
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 18
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_budget_violation{region=~\"$region\", name=~\"$probe\"} == 1",
+          "expr": "technician_budget_violation{region=~\"$region\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -374,35 +261,36 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
+            "matcher": { "id": "byName", "options": "name" },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Violated"
-              },
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Uptime Overview →",
+                    "url": "/d/technician-uptime-overview?var-probe=${__data.fields.name}&var-region=${__data.fields.region}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              { "id": "displayName", "value": "Status" },
               {
                 "id": "mappings",
                 "value": [
                   {
                     "type": "value",
                     "options": {
-                      "1": {
-                        "text": "YES",
-                        "color": "red"
-                      }
+                      "0": { "text": "PASS", "color": "green" },
+                      "1": { "text": "FAIL", "color": "red" }
                     }
                   }
                 ]
               },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
             ]
           }
         ]
@@ -411,20 +299,56 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true
-            },
-            "renameByName": {
-              "name": "Probe",
-              "region": "Site",
-              "metric": "Metric"
-            }
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "city": true, "country": true },
+            "indexByName": { "name": 0, "region": 1, "metric": 2, "Value": 3 },
+            "renameByName": { "name": "Probe", "region": "Site", "metric": "Metric" }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Status", "desc": true }]
           }
         }
       ]
+    },
+    {
+      "id": 4,
+      "title": "Budget Violation Rate Over Time",
+      "description": "Percentage of checks violating budget per 5m window",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "avg_over_time(technician_budget_violation{region=~\"$region\", name=~\"$probe\"}[5m])",
+          "legendFormat": "{{metric}} ({{name}} @ {{region}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "pointSize": 5, "showPoints": "auto", "spanNulls": false, "stacking": { "mode": "none" }, "gradientMode": "scheme" },
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red", "value": 0.75 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
     }
   ],
   "schemaVersion": 39
