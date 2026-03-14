@@ -23,6 +23,8 @@ func newProbers(cfg *config.Config) map[config.ProbeType]probe.Prober {
 		config.ProbeTypeNTP:        probe.NewNTPProber(),
 		config.ProbeTypeTLS:        probe.NewTLSProber(),
 		config.ProbeTypeUDP:        probe.NewUDPProber(),
+		config.ProbeTypeBGP:        probe.NewBGPProber(),
+		config.ProbeTypeDomainExpiry: probe.NewDomainExpirationProber(),
 	}
 
 	if runner, err := playwright.NewRunner(); err != nil {

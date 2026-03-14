@@ -32,6 +32,8 @@ const (
 	ProbeTypeNTP         ProbeType = "ntp"
 	ProbeTypeTLS         ProbeType = "tls"
 	ProbeTypeUDP         ProbeType = "udp"
+	ProbeTypeBGP         ProbeType = "bgp"
+	ProbeTypeDomainExpiry ProbeType = "domain_expiry"
 )
 
 type RetryPolicy struct {
@@ -58,7 +60,9 @@ type ProbeConfig struct {
 	GRPC     *GRPCProbeConfig  `yaml:"-"`
 	NTP      *NTPProbeConfig   `yaml:"-"`
 	TLS      *TLSProbeConfig   `yaml:"-"`
-	UDP      *UDPProbeConfig   `yaml:"-"`
+	UDP          *UDPProbeConfig              `yaml:"-"`
+	BGP          *BGPProbeConfig              `yaml:"-"`
+	DomainExpiry *DomainExpirationProbeConfig `yaml:"-"`
 }
 
 // Target returns the canonical hostname or IP that this probe checks.
@@ -113,6 +117,14 @@ func (p *ProbeConfig) Target() string {
 			if u, err := url.Parse(p.Playwright.BaseURL); err == nil {
 				raw = u.Hostname()
 			}
+		}
+	case ProbeTypeBGP:
+		if p.BGP != nil {
+			raw = p.BGP.Prefix
+		}
+	case ProbeTypeDomainExpiry:
+		if p.DomainExpiry != nil {
+			raw = p.DomainExpiry.Domain
 		}
 	}
 	// Strip port from host:port patterns (e.g. gRPC "host:443", TLS "host:443")
@@ -189,6 +201,17 @@ type UDPProbeConfig struct {
 	ExpectResponse   *bool  `yaml:"expect_response"`  // nil defaults to true
 	ExpectRecv       string `yaml:"expect_recv"`      // expected substring in response
 	MaxResponseBytes int    `yaml:"max_response_bytes"` // default 4096
+}
+
+type BGPProbeConfig struct {
+	Prefix         string `yaml:"prefix"`          // IP prefix to monitor (e.g. "203.0.113.0/24")
+	ExpectedOrigin int    `yaml:"expected_origin"` // expected origin ASN
+}
+
+type DomainExpirationProbeConfig struct {
+	Domain       string `yaml:"domain"`
+	WarnDays     int    `yaml:"warn_days"`     // days before expiry to warn (default 30)
+	CriticalDays int    `yaml:"critical_days"` // days before expiry to critical (default 7)
 }
 
 type SMTPProbeConfig struct {
@@ -361,6 +384,29 @@ type grpcProbeYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
+type bgpProbeYAML struct {
+	Name           string        `yaml:"name"`
+	Group          string        `yaml:"group"`
+	Prefix         string        `yaml:"prefix"`
+	ExpectedOrigin int           `yaml:"expected_origin"`
+	Schedule       string        `yaml:"schedule"`
+	Timeout        time.Duration `yaml:"timeout"`
+	Retry          *RetryPolicy  `yaml:"retry"`
+	DegradedAfter  time.Duration `yaml:"degraded_after"`
+}
+
+type domainExpiryProbeYAML struct {
+	Name          string        `yaml:"name"`
+	Group         string        `yaml:"group"`
+	Domain        string        `yaml:"domain"`
+	WarnDays      int           `yaml:"warn_days"`
+	CriticalDays  int           `yaml:"critical_days"`
+	Schedule      string        `yaml:"schedule"`
+	Timeout        time.Duration `yaml:"timeout"`
+	Retry          *RetryPolicy  `yaml:"retry"`
+	DegradedAfter  time.Duration `yaml:"degraded_after"`
+}
+
 func LoadProbes(probesDir string) ([]ProbeConfig, error) {
 	var probes []ProbeConfig
 
@@ -429,6 +475,18 @@ func LoadProbes(probesDir string) ([]ProbeConfig, error) {
 		return nil, fmt.Errorf("loading TLS probes: %w", err)
 	}
 	probes = append(probes, tlsProbes...)
+
+	bgpProbes, err := loadBGPProbes(filepath.Join(probesDir, "bgp.yml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("loading BGP probes: %w", err)
+	}
+	probes = append(probes, bgpProbes...)
+
+	domainExpiryProbes, err := loadDomainExpiryProbes(filepath.Join(probesDir, "domain_expiry.yml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("loading domain expiry probes: %w", err)
+	}
+	probes = append(probes, domainExpiryProbes...)
 
 	for i := range probes {
 		if probes[i].Timeout == 0 {
@@ -891,6 +949,79 @@ func loadUDPProbes(path string) ([]ProbeConfig, error) {
 				ExpectResponse:   r.ExpectResponse,
 				ExpectRecv:       r.ExpectRecv,
 				MaxResponseBytes: maxResp,
+			},
+		}
+	}
+	return probes, nil
+}
+
+func loadBGPProbes(path string) ([]ProbeConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expanded := expandEnvVars(string(data))
+
+	var raw []bgpProbeYAML
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	probes := make([]ProbeConfig, len(raw))
+	for i, r := range raw {
+		probes[i] = ProbeConfig{
+			Name:          r.Name,
+			Type:          ProbeTypeBGP,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
+			BGP: &BGPProbeConfig{
+				Prefix:         r.Prefix,
+				ExpectedOrigin: r.ExpectedOrigin,
+			},
+		}
+	}
+	return probes, nil
+}
+
+func loadDomainExpiryProbes(path string) ([]ProbeConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expanded := expandEnvVars(string(data))
+
+	var raw []domainExpiryProbeYAML
+	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	probes := make([]ProbeConfig, len(raw))
+	for i, r := range raw {
+		warnDays := r.WarnDays
+		if warnDays == 0 {
+			warnDays = 30
+		}
+		criticalDays := r.CriticalDays
+		if criticalDays == 0 {
+			criticalDays = 7
+		}
+		probes[i] = ProbeConfig{
+			Name:          r.Name,
+			Type:          ProbeTypeDomainExpiry,
+			Group:         r.Group,
+			Schedule:      r.Schedule,
+			Timeout:       r.Timeout,
+			Retry:         r.Retry,
+			DegradedAfter: r.DegradedAfter,
+			DomainExpiry: &DomainExpirationProbeConfig{
+				Domain:       r.Domain,
+				WarnDays:     warnDays,
+				CriticalDays: criticalDays,
 			},
 		}
 	}

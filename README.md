@@ -1,6 +1,6 @@
 # Technician
 
-A single Go binary that probes your infrastructure over the network. Eleven probe types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
+A single Go binary that probes your infrastructure over the network. Thirteen probe types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
 
 ## What it does
 
@@ -69,7 +69,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` en
 ## Configuration
 
 - **Main config** — `technician.yml`: service name, sites (code, city, country, location_hash, infra_provider), metrics listen address, artifact storage, Playwright mode.
-- **Probes** — `probes/http.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), and timeout.
+- **Probes** — `probes/http.yml`, `probes/tcp.yml`, `probes/udp.yml`, `probes/dns.yml`, `probes/icmp.yml`, `probes/grpc.yml`, `probes/ntp.yml`, `probes/tls.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/bgp.yml`, `probes/domain_expiry.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), and timeout.
 - **Budgets** — Optional `budgets.yml` with per-probe thresholds for `validate`.
 - All YAML files support `${ENV_VAR}` expansion.
 

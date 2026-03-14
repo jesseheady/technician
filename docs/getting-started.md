@@ -85,6 +85,9 @@ Probes are defined in YAML files under the probes directory (see `examples/probe
 | `tls.yml` | TLS | Certificate expiry, chain validity, issuer/SAN details |
 | `smtp.yml` | SMTP | Mail server connectivity |
 | `traceroute.yml` | Traceroute | Network path hops (requires mtr) |
+| `udp.yml` | UDP | Datagram send/receive, payload matching |
+| `bgp.yml` | BGP | Origin AS validation, prefix hijack detection |
+| `domain_expiry.yml` | Domain expiry | RDAP-based registration expiry, warn/critical thresholds |
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
 All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.

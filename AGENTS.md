@@ -1,6 +1,6 @@
 # Technician – Agent guide
 
-Technician is a **multi-region probe runner** — a single Go binary that probes your infrastructure over the network. Eleven probe types, Prometheus metrics on `/metrics`, OTLP traces, performance budgets for CI, and Playwright browser flows.
+Technician is a **multi-region probe runner** — a single Go binary that probes your infrastructure over the network. Thirteen probe types, Prometheus metrics on `/metrics`, OTLP traces, performance budgets for CI, and Playwright browser flows.
 
 ## Repository layout
 
@@ -8,7 +8,7 @@ Technician is a **multi-region probe runner** — a single Go binary that probes
 |------|--------|
 | `cmd/` | Cobra CLI: `root`, `worker`, `probe`, `serve`, `validate` |
 | `internal/config/` | Main YAML config + probe definitions; env var expansion `${VAR}` |
-| `internal/probe/` | Probe implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright |
+| `internal/probe/` | Probe implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright |
 | `internal/scheduler/` | Cron-based scheduling with per-site stagger |
 | `internal/metrics/` | Prometheus gauges, OTLP trace export, HAR parsing |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
@@ -36,7 +36,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), 
 
 - **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
 - **Probes**: Loaded from directory next to config: `<config_dir>/probes/`:
-  - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml` – list of probes per type. HTTP probes support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
+  - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of probes per type. HTTP probes support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
   - Playwright: `probes/playwright/playwright.yml` (or `probes/playwright.yml`) + script files.
   - All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold).
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
@@ -60,7 +60,7 @@ Three strategies (see `docs/alerting.md`):
 ## Probe model
 
 - **Interface**: `internal/probe.Prober`: `Type() config.ProbeType` and `Run(ctx, cfg, site) *Result`.
-- **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `playwright`.
+- **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `playwright`.
 - **Result**: `probe.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `site.Labels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a probe type**: Implement `Prober`; add `ProbeType` and config struct in `internal/config/probes.go`; add loader in `LoadProbes`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired).
 

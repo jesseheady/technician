@@ -1,0 +1,10 @@
+# ── Domain expiration checks ──────────────────────────────────────
+# Queries RDAP for domain registration expiry. Alerts when days remaining
+# drops below warn_days or critical_days thresholds.
+- name: "example.com"
+  group: Infrastructure
+  domain: example.com
+  warn_days: 30
+  critical_days: 7
+  schedule: "0 0 */6 * * *"
+  timeout: 30s

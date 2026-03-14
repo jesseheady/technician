@@ -60,7 +60,7 @@
       {
         "name": "type",
         "type": "custom",
-        "query": "tcp,dns,icmp,grpc,ntp,tls,udp",
+        "query": "tcp,dns,icmp,grpc,ntp,tls,udp,bgp,domain_expiry",
         "includeAll": true,
         "multi": true,
         "current": {
@@ -636,6 +636,177 @@
       "options": {
         "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
         "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 70,
+      "title": "BGP Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 71,
+      "title": "BGP Prefix Visibility",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 76 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_bgp_prefix_visible{name=~\"$probe\", region=~\"$region\"}",
+          "instant": true,
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "NOT VISIBLE", "color": "red" }, "1": { "text": "VISIBLE", "color": "green" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" },
+          "links": [
+            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 72,
+      "title": "BGP Origin Match",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 76 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_bgp_origin_match{name=~\"$probe\", region=~\"$region\"}",
+          "instant": true,
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "MISMATCH", "color": "red" }, "1": { "text": "MATCH", "color": "green" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" },
+          "links": [
+            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 73,
+      "title": "BGP Origin ASN",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 82 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_bgp_origin_asn{region=~\"$region\"}",
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 80,
+      "title": "Domain Expiry Probes",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 90 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 81,
+      "title": "Domain Days Until Expiry",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 91 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_domain_expiry_days{region=~\"$region\"}",
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto", "spanNulls": false },
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 7 },
+              { "color": "yellow", "value": 30 },
+              { "color": "green", "value": 60 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "min"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 82,
+      "title": "Domain Registration Status",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 91 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_domain_registered{name=~\"$probe\", region=~\"$region\"}",
+          "instant": true,
+          "legendFormat": "{{name}} @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "NOT REGISTERED", "color": "red" }, "1": { "text": "REGISTERED", "color": "green" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" },
+          "links": [
+            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=domain_expiry&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
       }
     }
   ],

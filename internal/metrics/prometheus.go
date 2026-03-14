@@ -191,6 +191,33 @@ var (
 		Help: "Whether the TLS certificate chain is valid (1=valid, 0=invalid)",
 	}, []string{"name", "region", "city", "country"})
 
+	// BGP metrics
+	bgpPrefixVisible = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_bgp_prefix_visible",
+		Help: "Whether the BGP prefix is visible in the global routing table (1=visible, 0=not visible)",
+	}, []string{"name", "region", "city", "country"})
+
+	bgpOriginASN = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_bgp_origin_asn",
+		Help: "Observed origin AS number for the prefix",
+	}, []string{"name", "region", "city", "country"})
+
+	bgpOriginMatch = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_bgp_origin_match",
+		Help: "Whether the origin ASN matches the expected value (1=match, 0=mismatch)",
+	}, []string{"name", "region", "city", "country"})
+
+	// Domain expiration metrics
+	domainExpiryDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_domain_expiry_days",
+		Help: "Days until domain registration expires",
+	}, []string{"name", "region", "city", "country"})
+
+	domainRegistered = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_domain_registered",
+		Help: "Whether the domain is currently registered (1=registered, 0=not found)",
+	}, []string{"name", "region", "city", "country"})
+
 	// Degraded indicator
 	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
@@ -232,6 +259,11 @@ func init() {
 		udpResponseBytes,
 		tlsCertExpiryDays,
 		tlsCertValid,
+		bgpPrefixVisible,
+		bgpOriginASN,
+		bgpOriginMatch,
+		domainExpiryDays,
+		domainRegistered,
 		probeDegraded,
 	)
 }
@@ -292,6 +324,10 @@ func RecordResult(result *probe.Result) {
 		recordTLSMetrics(result, labels)
 	case config.ProbeTypeUDP:
 		recordUDPMetrics(result, labels)
+	case config.ProbeTypeBGP:
+		recordBGPMetrics(result, labels)
+	case config.ProbeTypeDomainExpiry:
+		recordDomainExpiryMetrics(result, labels)
 	}
 
 	degraded := float64(0)
@@ -390,6 +426,29 @@ func recordTLSMetrics(result *probe.Result, labels labelSet) {
 		valid = 1
 	}
 	tlsCertValid.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(valid)
+}
+
+func recordBGPMetrics(result *probe.Result, labels labelSet) {
+	visible := float64(0)
+	if result.BGPPrefixVisible {
+		visible = 1
+	}
+	bgpPrefixVisible.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(visible)
+	bgpOriginASN.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.BGPOriginASN))
+	match := float64(0)
+	if result.BGPOriginMatch {
+		match = 1
+	}
+	bgpOriginMatch.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(match)
+}
+
+func recordDomainExpiryMetrics(result *probe.Result, labels labelSet) {
+	domainExpiryDays.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.DomainExpiryDays))
+	registered := float64(0)
+	if result.DomainRegistered {
+		registered = 1
+	}
+	domainRegistered.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(registered)
 }
 
 func RecordBudgetViolation(probeName, metricName string, violated bool, site *config.Site) {

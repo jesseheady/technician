@@ -8,13 +8,13 @@ Technician is a static Go binary (14 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 30 probes active across all 11 probe types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
+Numbers below were measured with 30 probes active across all 13 probe types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
 
 ### Runtime memory
 
 | Component | RSS | Notes |
 |-----------|-----|-------|
-| Technician (Go process) | ~18 MB | 31 probes (11 types), status store, Prometheus registry |
+| Technician (Go process) | ~18 MB | 31 probes (13 types), status store, Prometheus registry |
 | Prometheus | ~150 MB | 15-day retention, scraping one target |
 | Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~472 MB** | |
@@ -529,7 +529,7 @@ The built-in status page shows real-time data from this worker's ring buffer. Fo
 
 - **Uptime overview** — probe status matrix, uptime percentage, degraded state tracking
 - **HTTP timing** — DNS, TLS, connect, TTFB breakdown over time
-- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health, NTP offset/stratum/RTT, TLS certificate expiry/validity
+- **Infrastructure probes** — TCP connect/TLS, DNS query time, ICMP packet loss/RTT, gRPC health, NTP offset/stratum/RTT, TLS certificate expiry/validity, BGP prefix visibility/origin match, domain expiry countdown
 - **Web Performance Vitals** — LCP, INP, CLS trends
 - **HAR analysis** — resource breakdown by type
 - **Budget violations** — threshold tracking over time

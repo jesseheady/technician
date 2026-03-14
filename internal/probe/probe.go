@@ -73,6 +73,19 @@ type Result struct {
 	UDPRTT           time.Duration // round-trip time (send to response)
 	UDPResponseBytes int           // number of bytes received
 
+	// BGP-specific
+	BGPOriginASN     int  // observed origin AS number
+	BGPPrefixVisible bool // prefix visible in global routing table
+	BGPOriginMatch   bool // origin ASN matches expected
+
+	// Domain expiration-specific
+	DomainExpiryDate  time.Time // when the domain registration expires
+	DomainExpiryDays  int       // days until expiry
+	DomainRegistrar   string    // registrar name/ID
+	DomainRegistered  bool      // whether domain is currently registered
+	DomainWarnDaysVal int       // configured warn threshold (days)
+	DomainCritDaysVal int       // configured critical threshold (days)
+
 	// TLS certificate-specific
 	CertSubject       string    // leaf certificate subject CN
 	CertIssuer        string    // issuer CN
@@ -135,6 +148,22 @@ func (r *Result) CertWarnDays() int {
 func (r *Result) CertCriticalDays() int {
 	if r.CertCritDaysVal > 0 {
 		return r.CertCritDaysVal
+	}
+	return 7
+}
+
+// DomainWarnDays returns the configured warning threshold, defaulting to 30.
+func (r *Result) DomainWarnDays() int {
+	if r.DomainWarnDaysVal > 0 {
+		return r.DomainWarnDaysVal
+	}
+	return 30
+}
+
+// DomainCriticalDays returns the configured critical threshold, defaulting to 7.
+func (r *Result) DomainCriticalDays() int {
+	if r.DomainCritDaysVal > 0 {
+		return r.DomainCritDaysVal
 	}
 	return 7
 }
