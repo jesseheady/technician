@@ -127,6 +127,51 @@ groups:
           summary: "TLS certificate invalid for {{ $labels.name }}"
           description: "Certificate chain validation failed for {{ $labels.name }}."
 
+      - alert: BGPPrefixNotVisible
+        expr: technician_bgp_prefix_visible == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP prefix not visible for {{ $labels.name }}"
+          description: "Prefix monitored by {{ $labels.name }} is not visible in the global routing table."
+
+      - alert: BGPOriginMismatch
+        expr: technician_bgp_origin_match == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP origin AS mismatch for {{ $labels.name }}"
+          description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
+
+      - alert: DomainExpiringSoon
+        expr: technician_domain_expiry_days < 30 and technician_domain_expiry_days > 7
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Domain expiring soon for {{ $labels.name }}"
+          description: "Domain {{ $labels.name }} expires in {{ $value }} days."
+
+      - alert: DomainExpiryCritical
+        expr: technician_domain_expiry_days <= 7
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Domain expiry critical for {{ $labels.name }}"
+          description: "Domain {{ $labels.name }} expires in {{ $value }} days."
+
+      - alert: DomainNotRegistered
+        expr: technician_domain_registered == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Domain not registered for {{ $labels.name }}"
+          description: "Domain {{ $labels.name }} is not found in RDAP (may have expired or been dropped)."
+
       - alert: HighErrorRate
         expr: |
           sum by (name) (technician_probe_up == 0)

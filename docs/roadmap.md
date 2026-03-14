@@ -230,7 +230,7 @@ Technician's scope: **probe execution, scheduling, metrics export, status page, 
 
 ### What Technician owns
 
-- **Probe execution** — HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright (and planned: WebSocket).
+- **Probe execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright (and planned: WebSocket).
 - **Scheduling** — Built-in cron with stagger/jitter. No external scheduler needed.
 - **Status page** — Built-in, no external dependencies.
 - **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
@@ -367,7 +367,7 @@ Dedicated `tls` probe type for monitoring certificate expiry, chain validity, an
 
 ### Infrastructure Probes dashboard
 
-Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, and TLS probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry).
+Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, TLS, UDP, BGP, and domain expiry probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry, prefix visibility, origin ASN match, domain days until expiry).
 
 ### Browser concurrency limiter
 

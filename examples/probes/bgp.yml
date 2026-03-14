@@ -1,0 +1,16 @@
+# ── BGP route checks ─────────────────────────────────────────────
+# Validates that a prefix is visible in the global routing table and
+# originated by the expected ASN. Useful for detecting route hijacks.
+- name: "cloudflare-1.1.1.1"
+  group: Infrastructure
+  prefix: "1.1.1.0/24"
+  expected_origin: 13335
+  schedule: "0 */5 * * * *"
+  timeout: 30s
+
+- name: "google-dns"
+  group: Infrastructure
+  prefix: "8.8.8.0/24"
+  expected_origin: 15169
+  schedule: "0 */5 * * * *"
+  timeout: 30s
