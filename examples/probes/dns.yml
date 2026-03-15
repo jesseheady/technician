@@ -1,5 +1,12 @@
 # Example DNS probes.
 # Queries a DNS server and optionally asserts on the response.
+#
+# degraded_after guidance:
+#   Cloud VPS (same region):   100ms
+#   Cloud VPS (cross-region):  200ms
+#   Residential / Docker:      500ms
+# DNS latency depends on proximity to the resolver. Public resolvers (8.8.8.8,
+# 1.1.1.1) are anycast and fast from cloud, but add ISP + Docker overhead locally.
 
 - name: Google DNS A Record
   group: Infrastructure
@@ -8,6 +15,7 @@
   record_type: A
   timeout: 10s
   schedule: "*/60 * * * * *"
+  degraded_after: 500ms
   retry:
     count: 1
     backoff: none
@@ -21,12 +29,14 @@
 #   expected:
 #     - "cdn.example.com."
 #   schedule: "0 */5 * * * *"
+#   degraded_after: 500ms
 
 # MX record check:
 # - name: Mail Exchange
 #   domain: example.com
 #   record_type: MX
 #   schedule: "0 */5 * * * *"
+#   degraded_after: 500ms
 
 # Supported record types: A, AAAA, MX, TXT, CNAME, NS, SRV
 # Default server: 8.8.8.8:53

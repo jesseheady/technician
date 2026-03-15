@@ -5,6 +5,12 @@
 #
 # expect_response defaults to true.  Set it to false for fire-and-forget
 # protocols (syslog, StatsD) where no reply is expected.
+#
+# degraded_after guidance:
+#   Cloud VPS (same region):   100ms
+#   Cloud VPS (cross-region):  200ms
+#   Residential / Docker:      500ms
+# UDP latency is similar to DNS — fast in cloud, slower through residential ISPs.
 
 # - name: DNS over UDP
 #   host: 8.8.8.8
@@ -13,6 +19,7 @@
 #   expect_response: true
 #   schedule: "*/30 * * * * *"
 #   timeout: 5s
+#   degraded_after: 500ms
 #   retry:
 #     count: 1
 #     backoff: none

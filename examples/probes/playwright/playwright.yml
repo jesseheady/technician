@@ -1,5 +1,13 @@
 # Example Playwright (browser) probes.
 # Requires Node.js 18+ and Playwright Chromium browser.
+#
+# degraded_after guidance:
+#   Cloud VPS:              5-8s
+#   Residential / Docker:  10-15s
+# Playwright launches a full Chromium browser, loads the page, and collects Web
+# Vitals. Baseline is 3-5s for a simple page; complex flows with interactions,
+# throttled networks, and video recording take longer. Mobile 3G profiles add
+# significant latency by design — set thresholds accordingly.
 
 - name: "example.com (desktop)"
   group: Marketing
@@ -7,6 +15,7 @@
   base_url: "https://example.com"
   schedule: "0 */5 * * * *"
   timeout: 120s
+  degraded_after: 10s
   retry:
     count: 1
     backoff: none
@@ -20,6 +29,7 @@
   device: "iPhone 14"
   schedule: "0 */5 * * * *"
   timeout: 120s
+  degraded_after: 15s
   retry:
     count: 1
     backoff: none
@@ -33,3 +43,4 @@
 #   device: "iPhone 14"
 #   schedule: "0 */10 * * * *"
 #   timeout: 180s
+#   degraded_after: 20s

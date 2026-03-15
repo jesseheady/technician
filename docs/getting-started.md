@@ -128,6 +128,40 @@ Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential
 | TLS, Domain expiry | `0 0 */6 * * *` (6 hr) | Certificates and registrations change on day/week timescales |
 | Playwright | `0 */5 * * * *` (5 min) | Browser launches are heavy; balance with visibility needs |
 
+**Degraded thresholds**: The `degraded_after` field marks a probe as degraded (yellow) when its duration exceeds the threshold — even though the probe itself succeeded. Thresholds should be tuned to your deployment context, since network latency varies significantly between environments.
+
+Recommended `degraded_after` by probe type and deployment:
+
+| Probe type | Cloud VPS (same region) | Cloud VPS (cross-region) | Residential / Docker Desktop |
+|------------|------------------------|--------------------------|------------------------------|
+| ICMP | 50ms | 100ms | 200ms |
+| DNS | 100ms | 200ms | 500ms |
+| UDP | 100ms | 200ms | 500ms |
+| NTP (dedicated servers) | 50ms | 100ms | 200ms |
+| NTP (pool.ntp.org) | 100ms | 200ms | 500ms |
+| TCP | 500ms | 1s | 2s |
+| TCP + TLS | 1s | 2s | 3s |
+| gRPC | 500ms | 1s | 2s |
+| HTTP (static/CDN) | 500ms | 1s | 3s |
+| HTTP (API/dynamic) | 1s | 2s | 5s |
+| SMTP | 2s | 3s | 5s |
+| Traceroute | 10s | 15s | 15s |
+| Playwright | 5s | 8s | 10s |
+
+Why the variation:
+
+- **ICMP/DNS/UDP** are the most sensitive to environment. A cloud VPS in the same region as 8.8.8.8 gets 1–5ms pings; a Mac on residential WiFi gets 100–160ms. Setting 100ms as the threshold in a residential environment means the probe is permanently degraded — which is noise, not signal.
+- **NTP** depends on the server. Dedicated servers like `time.google.com` and `time.cloudflare.com` are anycast and fast (20–40ms). `pool.ntp.org` round-robins to volunteer servers that may be geographically distant, with p90 latencies 5–10x higher than dedicated servers.
+- **TCP/gRPC** include connection setup (and TLS handshake if enabled), so thresholds should be higher than raw ICMP/DNS.
+- **HTTP** varies by what's behind the URL. A static site on a CDN responds in 50–100ms; a dynamic API may take 500ms–2s legitimately.
+- **SMTP** servers are often slow to respond to EHLO, especially with greylisting or rate limiting.
+- **Traceroute** spawns an mtr subprocess with multiple hops and round-trips; 5–10s is normal even from fast networks.
+- **Playwright** launches a full browser, loads a page, and collects Web Vitals. Baseline is 3–5s for a simple page; complex flows take longer.
+
+If a probe is permanently degraded, the threshold is too low for your environment — raise it until degraded status reflects an actual change in behavior, not the baseline.
+
+TLS and domain expiry probes don't typically use `degraded_after` because they check certificate/registration state rather than latency. BGP probes query the RIPE RIS API, which has variable response times (100ms–4s) that aren't indicative of your network health — `degraded_after` is generally not useful for BGP.
+
 **Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
 
 ```yaml
