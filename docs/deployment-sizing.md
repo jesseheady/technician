@@ -8,7 +8,7 @@ Technician is a static Go binary (14 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 30 probes active across all 13 probe types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 117 Prometheus metric lines.
+Numbers below were measured with 31 probes active across all 13 probe types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 38 Prometheus metric families.
 
 ### Runtime memory
 
@@ -46,6 +46,57 @@ Chromium instances are not pooled — each probe invocation launches and closes 
 ### TLS probe overhead
 
 The TLS probe is minimal: a single outbound TCP connection + TLS handshake per check, with no subprocess or external dependency. Memory overhead is negligible (~1 KB per probe run). Resource usage is comparable to a TCP probe with TLS enabled.
+
+## Performance optimizations
+
+Technician includes several layers of optimization to minimize resource usage and maximize stability at scale.
+
+### Network & I/O
+
+| Optimization | Location | Detail |
+|-------------|----------|--------|
+| **HTTP client pooling** | `internal/probe/http.go` | Shared `http.Client` per TLS/redirect config. `MaxIdleConns=100`, `MaxIdleConnsPerHost=5`, `IdleConnTimeout=90s`. Eliminates per-probe TCP+TLS handshake overhead. |
+| **gRPC connection pooling** | `internal/probe/grpc.go` | Cached connections keyed by `(host, tls, skipTLS)`. Connections reused across probe cycles. |
+| **DNS resolver caching** | `internal/probe/dns.go` | One `net.Resolver` per DNS server, using `PreferGo` mode with custom UDP dialer. Avoids creating a resolver per probe run. |
+| **Gzip response compression** | `internal/server/gzip.go` | `sync.Pool`-backed gzip middleware on all responses except `/metrics` and `/health` (which Prometheus and health checks prefer uncompressed). |
+| **ETag / conditional responses** | `internal/status/handler.go` | SHA256-based ETag on `/` and `/api/status`. Returns `304 Not Modified` when content hasn't changed, saving bandwidth on the 10s auto-refresh cycle. |
+| **HTTP server timeouts** | `cmd/worker.go` | `ReadTimeout=15s`, `WriteTimeout=30s`, `IdleTimeout=60s`, `MaxHeaderBytes=1MB`. Prevents slow-client resource exhaustion. |
+
+### CPU & memory
+
+| Optimization | Location | Detail |
+|-------------|----------|--------|
+| **Compiled regex cache** | `internal/probe/http.go` | `sync.Map` caches compiled `*regexp.Regexp` for HTTP body/header assertions. Lock-free reads after first compile. |
+| **Status snapshot caching** | `internal/status/store.go` | 2-second TTL cache on `Snapshot()`. Absorbs rapid page refreshes and the 10s auto-refresh without recomputing percentiles. |
+| **Circular ring buffer** | `internal/status/store.go` | Fixed 90-entry ring per probe with `head`/`full` pointer. No slice reallocation or reslicing on overflow. |
+| **Template output buffering** | `internal/status/handler.go` | Status page HTML rendered to buffer before writing to `ResponseWriter`, avoiding partial writes on error. |
+| **TCP read buffer limit** | `internal/probe/tcp.go` | Max read size bounded to prevent memory exhaustion from large responses on banner checks. |
+
+### Alerting stability
+
+| Optimization | Location | Detail |
+|-------------|----------|--------|
+| **Probe-level retries** | `internal/scheduler/scheduler.go` | Configurable `count`, `backoff` (none/linear/exponential), `delay` per probe. Absorbs transient failures before reporting. |
+| **Consecutive-failure threshold** | `internal/notify/notify.go` | 3 consecutive failures required before `probe_down` fires. Single success resets the counter. |
+| **InfraError exclusion** | `internal/notify/notify.go` | Infrastructure errors (DNS resolution, connection refused) excluded from failure counting — prevents transient infra blips from triggering alerts. |
+| **Webhook concurrency limit** | `internal/notify/notify.go` | Semaphore caps outbound webhook sends at 4 concurrent goroutines. Prevents thundering herd on mass failure. |
+| **Per-probe cooldown** | `internal/notify/notify.go` | Deduplicates repeated notifications for the same probe+event within the configured cooldown window (default 5m). |
+
+### Prometheus & metrics
+
+| Optimization | Location | Detail |
+|-------------|----------|--------|
+| **Cardinality guard** | `internal/metrics/prometheus.go` | `maxProbeCardinality=500` — silently drops new probe names beyond the limit. Prevents label explosion from degrading Prometheus. |
+| **Stagger delay** | `internal/scheduler/stagger.go` | FNV-32a hash-based deterministic delay (0–10s) per probe. Spreads probe execution to avoid metric spikes and network bursts. |
+
+### Docker & CI
+
+| Optimization | Location | Detail |
+|-------------|----------|--------|
+| **Multi-stage build** | `Dockerfile` | Go builder → `node:22-slim` runtime. Binary stripped (`-s -w`), CGO disabled. |
+| **Layer caching** | `.github/workflows/` | Docker buildx with GitHub Actions cache. |
+| **Health checks** | `docker-compose.yml` | All services (Technician, Prometheus, Alertmanager, Grafana) have health checks with start periods, enabling dependency ordering. |
+| **Security scanning** | CI | `govulncheck` in CI pipeline. |
 
 ## Deployment topology
 
