@@ -1,5 +1,12 @@
 # Example ICMP (ping) probes.
 # May require root/CAP_NET_RAW for raw sockets; falls back to unprivileged UDP mode.
+#
+# degraded_after guidance:
+#   Cloud VPS (same region):    50ms
+#   Cloud VPS (cross-region):  100ms
+#   Residential / Docker:      200ms
+# ICMP is the most environment-sensitive probe type. A cloud VPS in the same
+# region as 8.8.8.8 gets 1-5ms pings; residential WiFi + Docker adds 100-160ms.
 
 - name: Ping Google DNS
   group: Infrastructure
@@ -8,6 +15,7 @@
   ip_version: "4"
   timeout: 10s
   schedule: "*/60 * * * * *"
+  degraded_after: 200ms
   retry:
     count: 1
     backoff: none
@@ -20,3 +28,4 @@
 #   ip_version: "6"
 #   timeout: 10s
 #   schedule: "*/60 * * * * *"
+#   degraded_after: 200ms

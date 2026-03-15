@@ -1,11 +1,19 @@
 # Example HTTP probes.
 # Copy to config/probes/http.yml and customise for your targets.
+#
+# degraded_after guidance:
+#   Static / CDN:  500ms (cloud) / 3s (residential)
+#   API / dynamic:   1s (cloud) / 5s (residential)
+# HTTP latency varies widely by what's behind the URL. A static site on a CDN
+# responds in 50-100ms from cloud; a dynamic API may take 500ms-2s legitimately.
+# Residential adds ISP latency + Docker overhead.
 
 - name: example.com
   group: Marketing
   url: https://example.com
   expected_status: 200
   schedule: "*/60 * * * * *"
+  degraded_after: 3s
   retry:
     count: 2
     backoff: exponential
@@ -33,6 +41,7 @@
 #   body: '{"query":"{ __typename }"}'
 #   expected_status: 200
 #   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
 
 # Response body assertions:
 # - name: api-health
@@ -46,6 +55,7 @@
 #     - type: regex
 #       target: '"version":"\d+\.\d+\.\d+"'
 #   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
 
 # ── API health check with header + body assertions ──────────────────
 # Validates status code, response body, content type, and security headers.
@@ -91,3 +101,4 @@
 #   url: https://internal.example.com
 #   skip_tls: true
 #   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
