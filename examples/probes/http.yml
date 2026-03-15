@@ -6,6 +6,10 @@
   url: https://example.com
   expected_status: 200
   schedule: "*/60 * * * * *"
+  retry:
+    count: 2
+    backoff: exponential
+    delay: 1s
 
 - name: example.com/api
   group: API
@@ -13,6 +17,11 @@
   expected_status: 200
   timeout: 5s
   schedule: "*/60 * * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # Custom method/headers example:
 # - name: example.com/graphql

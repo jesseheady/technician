@@ -7,6 +7,10 @@
   port: 6379
   timeout: 5s
   schedule: "*/60 * * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # TLS connection with IPv4:
 # - name: HTTPS Port

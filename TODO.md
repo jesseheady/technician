@@ -11,24 +11,36 @@ Tracking performance improvements identified during review (2026-03-13).
 
 ## High
 
-- [ ] Make S3/artifact uploads async (non-blocking result pipeline)
+- [ ] Make S3/artifact uploads async — deferred: uploads not yet wired into result pipeline
 - [x] Status page: use JSON delta updates instead of full HTML re-fetch every 10s
-- [ ] Cache DNS resolver instead of creating per-probe
-- [ ] Move stagger delay outside cron job closure
-- [ ] Add gRPC connection pooling
-- [ ] Add Prometheus label cardinality bounds or documentation
+- [x] Cache DNS resolver instead of creating per-probe
+- [x] Move stagger delay — reviewed; sleep is intentional for stagger spread, added clarifying comment
+- [x] Add gRPC connection pooling
+- [x] Add Prometheus label cardinality bounds (maxProbeCardinality=500 guard)
 
 ## Medium
 
 - [x] Add max size limit to TCP read buffer
 - [x] Buffer template output before writing to ResponseWriter
-- [ ] Use circular ring buffer instead of reslicing on overflow
+- [x] Use circular ring buffer instead of reslicing on overflow
 - [x] Cache compiled regexes for HTTP assertions
-- [ ] Add ETag support for status page / API responses
+- [x] Add ETag support for status page / API responses
 
 ## Docker & CI
 
 - [x] Create .dockerignore
-- [ ] Add Docker buildx layer caching in CI
+- [x] Add Docker buildx layer caching in CI
 - [x] Docker Compose: add health checks, restart policies, pin image versions
-- [ ] Add security scanning to CI (Trivy, CodeQL, or similar)
+- [x] Add security scanning to CI (govulncheck)
+
+## New Probe Types
+
+- [x] BGP route checks (origin AS validation, prefix hijack detection, path monitoring)
+- [x] Domain expiration checks (WHOIS/RDAP lookup, days-until-expiry metric + alerting)
+
+## Status Page & Dashboards
+
+- [x] Tab-based category navigation (Network, Web, Services, Security) with search and issues-only filter
+- [ ] Prune stale probes from status store on startup (remove entries for probes no longer in config)
+- [ ] Status page: show flapping/unstable indicator based on ring buffer history (e.g. frequent up/down transitions)
+- [ ] Review Grafana community dashboards for inspiration on dashboard design patterns

@@ -8,6 +8,10 @@
   ip_version: "4"
   timeout: 10s
   schedule: "*/60 * * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # IPv6 ping:
 # - name: Ping Cloudflare v6

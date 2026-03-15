@@ -68,10 +68,18 @@ webhooks:
 
 | Event | Default severity | Fires when |
 |-------|-----------------|------------|
-| `probe_down` | `critical` | A probe transitions from up to down (not on every failed check). |
+| `probe_down` | `critical` | A probe fails 3 consecutive checks (see [debouncing](#debouncing) below). |
 | `probe_up` | — | A probe transitions from down to up (recovery). |
 | `budget_violation` | `warning` | A budget metric becomes newly violated. |
 | `cert_expiring` | `warning` or `critical` | A TLS certificate enters the warn or critical expiry window. Severity escalates from warning to critical as the deadline approaches. |
+
+### Debouncing
+
+Native webhooks use a **consecutive-failure threshold** to prevent transient blips from triggering alerts. A `probe_down` notification requires **3 consecutive failures** before it fires. A single success resets the counter. Recovery (`probe_up`) fires immediately when a probe that was notified as down succeeds again.
+
+This works in conjunction with probe-level retries. With the recommended retry policy (`count: 1`), a probe retries once before reporting failure. Combined with the 3-failure threshold, a probe must fail 6 total attempts (3 cycles × 2 attempts each) before triggering an alert — providing strong protection against transient network issues.
+
+Infrastructure errors (DNS resolution failures, connection refused, etc.) are classified as `InfraError` and excluded from state transitions entirely — they don't increment the failure counter or trigger notifications.
 
 ### Severity routing
 

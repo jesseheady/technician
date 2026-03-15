@@ -9,6 +9,10 @@
   critical_days: 7
   timeout: 10s
   schedule: "0 0 */6 * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 # Check API endpoint certificate:
 # - name: API Cert

@@ -69,8 +69,9 @@ Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` en
 ## Configuration
 
 - **Main config** — `technician.yml`: service name, sites (code, city, country, location_hash, infra_provider), metrics listen address, artifact storage, Playwright mode.
-- **Probes** — `probes/http.yml`, `probes/tcp.yml`, `probes/udp.yml`, `probes/dns.yml`, `probes/icmp.yml`, `probes/grpc.yml`, `probes/ntp.yml`, `probes/tls.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/bgp.yml`, `probes/domain_expiry.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), and timeout.
+- **Probes** — `probes/http.yml`, `probes/tcp.yml`, `probes/udp.yml`, `probes/dns.yml`, `probes/icmp.yml`, `probes/grpc.yml`, `probes/ntp.yml`, `probes/tls.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/bgp.yml`, `probes/domain_expiry.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), timeout, and retry policy.
 - **Budgets** — Optional `budgets.yml` with per-probe thresholds for `validate`.
+- **Stability** — All probes support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `probe_down`. See [alerting](docs/alerting.md) for details.
 - All YAML files support `${ENV_VAR}` expansion.
 
 See [examples/](examples/) for reference configs. Copy to `config/` and customise for your targets.

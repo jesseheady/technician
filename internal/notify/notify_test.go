@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -48,9 +49,18 @@ func newTestManager(mock *mockSender, cooldown time.Duration) *Manager {
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
+	}
+}
+
+// sendFailures sends N consecutive failures for the given probe name.
+func sendFailures(m *Manager, ctx context.Context, name string, n int) {
+	for i := 0; i < n; i++ {
+		m.HandleResult(ctx, makeResult(name, false))
 	}
 }
 
@@ -108,8 +118,8 @@ func TestProbeDownTransition(t *testing.T) {
 
 	// Establish baseline (up)
 	m.HandleResult(ctx, makeResult("test", true))
-	// Transition to down
-	m.HandleResult(ctx, makeResult("test", false))
+	// Need consecutiveFailThreshold failures to trigger notification
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	events := mock.sent()
@@ -124,23 +134,80 @@ func TestProbeDownTransition(t *testing.T) {
 	}
 }
 
+func TestProbeDownNotFiredBeforeThreshold(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	m.HandleResult(ctx, makeResult("test", true))
+	// Send one fewer than the threshold
+	sendFailures(m, ctx, "test", consecutiveFailThreshold-1)
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected no events before threshold, got %d", len(mock.sent()))
+	}
+}
+
+func TestTransientFailureResetsCounter(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	m.HandleResult(ctx, makeResult("test", true))
+	// Fail twice (below threshold)
+	sendFailures(m, ctx, "test", consecutiveFailThreshold-1)
+	// Succeed — resets counter
+	m.HandleResult(ctx, makeResult("test", true))
+	// Fail twice again (below threshold)
+	sendFailures(m, ctx, "test", consecutiveFailThreshold-1)
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected no events (counter reset by success), got %d", len(mock.sent()))
+	}
+}
+
 func TestProbeUpTransition(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
 
-	// Establish baseline (down)
-	m.HandleResult(ctx, makeResult("test", false))
-	// Transition to up
+	// Establish baseline (up), then go down past threshold
+	m.HandleResult(ctx, makeResult("test", true))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
+	waitForDispatch()
+
+	if len(mock.sent()) != 1 || mock.sent()[0].Type != EventProbeDown {
+		t.Fatalf("expected probe_down event, got %v", mock.sent())
+	}
+
+	// Recover
 	m.HandleResult(ctx, makeResult("test", true))
 	waitForDispatch()
 
 	events := mock.sent()
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events (down + up), got %d", len(events))
 	}
-	if events[0].Type != EventProbeUp {
-		t.Fatalf("expected probe_up, got %s", events[0].Type)
+	if events[1].Type != EventProbeUp {
+		t.Fatalf("expected probe_up, got %s", events[1].Type)
+	}
+}
+
+func TestNoRecoveryWithoutPriorDownNotification(t *testing.T) {
+	mock := &mockSender{}
+	m := newTestManager(mock, 0)
+	ctx := context.Background()
+
+	// Establish baseline (down) — no notification on first result
+	m.HandleResult(ctx, makeResult("test", false))
+	// Recover — but we never notified down, so no up notification
+	m.HandleResult(ctx, makeResult("test", true))
+	waitForDispatch()
+
+	if len(mock.sent()) != 0 {
+		t.Fatalf("expected no events (no prior down notification), got %d", len(mock.sent()))
 	}
 }
 
@@ -169,7 +236,7 @@ func TestInfraErrorsIgnored(t *testing.T) {
 	// Establish baseline (up)
 	m.HandleResult(ctx, makeResult("test", true))
 
-	// Infra error should not change state
+	// Infra error should not change state or increment fail counter
 	infraResult := makeResult("test", false)
 	infraResult.InfraError = true
 	m.HandleResult(ctx, infraResult)
@@ -179,13 +246,13 @@ func TestInfraErrorsIgnored(t *testing.T) {
 		t.Fatalf("expected no events for infra error, got %d", len(mock.sent()))
 	}
 
-	// After infra error, a real failure should trigger (since baseline is still "up")
-	m.HandleResult(ctx, makeResult("test", false))
+	// After infra error, real failures should still need full threshold
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	events := mock.sent()
 	if len(events) != 1 {
-		t.Fatalf("expected 1 event after infra error then real failure, got %d", len(events))
+		t.Fatalf("expected 1 event after threshold failures, got %d", len(events))
 	}
 	if events[0].Type != EventProbeDown {
 		t.Fatalf("expected probe_down, got %s", events[0].Type)
@@ -199,6 +266,8 @@ func TestProbeDownIncludesDetails(t *testing.T) {
 
 	m.HandleResult(ctx, makeResult("test", true))
 
+	// Send threshold-1 plain failures, then one with details
+	sendFailures(m, ctx, "test", consecutiveFailThreshold-1)
 	failResult := makeResult("test", false)
 	failResult.Error = "connection refused"
 	failResult.StatusCode = 503
@@ -215,6 +284,9 @@ func TestProbeDownIncludesDetails(t *testing.T) {
 	if events[0].Details["status_code"] != "503" {
 		t.Fatalf("expected status_code detail, got %q", events[0].Details["status_code"])
 	}
+	if events[0].Details["consecutive_failures"] != fmt.Sprintf("%d", consecutiveFailThreshold) {
+		t.Fatalf("expected consecutive_failures detail, got %q", events[0].Details["consecutive_failures"])
+	}
 }
 
 func TestCooldownSuppressesDuplicates(t *testing.T) {
@@ -222,9 +294,9 @@ func TestCooldownSuppressesDuplicates(t *testing.T) {
 	m := newTestManager(mock, 1*time.Hour) // very long cooldown
 	ctx := context.Background()
 
-	// up -> down (fires)
+	// up -> down (fires after threshold)
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 1 {
@@ -240,7 +312,7 @@ func TestCooldownSuppressesDuplicates(t *testing.T) {
 		t.Fatalf("expected 2 events (down + up), got %d", len(mock.sent()))
 	}
 
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	// probe_down again — should be suppressed by cooldown
@@ -254,9 +326,9 @@ func TestCooldownExpiresAllowsRetrigger(t *testing.T) {
 	m := newTestManager(mock, 1*time.Millisecond) // very short cooldown
 	ctx := context.Background()
 
-	// up -> down
+	// up -> down (after threshold)
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 1 {
@@ -268,7 +340,7 @@ func TestCooldownExpiresAllowsRetrigger(t *testing.T) {
 
 	// down -> up -> down again (should fire since cooldown expired)
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	events := mock.sent()
@@ -288,15 +360,17 @@ func TestEventFiltering(t *testing.T) {
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
 	}
 	ctx := context.Background()
 
-	// up -> down (should fire)
+	// up -> down (should fire after threshold)
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 1 {
@@ -392,7 +466,7 @@ func TestMultipleProbesIndependent(t *testing.T) {
 	m.HandleResult(ctx, makeResult("b", true))
 
 	// Only probe "a" goes down
-	m.HandleResult(ctx, makeResult("a", false))
+	sendFailures(m, ctx, "a", consecutiveFailThreshold)
 	waitForDispatch()
 
 	events := mock.sent()
@@ -414,6 +488,8 @@ func TestMultipleWebhooks(t *testing.T) {
 		},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
@@ -421,7 +497,7 @@ func TestMultipleWebhooks(t *testing.T) {
 	ctx := context.Background()
 
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	// Both should get probe_down
@@ -458,6 +534,8 @@ func TestSeverityFilterBlocksWarnings(t *testing.T) {
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
@@ -474,7 +552,7 @@ func TestSeverityFilterBlocksWarnings(t *testing.T) {
 
 	// Probe down is severity=critical — should pass
 	m.HandleResult(ctx, makeResult("test", true))
-	m.HandleResult(ctx, makeResult("test", false))
+	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 1 {
@@ -497,6 +575,8 @@ func TestSeverityFilterAllowsWarnings(t *testing.T) {
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
@@ -513,7 +593,7 @@ func TestSeverityFilterAllowsWarnings(t *testing.T) {
 
 	// Probe down = critical — should be filtered
 	m.HandleResult(ctx, makeResult("test2", true))
-	m.HandleResult(ctx, makeResult("test2", false))
+	sendFailures(m, ctx, "test2", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 1 {
@@ -529,7 +609,7 @@ func TestNoSeverityFilterPassesAll(t *testing.T) {
 	// Both warning (budget) and critical (probe_down) should pass
 	m.HandleBudgetViolation(ctx, "test", "duration", true)
 	m.HandleResult(ctx, makeResult("test2", true))
-	m.HandleResult(ctx, makeResult("test2", false))
+	sendFailures(m, ctx, "test2", consecutiveFailThreshold)
 	waitForDispatch()
 
 	if len(mock.sent()) != 2 {
@@ -709,6 +789,8 @@ func TestSeverityFilterWithCertExpiring(t *testing.T) {
 		},
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),

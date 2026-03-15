@@ -92,6 +92,42 @@ Probes are defined in YAML files under the probes directory (see `examples/probe
 
 All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
 
+**Retry policies**: Every probe should have a retry policy to absorb transient failures. The example configs include recommended defaults:
+
+```yaml
+# Fast probes (HTTP, TCP, DNS, ICMP, UDP, gRPC) — short delay
+retry:
+  count: 1
+  backoff: none
+  delay: 2s
+
+# Slow probes (TLS, BGP, traceroute, domain expiry, Playwright) — longer delay
+retry:
+  count: 1
+  backoff: none
+  delay: 5s
+
+# SMTP — moderate delay (mail servers can be slow to respond)
+retry:
+  count: 1
+  backoff: none
+  delay: 3s
+```
+
+Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential` (delay × 2^attempt). For most probes, `none` with a single retry is sufficient. Use `exponential` with `count: 2` for critical endpoints where you want more aggressive retry behavior.
+
+**Schedule recommendations**: Not all probe types need the same frequency. Recommended intervals by type:
+
+| Probe type | Recommended schedule | Why |
+|------------|---------------------|-----|
+| HTTP, TCP, DNS, ICMP, gRPC, UDP | `*/60 * * * * *` (60s) | Core uptime — fast, lightweight checks |
+| NTP | `0 */10 * * * *` (10 min) | Clock drift changes slowly |
+| SMTP | `0 */15 * * * *` (15 min) | Mail servers rate-limit connections |
+| BGP | `0 */15 * * * *` (15 min) | Route tables change infrequently |
+| Traceroute | `0 */30 * * * *` (30 min) | Expensive (spawns mtr subprocess) |
+| TLS, Domain expiry | `0 0 */6 * * *` (6 hr) | Certificates and registrations change on day/week timescales |
+| Playwright | `0 */5 * * * *` (5 min) | Browser launches are heavy; balance with visibility needs |
+
 **Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
 
 ```yaml
@@ -132,6 +168,10 @@ HTTP probes support body and header assertions, which together cover the "test m
   timeout: 10s
   schedule: "*/60 * * * * *"
   degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
   assertions:
     # Body: verify the health payload
     - type: contains
