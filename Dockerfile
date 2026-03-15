@@ -12,6 +12,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     mtr-tiny \
     ca-certificates \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 COPY internal/playwright/scripts/ /opt/technician/playwright/
