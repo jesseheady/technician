@@ -5,12 +5,20 @@
   group: Infrastructure
   prefix: "1.1.1.0/24"
   expected_origin: 13335
-  schedule: "0 */5 * * * *"
+  schedule: "0 */15 * * * *"
   timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 - name: "google-dns"
   group: Infrastructure
   prefix: "8.8.8.0/24"
   expected_origin: 15169
-  schedule: "0 */5 * * * *"
+  schedule: "0 */15 * * * *"
   timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s

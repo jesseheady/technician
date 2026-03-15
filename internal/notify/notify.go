@@ -60,13 +60,20 @@ type Manager struct {
 	sem      chan struct{} // limits concurrent outbound webhook sends
 
 	mu           sync.Mutex
-	probeStates  map[string]bool      // probe key -> last success
+	probeStates  map[string]bool      // probe key -> last success (for recovery detection)
+	failCounts   map[string]int       // probe key -> consecutive failure count
+	notifiedDown map[string]bool      // probe key -> true if down notification already sent
 	budgetStates map[string]bool      // "probe:metric" -> last violated
 	certStates   map[string]Severity  // "cert:probeName" -> last notified severity
 	lastSent     map[string]time.Time // "probe:eventType" -> last sent
 }
 
 const maxConcurrentSends = 4
+
+// consecutiveFailThreshold is the number of consecutive failures required
+// before a probe_down notification is dispatched. This prevents transient
+// blips from triggering alerts.
+const consecutiveFailThreshold = 3
 
 // NewManager creates a Manager from the webhook configs. Returns nil
 // if no webhooks are configured (callers can safely call nil Manager methods).
@@ -78,6 +85,8 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 	m := &Manager{
 		sem:          make(chan struct{}, maxConcurrentSends),
 		probeStates:  make(map[string]bool),
+		failCounts:   make(map[string]int),
+		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
 		certStates:   make(map[string]Severity),
 		lastSent:     make(map[string]time.Time),
@@ -127,8 +136,10 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 	return m
 }
 
-// HandleResult detects probe state transitions (up->down, down->up)
-// and sends notifications. Safe to call on a nil Manager.
+// HandleResult uses consecutive-failure counting to debounce probe
+// state transitions. A probe_down notification requires consecutiveFailThreshold
+// consecutive failures; probe_up fires immediately on recovery.
+// Safe to call on a nil Manager.
 func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 	if m == nil {
 		return
@@ -143,7 +154,7 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 	defer m.mu.Unlock()
 
 	key := string(result.Type) + ":" + result.Name
-	prevSuccess, seen := m.probeStates[key]
+	_, seen := m.probeStates[key]
 	m.probeStates[key] = result.Success
 
 	if !seen {
@@ -151,30 +162,48 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 	}
 
 	var event *Event
-	if prevSuccess && !result.Success {
-		details := make(map[string]string)
-		if result.Error != "" {
-			details["error"] = result.Error
+
+	if result.Success {
+		// Reset failure counter on success
+		wasDown := m.notifiedDown[key]
+		m.failCounts[key] = 0
+		delete(m.notifiedDown, key)
+
+		// Only send recovery if we previously notified about this probe being down
+		if wasDown {
+			event = &Event{
+				Type:      EventProbeUp,
+				Probe:     result.Name,
+				ProbeType: result.Type,
+				Message:   fmt.Sprintf("Probe %s is back up", result.Name),
+				Timestamp: result.Timestamp,
+			}
 		}
-		if result.StatusCode > 0 {
-			details["status_code"] = fmt.Sprintf("%d", result.StatusCode)
-		}
-		event = &Event{
-			Type:      EventProbeDown,
-			Severity:  SeverityCritical,
-			Probe:     result.Name,
-			ProbeType: result.Type,
-			Message:   fmt.Sprintf("Probe %s is down", result.Name),
-			Details:   details,
-			Timestamp: result.Timestamp,
-		}
-	} else if !prevSuccess && result.Success {
-		event = &Event{
-			Type:      EventProbeUp,
-			Probe:     result.Name,
-			ProbeType: result.Type,
-			Message:   fmt.Sprintf("Probe %s is back up", result.Name),
-			Timestamp: result.Timestamp,
+	} else {
+		m.failCounts[key]++
+		count := m.failCounts[key]
+
+		slog.Debug("Probe failure recorded", "probe", result.Name, "consecutive", count, "threshold", consecutiveFailThreshold)
+
+		if count == consecutiveFailThreshold && !m.notifiedDown[key] {
+			m.notifiedDown[key] = true
+			details := make(map[string]string)
+			if result.Error != "" {
+				details["error"] = result.Error
+			}
+			if result.StatusCode > 0 {
+				details["status_code"] = fmt.Sprintf("%d", result.StatusCode)
+			}
+			details["consecutive_failures"] = fmt.Sprintf("%d", count)
+			event = &Event{
+				Type:      EventProbeDown,
+				Severity:  SeverityCritical,
+				Probe:     result.Name,
+				ProbeType: result.Type,
+				Message:   fmt.Sprintf("Probe %s is down (%d consecutive failures)", result.Name, count),
+				Details:   details,
+				Timestamp: result.Timestamp,
+			}
 		}
 	}
 

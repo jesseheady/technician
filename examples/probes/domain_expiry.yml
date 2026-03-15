@@ -8,3 +8,7 @@
   critical_days: 7
   schedule: "0 0 */6 * * *"
   timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s

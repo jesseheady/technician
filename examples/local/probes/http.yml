@@ -4,3 +4,7 @@
   expected_status: 200
   schedule: "*/30 * * * * *"
   timeout: 10s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s

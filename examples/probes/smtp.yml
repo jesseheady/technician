@@ -5,10 +5,18 @@
   group: Infrastructure
   host: smtp.gmail.com
   port: 587
-  schedule: "0 */5 * * * *"
+  schedule: "0 */15 * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 3s
 
 # - name: Company Mail
 #   group: Infrastructure
 #   host: smtp.example.com
 #   port: 25
-#   schedule: "0 */5 * * * *"
+#   schedule: "0 */15 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 3s

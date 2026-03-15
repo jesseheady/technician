@@ -13,6 +13,10 @@
 #   expect_response: true
 #   schedule: "*/30 * * * * *"
 #   timeout: 5s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
 
 # - name: StatsD fire-and-forget
 #   host: statsd.internal
@@ -21,3 +25,7 @@
 #   expect_response: false
 #   schedule: "*/30 * * * * *"
 #   timeout: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s

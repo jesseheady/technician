@@ -8,6 +8,10 @@
   record_type: A
   timeout: 10s
   schedule: "*/60 * * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # Assert expected DNS answers:
 # - name: CDN CNAME Check

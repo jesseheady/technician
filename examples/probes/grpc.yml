@@ -8,6 +8,10 @@
   tls: true
   timeout: 5s
   schedule: "*/60 * * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # Skip TLS verification (self-signed certs):
 # - name: Internal gRPC

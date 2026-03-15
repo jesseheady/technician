@@ -5,24 +5,40 @@
   group: Infrastructure
   server: pool.ntp.org
   timeout: 5s
-  schedule: "0 */5 * * * *"
+  schedule: "0 */10 * * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
 
 # Google's public NTP with degraded threshold:
 # - name: Google NTP
 #   server: time.google.com
 #   timeout: 5s
 #   degraded_after: 100ms
-#   schedule: "0 */5 * * * *"
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
 
 # Cloudflare NTP:
 # - name: Cloudflare NTP
 #   server: time.cloudflare.com
 #   timeout: 5s
-#   schedule: "0 */5 * * * *"
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
 
 # Custom port (default is 123):
 # - name: Internal NTP
 #   server: ntp.internal.example.com
 #   port: 1123
 #   timeout: 5s
-#   schedule: "0 */2 * * * *"
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s

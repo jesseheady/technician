@@ -7,6 +7,10 @@
   base_url: "https://example.com"
   schedule: "0 */5 * * * *"
   timeout: 120s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 - name: "example.com (mobile 4g)"
   group: Marketing
@@ -16,6 +20,10 @@
   device: "iPhone 14"
   schedule: "0 */5 * * * *"
   timeout: 120s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 # Slow network example:
 # - name: "example.com (mobile 3g)"

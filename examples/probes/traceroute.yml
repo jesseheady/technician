@@ -6,18 +6,33 @@
   host: example.com
   max_hops: 30
   count: 3
-  schedule: "0 */5 * * * *"
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 - name: "Google DNS"
   group: Infrastructure
   host: 8.8.8.8
   max_hops: 30
   count: 3
-  schedule: "0 */5 * * * *"
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
 
 - name: "Cloudflare DNS"
   group: Infrastructure
   host: 1.1.1.1
   max_hops: 30
   count: 3
-  schedule: "0 */5 * * * *"
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
