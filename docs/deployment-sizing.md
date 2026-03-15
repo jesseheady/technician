@@ -15,7 +15,7 @@ Numbers below were measured with 31 probes active across all 13 probe types (7 H
 | Component | RSS | Notes |
 |-----------|-----|-------|
 | Technician (Go process) | ~18 MB | 31 probes (13 types), status store, Prometheus registry |
-| Prometheus | ~150 MB | 15-day retention, scraping one target |
+| Prometheus | ~150 MB | 90-day retention, scraping one target |
 | Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~472 MB** | |
 
@@ -457,10 +457,64 @@ Every external dependency Technician touches, and whether it can be swapped:
 | Data | Store | Retention | Survives restart? |
 |------|-------|-----------|-------------------|
 | Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | ~45 min at 30s intervals | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
-| Metrics time-series | Prometheus / AMP | Configurable (default 15 days, up to years) | Yes |
+| Metrics time-series | Prometheus / AMP | Configurable (default 90 days in docker-compose, up to years) | Yes |
 | Dashboards, uptime history, trends | Grafana querying Prometheus | As long as Prometheus retains the data | Yes |
 | HAR files, screenshots, videos | Local disk or S3 | Configurable (`artifacts.retention`) | Yes (if S3) |
 | Alert history | Alertmanager / Grafana | Depends on config | Yes |
+
+### Storage model
+
+All storage is bounded. No container grows without a configured limit or automatic pruning.
+
+**Install footprint (day 0)**
+
+| Container | Docker image | Named volume | Data at first boot |
+|-----------|-------------|-------------|-------------------|
+| Technician | 1.62 GB (with Playwright) / 80 MB (without) | `technician_data` | Empty `status.json` (~1 KB) |
+| Prometheus | 303 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
+| Grafana | 693 MB | `grafana_data` | SQLite database (~5 MB) |
+| Alertmanager | 100 MB | None (ephemeral) | Silence + notification log (~100 KB) |
+| **Total** | **~2.7 GB** (with Playwright) | | |
+
+**Steady-state growth (per day, 31 probes, 15s scrape interval)**
+
+| Container | Daily growth | What grows | Pruning mechanism | Steady-state disk |
+|-----------|-------------|------------|-------------------|-------------------|
+| Technician | ~50 KB/day (backups) | Daily `status.json` backup | Auto-pruned at 90 days | ~4.5 MB backups + ~50 KB live |
+| Technician (artifacts) | 0 MB (no video) – 500 MB/day (video on all Playwright probes) | HAR, video, screenshots | `artifacts.retention` (default 72h) | 0 – 1.5 GB |
+| Prometheus | ~15–25 MB/day | TSDB blocks (371 series × 15s samples) | TSDB compaction + retention | ~1.4–2.3 GB at 90d retention |
+| Grafana | < 1 MB/day | Alert state, session data | Internal SQLite vacuum | < 10 MB |
+| Alertmanager | 0 (ephemeral) | Silence/nflog state | Lost on restart | < 1 MB |
+
+**Maximum retention by data type**
+
+| Data | Default retention | Configurable? | How to change |
+|------|------------------|---------------|---------------|
+| Probe history (ring buffer) | ~45 min (90 entries at 30s) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
+| Status backups | 90 days | No (compile-time) | Change retention in `SaveBackup()` in `internal/status/store.go` |
+| Playwright artifacts | 72h | Yes | `artifacts.retention` in `technician.yml` |
+| Prometheus time-series | 90 days | Yes | `--storage.tsdb.retention.time=` in `docker-compose.yml` Prometheus command |
+| Grafana data | Indefinite (< 10 MB) | N/A | N/A |
+
+**Scaling by probe count (steady-state at 90-day retention)**
+
+| Probes | Technician volume | Prometheus volume (90d) | Total disk (all containers) |
+|--------|------------------|------------------------|-----------------------------|
+| 10 | ~4 MB | ~600 MB | ~610 MB |
+| 50 | ~18 MB | ~1.8 GB | ~1.8 GB |
+| 100 | ~40 MB | ~3 GB | ~3 GB |
+| 500 | ~200 MB | ~12 GB | ~12.2 GB |
+
+*Prometheus storage scales linearly with retention — doubling retention doubles disk. Estimates assume ~12 series per probe and 15s scrape interval. Technician estimates include 90 days of daily backups. Artifact storage excluded (depends on Playwright video config).*
+
+**Recommended minimum disk by deployment**
+
+| Deployment | Disk | Headroom for |
+|------------|------|-------------|
+| Dev / local Docker | 5 GB | 90d Prometheus retention, no artifacts |
+| Production (no Playwright) | 5–10 GB | 90d Prometheus retention, 90d status backups |
+| Production (with Playwright + video) | 10–20 GB | Artifact accumulation at 72h retention |
+| 500+ probes | 20–50 GB | 90d Prometheus retention at high cardinality |
 
 ### Status store scaling
 
@@ -621,7 +675,7 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 |----------|---------|-------------|
 | CPU | 1 vCPU | 2 vCPU |
 | RAM | 1 GB (no Playwright) | 2 GB (with Playwright) |
-| Disk | 5 GB | 10 GB (Prometheus retention + Grafana + artifacts) |
+| Disk | 5 GB | 10 GB (90d Prometheus retention + Grafana + artifacts) |
 
 A $4–6/mo VPS (1 vCPU, 1 GB) handles this comfortably without Playwright. Grafana is the heaviest component (~300 MB RSS). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~700 MB of image + ~300 MB of RAM.
 

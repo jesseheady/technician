@@ -35,7 +35,7 @@ rm ${TECHNICIAN_DATA_DIR:-/var/lib/technician}/status.json.bak.*
 docker compose up --build
 ```
 
-Old Prometheus series will stop updating and expire after your retention period (default 15 days). New series under the new labels will start populating immediately.
+Old Prometheus series will stop updating and expire after your retention period (default 90 days). New series under the new labels will start populating immediately.
 
 ### Preserving historical data
 
