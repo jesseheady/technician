@@ -37,15 +37,36 @@
         "refresh": 2
       },
       {
+        "name": "type",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(technician_probe_up{region=~\"$region\"}, type)",
+        "query": {
+          "query": "label_values(technician_probe_up{region=~\"$region\"}, type)",
+          "refId": "A"
+        },
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2
+      },
+      {
         "name": "probe",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up{region=~\"$region\"}, name)",
+        "definition": "label_values(technician_probe_up{region=~\"$region\", type=~\"$type\"}, name)",
         "query": {
-          "query": "label_values(technician_probe_up{region=~\"$region\"}, name)",
+          "query": "label_values(technician_probe_up{region=~\"$region\", type=~\"$type\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -93,7 +114,7 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"} == 0",
+          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 0",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -152,7 +173,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(technician_probe_up{region=~\"$region\", name=~\"$probe\"}[$__range])) * 100",
+          "expr": "avg(avg_over_time(technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}[$__range])) * 100",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -197,7 +218,7 @@
       "description": "Probes where response time exceeds the degraded_after threshold. Only shows currently degraded probes.",
       "targets": [
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"} == 1",
+          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 1",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -253,34 +274,52 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "C"
         },
         {
-          "expr": "technician_http_response_status{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_response_status{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "D"
         },
         {
-          "expr": "technician_tls_cert_expiry_days{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_tls_cert_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "E"
+        },
+        {
+          "expr": "technician_bgp_prefix_visible{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "F"
+        },
+        {
+          "expr": "technician_bgp_origin_match{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "G"
+        },
+        {
+          "expr": "technician_domain_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "H"
         }
       ],
       "fieldConfig": {
@@ -380,6 +419,73 @@
             ]
           },
           {
+            "matcher": { "id": "byName", "options": "Value #F" },
+            "properties": [
+              { "id": "displayName", "value": "BGP Visible" },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": { "text": "NO", "color": "red" },
+                      "1": { "text": "YES", "color": "green" }
+                    }
+                  }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "noValue", "value": "\u2014" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #G" },
+            "properties": [
+              { "id": "displayName", "value": "BGP Origin" },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": { "text": "MISMATCH", "color": "red" },
+                      "1": { "text": "MATCH", "color": "green" }
+                    }
+                  }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "noValue", "value": "\u2014" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #H" },
+            "properties": [
+              { "id": "displayName", "value": "Domain Expiry" },
+              { "id": "unit", "value": "d" },
+              { "id": "decimals", "value": 0 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "orange", "value": 14 },
+                    { "color": "yellow", "value": 30 },
+                    { "color": "green", "value": 90 }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "gauge", "mode": "basic" }
+              },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 365 },
+              { "id": "noValue", "value": "\u2014" }
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "name" },
             "properties": [
               {
@@ -419,7 +525,9 @@
               "Time": true,
               "__name__": true,
               "instance": true,
-              "job": true
+              "job": true,
+              "city": true,
+              "country": true
             },
             "renameByName": {
               "name": "Probe",
@@ -446,7 +554,7 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -502,7 +610,7 @@
       "description": "Tracks which probes are in degraded state (response time exceeds degraded_after threshold)",
       "targets": [
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -559,7 +667,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -587,7 +695,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -624,7 +732,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }

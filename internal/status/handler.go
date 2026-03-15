@@ -9,12 +9,37 @@ import (
 	"math"
 	"net/http"
 	"time"
+
+	"github.com/jesseheady/technician/internal/config"
 )
 
 // DomainGroup groups probes that share the same target domain/host.
 type DomainGroup struct {
 	Domain string
 	Probes []ProbeState
+}
+
+// CategoryInfo represents a category of probe types for tab navigation.
+type CategoryInfo struct {
+	Name   string
+	Status string
+	Count  int
+}
+
+// categoryForProbeType maps a probe type to its display category.
+func categoryForProbeType(t config.ProbeType) string {
+	switch t {
+	case config.ProbeTypeICMP, config.ProbeTypeTCP, config.ProbeTypeUDP, config.ProbeTypeDNS, config.ProbeTypeTraceroute:
+		return "Network"
+	case config.ProbeTypeHTTP, config.ProbeTypePlaywright:
+		return "Web"
+	case config.ProbeTypeGRPC, config.ProbeTypeSMTP, config.ProbeTypeNTP:
+		return "Services"
+	case config.ProbeTypeTLS, config.ProbeTypeBGP, config.ProbeTypeDomainExpiry:
+		return "Security"
+	default:
+		return "Other"
+	}
 }
 
 var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
@@ -206,6 +231,42 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return s
 	},
+	"probeCategory": func(t config.ProbeType) string {
+		return categoryForProbeType(t)
+	},
+	"categories": func(probes []ProbeState) []CategoryInfo {
+		order := []string{"Network", "Web", "Services", "Security"}
+		counts := make(map[string]int)
+		statusPrio := make(map[string]int)
+		statusName := make(map[string]string)
+		prio := map[string]int{"up": 0, "pending": 1, "error": 2, "degraded": 3, "down": 4}
+		for _, p := range probes {
+			cat := categoryForProbeType(p.Type)
+			counts[cat]++
+			if prio[p.Status] > statusPrio[cat] {
+				statusPrio[cat] = prio[p.Status]
+				statusName[cat] = p.Status
+			}
+		}
+		var result []CategoryInfo
+		for _, name := range order {
+			if counts[name] > 0 {
+				st := statusName[name]
+				if st == "pending" {
+					st = "up"
+				}
+				result = append(result, CategoryInfo{Name: name, Status: st, Count: counts[name]})
+			}
+		}
+		return result
+	},
+	"numCategories": func(probes []ProbeState) int {
+		seen := make(map[string]bool)
+		for _, p := range probes {
+			seen[categoryForProbeType(p.Type)] = true
+		}
+		return len(seen)
+	},
 }).Parse(pageHTML))
 
 // serveWithETag writes body with ETag/If-None-Match support. Returns 304 if
@@ -252,7 +313,7 @@ func Handler(store *Store) http.Handler {
 }
 
 const pageHTML = `{{define "probe-card"}}
-  <details class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}" data-name="{{.Name}}"{{if ne .Status "up"}} open{{end}}>
+  <details class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}" data-category="{{probeCategory .Type}}" data-name="{{.Name}}"{{if ne .Status "up"}} open{{end}}>
     <summary class="probe-head">
       <div class="probe-left">
         <div class="dot {{.Status}}"></div>
@@ -394,21 +455,20 @@ a:hover{color:var(--text)}
 .summary .stat-val.bad{color:var(--red)}
 .summary .stat-val.good{color:var(--green)}
 
-/* type filter — radios and labels are bare siblings in body */
-.type-filters{display:none}
-input[name=type-filter]{display:none}
-input[name=type-filter]+label{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 10px;cursor:pointer;transition:all .15s;user-select:none;display:inline-block;margin:0 2px 12px 0}
-input[name=type-filter]+label:hover{color:var(--text-dim);border-color:var(--border-hi)}
-input[name=type-filter]:checked+label{color:var(--text);border-color:var(--border-hi);background:var(--bg)}
-
-/* filter mechanics: hide probes that don't match selected type (works through details + domain wraps) */
-{{range .Types}}#filter-{{.}}:checked ~ .probes .probe:not([data-type="{{.}}"]){display:none}
-#filter-{{.}}:checked ~ .group .probes .probe:not([data-type="{{.}}"]){display:none}
-#filter-{{.}}:checked ~ .group .domain-probes .probe:not([data-type="{{.}}"]){display:none}
-#filter-{{.}}:checked ~ .probes .domain-probes .probe:not([data-type="{{.}}"]){display:none}
-#filter-{{.}}:checked ~ .group .domain-wrap:not(:has(.probe[data-type="{{.}}"])){display:none}
-#filter-{{.}}:checked ~ .probes > .domain-wrap:not(:has(.probe[data-type="{{.}}"])){display:none}
-{{end}}
+/* tabs */
+.controls{margin-bottom:16px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{font-size:12px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;transition:all .15s;user-select:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.tab:hover{color:var(--text-dim);border-color:var(--border-hi)}
+.tab.active{color:var(--text);border-color:var(--border-hi);background:var(--bg)}
+.tab .dot{width:6px;height:6px}
+.tab-count{font-size:10px;color:var(--text-mute);background:var(--bg);padding:1px 5px;border-radius:3px}
+.tab.active .tab-count{background:var(--surface)}
+.search-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.search-input{flex:1;min-width:140px;font-size:12px;font-family:var(--mono);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 12px;outline:none;transition:border-color .15s}
+.search-input:focus{border-color:var(--border-hi)}
+.search-input::placeholder{color:var(--text-mute)}
+.filter-hidden{display:none!important}
 
 /* groups — collapsible via <details> */
 .group{margin-bottom:16px}
@@ -444,9 +504,10 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
 .domain-probes .probe:last-child{border-radius:0}
 .domain-wrap:last-child .domain-probes .probe:last-child{border-radius:0 0 var(--radius) var(--radius)}
 
-/* expand/collapse toggle */
-.toggle-btn{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 10px;cursor:pointer;transition:all .15s;user-select:none;margin:0 2px 12px 0}
+/* controls */
+.toggle-btn{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:6px 10px;cursor:pointer;transition:all .15s;user-select:none}
 .toggle-btn:hover{color:var(--text-dim);border-color:var(--border-hi)}
+.toggle-btn.active{color:var(--text);border-color:var(--border-hi);background:var(--bg)}
 .probe-head{display:flex;align-items:center;justify-content:space-between}
 .probe[open]>.probe-head{margin-bottom:10px}
 .probe-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
@@ -540,14 +601,26 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
   <span class="stat">Budgets: <span class="stat-val {{if eq .Summary.BudgetViolations 0}}good{{else if gt .Summary.BudgetViolations 2}}bad{{else}}warn{{end}}">{{sub .Summary.BudgetTotal .Summary.BudgetViolations}}/{{.Summary.BudgetTotal}}</span> passing</span>{{end}}
 </div>
 
-{{if gt (len .Types) 1}}
-<input type="radio" name="type-filter" id="filter-all" checked>
-<label for="filter-all">all</label>
-{{range .Types}}
-<input type="radio" name="type-filter" id="filter-{{.}}">
-<label for="filter-{{.}}">{{.}}</label>
-{{end}}
-<button class="toggle-btn" id="toggle-all" title="Expand or collapse all domain groups">expand all</button>
+{{if gt (numCategories .Probes) 1}}
+<div class="controls">
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-cat="all">All <span class="tab-count">{{len .Probes}}</span></button>
+  {{range categories .Probes}}<button class="tab" data-cat="{{.Name}}"><span class="dot {{.Status}}"></span>{{.Name}} <span class="tab-count">{{.Count}}</span></button>{{end}}
+</nav>
+<div class="search-row">
+  <input type="text" class="search-input" id="search" placeholder="Filter probes…" autocomplete="off">
+  <button class="toggle-btn" id="issues-only">issues only</button>
+  <button class="toggle-btn" id="toggle-all" title="Expand or collapse all">expand all</button>
+</div>
+</div>
+{{else}}
+<div class="controls">
+<div class="search-row">
+  <input type="text" class="search-input" id="search" placeholder="Filter probes…" autocomplete="off">
+  <button class="toggle-btn" id="issues-only">issues only</button>
+  <button class="toggle-btn" id="toggle-all" title="Expand or collapse all">expand all</button>
+</div>
+</div>
 {{end}}
 
 {{if gt (len .Groups) 1}}
@@ -581,33 +654,78 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
   var KEY='techst';
   var DKEY='techst-d';
   var PKEY='techst-p';
-  // Helper: capture open states for domain-wraps and probe cards within a container
-  function captureStates(container){
-    var dw={},pw={};
-    container.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
-      dw[d.getAttribute('data-domain')]=d.open;
+  var TKEY='techst-tab';
+
+  // ── Category filter mapping ──
+  var catTypes={
+    'Network':['icmp','tcp','udp','dns','traceroute'],
+    'Web':['http','playwright'],
+    'Services':['grpc','smtp','ntp'],
+    'Security':['tls','bgp','domain_expiry']
+  };
+  var activeTab=localStorage.getItem(TKEY)||'all';
+  var issuesActive=false;
+
+  // ── Filtering engine ──
+  function applyFilters(){
+    var search=(document.getElementById('search')||{}).value||'';
+    search=search.toLowerCase();
+    document.querySelectorAll('.probe[data-name]').forEach(function(p){
+      var type=p.getAttribute('data-type');
+      var name=(p.getAttribute('data-name')||'').toLowerCase();
+      var dot=p.querySelector('.probe-head .dot');
+      var st=dot?dot.className:'';
+      var catMatch=activeTab==='all'||(catTypes[activeTab]&&catTypes[activeTab].indexOf(type)!==-1);
+      var searchMatch=!search||name.indexOf(search)!==-1;
+      var issueMatch=!issuesActive||/down|error|degraded/.test(st);
+      if(catMatch&&searchMatch&&issueMatch) p.classList.remove('filter-hidden');
+      else p.classList.add('filter-hidden');
     });
-    container.querySelectorAll('.probe[data-name]').forEach(function(d){
-      pw[d.getAttribute('data-name')]=d.open;
+    // Hide empty domain wraps
+    document.querySelectorAll('.domain-wrap').forEach(function(dw){
+      dw.classList.toggle('filter-hidden',!dw.querySelector('.probe[data-name]:not(.filter-hidden)'));
     });
-    return {dw:dw,pw:pw};
+    // Hide empty groups
+    document.querySelectorAll('.group').forEach(function(g){
+      g.classList.toggle('filter-hidden',!g.querySelector('.probe[data-name]:not(.filter-hidden)'));
+    });
+    // Update empty state
+    document.querySelectorAll('.probes').forEach(function(container){
+      var anyVisible=container.querySelector('.probe[data-name]:not(.filter-hidden)');
+      container.style.display=anyVisible?'':'none';
+    });
   }
-  // Helper: restore open states for domain-wraps and probe cards within a container
-  function restoreStates(container,snap){
-    container.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
-      var dom=d.getAttribute('data-domain');
-      if(dom in snap.dw) d.open=snap.dw[dom];
+
+  // ── Tab switching ──
+  var tabs=document.querySelectorAll('.tab[data-cat]');
+  tabs.forEach(function(tab){
+    tab.classList.toggle('active',tab.getAttribute('data-cat')===activeTab);
+    tab.addEventListener('click',function(){
+      tabs.forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      activeTab=tab.getAttribute('data-cat');
+      localStorage.setItem(TKEY,activeTab);
+      applyFilters();
     });
-    container.querySelectorAll('.probe[data-name]').forEach(function(d){
-      var nm=d.getAttribute('data-name');
-      if(nm in snap.pw) d.open=snap.pw[nm];
-    });
-  }
-  // Expand/collapse all toggle
+  });
+
+  // ── Search ──
+  var searchInput=document.getElementById('search');
+  if(searchInput) searchInput.addEventListener('input',applyFilters);
+
+  // ── Issues only toggle ──
+  var issuesBtn=document.getElementById('issues-only');
+  if(issuesBtn) issuesBtn.addEventListener('click',function(){
+    issuesActive=!issuesActive;
+    issuesBtn.classList.toggle('active',issuesActive);
+    applyFilters();
+  });
+
+  // ── Expand/collapse all (respects filters) ──
   var toggleBtn=document.getElementById('toggle-all');
   if(toggleBtn){
     toggleBtn.addEventListener('click',function(){
-      var all=document.querySelectorAll('details.group,.domain-wrap,details.probe');
+      var all=document.querySelectorAll('details.group:not(.filter-hidden),.domain-wrap:not(.filter-hidden),details.probe:not(.filter-hidden)');
       var allOpen=true;
       all.forEach(function(d){if(!d.open)allOpen=false;});
       var next=!allOpen;
@@ -620,7 +738,8 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       localStorage.setItem(KEY,JSON.stringify(s));
     });
   }
-  // Restore group open/closed state from localStorage
+
+  // ── Restore group open/closed state ──
   var saved=JSON.parse(localStorage.getItem(KEY)||'{}');
   document.querySelectorAll('details[data-group]').forEach(function(d,i){
     var g=d.getAttribute('data-group');
@@ -632,7 +751,8 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       localStorage.setItem(KEY,JSON.stringify(s));
     });
   });
-  // Restore domain-wrap and probe card states from localStorage
+
+  // ── Restore domain-wrap and probe card states ──
   var dSaved=JSON.parse(localStorage.getItem(DKEY)||'{}');
   document.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
     var g=d.closest('[data-group]');
@@ -644,7 +764,8 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
     var nm=d.getAttribute('data-name');
     if(nm in pSaved) d.open=pSaved[nm];
   });
-  // Persist domain-wrap and probe card toggles (capture phase — toggle doesn't bubble)
+
+  // ── Persist domain-wrap and probe card toggles ──
   document.addEventListener('toggle',function(e){
     var t=e.target;
     if(!t.matches) return;
@@ -660,7 +781,8 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
       localStorage.setItem(PKEY,JSON.stringify(s));
     }
   },true);
-  // Augment tooltips with local time
+
+  // ── Tooltip local time ──
   function addLocalTime(bar){
     if(bar.dataset.done) return;
     var ts=bar.dataset.ts;
@@ -675,10 +797,10 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
     var bar=e.target.closest('.bar[data-ts]');
     if(bar) addLocalTime(bar);
   });
-  // Auto-refresh via JSON API (lightweight delta updates)
+
+  // ── Auto-refresh via JSON API ──
   setInterval(function(){
     fetch('/api/status').then(function(r){return r.json()}).then(function(data){
-      // Update banner
       var banner=document.querySelector('.banner');
       if(banner){
         banner.className='banner '+data.overall;
@@ -690,7 +812,6 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
           txt.textContent=labels[data.overall]||data.overall;
         }
       }
-      // Update summary counts
       var sum=document.getElementById('summary');
       if(sum&&data.summary){
         var s=data.summary;
@@ -699,7 +820,6 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
           +(s.error>0?' <span class="sep">&middot;</span> <span class="stat"><span class="stat-val warn">'+s.error+'</span> errors</span>':'')
           +(s.budget_total>0?' <span class="sep">&middot;</span> <span class="stat">Budgets: <span class="stat-val '+(s.budget_violations===0?'good':s.budget_violations>2?'bad':'warn')+'">'+(s.budget_total-s.budget_violations)+'/'+s.budget_total+'</span> passing</span>':'');
         }
-      // Update individual probe status dots
       if(data.probes){
         data.probes.forEach(function(p){
           var card=document.querySelector('.probe[data-name="'+p.name+'"]');
@@ -710,8 +830,12 @@ input[name=type-filter]:checked+label{color:var(--text);border-color:var(--borde
           if(uptime) uptime.textContent=p.uptime;
         });
       }
+      applyFilters();
     }).catch(function(){});
   },10000);
+
+  // ── Apply initial filters ──
+  applyFilters();
 })();
 </script>
 </body>
