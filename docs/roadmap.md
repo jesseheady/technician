@@ -248,6 +248,45 @@ Technician's scope: **probe execution, scheduling, metrics export, status page, 
 - **Admin UI / user management / SSO** — Grafana is the UI. Building a second admin interface creates maintenance burden for marginal value.
 - **Full incident timelines and postmortems** — Grafana Incident, Statuspage, or dedicated incident tools. Technician can feed data into these but shouldn't replicate them.
 
+## Companion tooling
+
+### k6 load testing integration
+
+k6 (Grafana's open-source load testing tool) is a natural companion to Technician. Technician answers "is my service healthy?"; k6 answers "how does it behave under load?" Running both together lets you generate traffic with k6 and watch Technician's probes reflect the degradation in real-time.
+
+**Approach:** "Works well alongside" — no changes to the Technician Go binary. k6 remains a standalone tool; Technician provides infrastructure, dashboards, and documentation to make the pairing seamless. This mirrors how Technician already defers dashboarding to Grafana and incident management to external tools.
+
+**What's needed:**
+
+- **Docker Compose profile** — Add a `loadtest` profile to the existing stack (`docker compose --profile loadtest up`). Includes k6 configured to push metrics to the same Prometheus instance via `K6_PROMETHEUS_RW_SERVER_URL`. Off by default so it doesn't affect the standard monitoring stack.
+- **Grafana dashboard** — Pre-built k6 dashboard (provisioned alongside the existing five) showing request rate, response time distribution, error rate, VU count, and iteration throughput. Sourced from k6's official Prometheus dashboard with adjustments to match Technician's Grafana theme.
+- **Example scripts** — `examples/k6/` directory with sample load test scripts targeting the same services used in the sample probe configs. Includes a basic HTTP load test, a ramping VU scenario, and a threshold-based test that mirrors Technician's performance budgets.
+- **CI workflow example** — GitHub Actions job showing the "load then validate" pattern: run a k6 scenario against a staging target, then run `technician validate` to check if performance budgets still pass under load.
+- **Documentation** — `docs/k6-companion.md` covering setup, the Docker Compose profile, dashboard walkthrough, and the recommended workflow for pairing load tests with synthetic monitoring.
+
+**What this is NOT:**
+
+- Not a new probe type or k6 embedding in the Technician binary.
+- Not a k6 orchestration layer — users author and run k6 scripts with the standard `k6 run` CLI.
+- Not a replacement for k6 Cloud or Grafana Cloud k6 for distributed load testing.
+
+**Cost and sizing considerations:**
+
+k6 load generation is CPU and memory intensive, unlike Technician's lightweight probes. Sizing depends heavily on the protocol, target, and concurrency:
+
+| Scenario | VUs | Approx. resources | Notes |
+|---|---|---|---|
+| HTTP baseline | 50 VUs | 1 vCPU, 512 MB | Simple GET/POST, low think time |
+| HTTP sustained | 200–500 VUs | 2 vCPU, 1–2 GB | Realistic API load test |
+| HTTP high concurrency | 1,000+ VUs | 4+ vCPU, 4+ GB | May need distributed execution |
+| Browser (k6 browser module) | 5–10 VUs | 2+ vCPU, 2–4 GB | Each VU runs a Chromium instance |
+
+- **Do not co-locate with Technician workers in production.** k6 load generation will saturate CPU and network, skewing Technician's probe latency measurements. Run k6 on a separate host, container, or CI runner.
+- **Lambda/Workers targets are not suitable** for load generation. k6 needs sustained compute; serverless invocation models don't fit.
+- **Network egress costs** can be significant for high-throughput tests against cloud-hosted targets. A 500 VU test at 100 req/s for 10 minutes generates meaningful egress depending on response payload sizes.
+- **Distributed execution** — For tests exceeding a single machine's capacity, k6 supports distributed mode via `k6 operator` (Kubernetes) or Grafana Cloud k6. This is outside Technician's scope but should be documented as the scaling path.
+- **Recommended deployment pattern:** Dedicated `t3.medium` / `c6i.large` (or equivalent) instance for load generation, separate from the Technician worker and Prometheus/Grafana stack. For CI, use a dedicated runner with at least 2 vCPU and 2 GB RAM.
+
 ## Possible enhancements
 
 Items here are either partially covered by Grafana dashboards, low priority, or would add complexity that isn't justified yet. Each item includes a rationale for deferral.
