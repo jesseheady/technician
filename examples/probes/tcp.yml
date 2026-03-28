@@ -13,7 +13,7 @@
   host: redis.example.com
   port: 6379
   timeout: 5s
-  schedule: "*/60 * * * * *"
+  schedule: "0 */2 * * * *"
   degraded_after: 2s
   retry:
     count: 1
@@ -27,7 +27,7 @@
 #   tls: true
 #   ip_version: "4"
 #   timeout: 5s
-#   schedule: "*/60 * * * * *"
+#   schedule: "0 */2 * * * *"
 #   degraded_after: 3s
 
 # Send/expect pattern (e.g. protocol banner check):
