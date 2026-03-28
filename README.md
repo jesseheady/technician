@@ -129,3 +129,7 @@ Docker rebuild after code changes:
 ```bash
 docker compose build technician && docker compose up
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, pre-commit hooks, and PR guidelines.
