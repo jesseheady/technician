@@ -124,7 +124,13 @@ go vet ./...
 go run . worker --config config/technician.yml
 ```
 
-Docker rebuild after code changes:
+After changing probe configs or `technician.yml` (no rebuild needed):
+
+```bash
+docker compose restart technician
+```
+
+After changing Go source code (rebuild required):
 
 ```bash
 docker compose build technician && docker compose up
