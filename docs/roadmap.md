@@ -331,7 +331,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Operations
 
-- **Module path** — `github.com/monkeyWzr/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
+- **Module path** — `github.com/m0nkey/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
 
 - **Status store backup rotation** — Keep N rotated copies of `status.json` to guard against corrupt writes. Simple, no external dependencies.
 

@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 type PlaywrightProber struct {

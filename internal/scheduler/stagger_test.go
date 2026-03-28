@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 func TestComputeStaggerNilSite(t *testing.T) {

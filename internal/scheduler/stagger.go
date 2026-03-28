@@ -4,7 +4,7 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // ComputeStagger returns a deterministic stagger delay based on probe name and site.

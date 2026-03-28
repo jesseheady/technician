@@ -1,4 +1,4 @@
-module github.com/monkeyWzr/technician
+module github.com/m0nkey/technician
 
 go 1.25.1
 

@@ -76,7 +76,7 @@ Three strategies (see `docs/alerting.md`):
 - **Logging**: `log/slog`; level set by `--verbose` in root command.
 - **Errors**: Return with `fmt.Errorf("context: %w", err)` for wrapping.
 - **Tests**: Standard library `testing`; use httptest/mocks where appropriate; probe tests live next to implementation (e.g. `http_test.go`).
-- **Go**: Module `github.com/monkeyWzr/technician`; keep `internal/` for non-exported code.
+- **Go**: Module `github.com/m0nkey/technician`; keep `internal/` for non-exported code.
 - **Traceroute**: Uses `mtr --json`. Parser skips leading non-JSON (find first `{`) for builds that print progress; if no JSON is found, error includes a snippet of stdout. On host, mtr often needs root (raw sockets); in Docker the process runs as root by default.
 
 ## Run and test

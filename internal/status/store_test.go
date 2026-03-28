@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/probe"
 )
 
 func makeResult(name string, typ config.ProbeType, success bool) *probe.Result {
@@ -487,7 +487,7 @@ func TestSnapshotIncludesLatency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := &probe.Result{
 			Name: "a", Type: config.ProbeTypeHTTP, Success: true,
-			Duration: time.Duration((i+1)*100) * time.Millisecond,
+			Duration:  time.Duration((i+1)*100) * time.Millisecond,
 			Timestamp: time.Now(),
 		}
 		s.Push(r)

@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // NTP epoch starts 1900-01-01; Unix epoch starts 1970-01-01.
@@ -18,7 +18,7 @@ const ntpEpochOffset = 2208988800
 
 // ntpPacket is a minimal NTPv4 packet (48 bytes).
 type ntpPacket struct {
-	LiVnMode       uint8  // LI (2 bits) | VN (3 bits) | Mode (3 bits)
+	LiVnMode       uint8 // LI (2 bits) | VN (3 bits) | Mode (3 bits)
 	Stratum        uint8
 	Poll           int8
 	Precision      int8

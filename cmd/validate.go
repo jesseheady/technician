@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/monkeyWzr/technician/internal/budget"
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/metrics"
+	"github.com/m0nkey/technician/internal/budget"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/metrics"
 	"github.com/spf13/cobra"
 )
 

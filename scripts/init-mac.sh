@@ -33,7 +33,7 @@ fi
 go_version=$(go version 2>/dev/null | sed -n 's/.*go\([0-9]*\.[0-9]*\).*/\1/p')
 info "Go: $(go version)"
 
-if ! go list -m github.com/monkeyWzr/technician &>/dev/null; then
+if ! go list -m github.com/m0nkey/technician &>/dev/null; then
   info "Installing Go dependencies..."
   go mod download
 fi

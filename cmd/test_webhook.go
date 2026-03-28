@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/notify"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/notify"
 	"github.com/spf13/cobra"
 )
 

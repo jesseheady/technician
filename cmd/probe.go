@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/probe"
 	"github.com/spf13/cobra"
 )
 

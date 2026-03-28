@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/probe"
 )
 
 // HARFile represents the top-level HAR 1.2 structure.

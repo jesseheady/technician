@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // newTestCert generates a self-signed certificate for testing.
@@ -27,14 +27,14 @@ func newTestCert(t *testing.T, hostname string, notBefore, notAfter time.Time) t
 	}
 
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: hostname},
-		DNSNames:     []string{hostname},
-		NotBefore:    notBefore,
-		NotAfter:     notAfter,
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IsCA:         true, // self-signed
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: hostname},
+		DNSNames:              []string{hostname},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IsCA:                  true, // self-signed
 		BasicConstraintsValid: true,
 	}
 

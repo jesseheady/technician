@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // DomainGroup groups probes that share the same target domain/host.
@@ -646,7 +646,7 @@ a:hover{color:var(--text)}
 {{end}}
 
 <div class="footer">
-  Powered by <a href="https://github.com/monkeyWzr/technician">Technician</a>
+  Powered by <a href="https://github.com/m0nkey/technician">Technician</a>
 </div>
 
 <script>

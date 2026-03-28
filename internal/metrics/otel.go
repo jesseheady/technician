@@ -14,8 +14,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/probe"
 )
 
 var tracer trace.Tracer

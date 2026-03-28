@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // rdapDomain is the relevant subset of an RDAP domain response.

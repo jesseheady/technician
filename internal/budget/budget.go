@@ -5,14 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/probe"
 	"gopkg.in/yaml.v3"
 )
 
 type Budget struct {
-	Probe      string            `yaml:"probe"`
+	Probe      string             `yaml:"probe"`
 	Thresholds map[string]float64 `yaml:"thresholds"`
-	AlertOn    string            `yaml:"alert_on"`
+	AlertOn    string             `yaml:"alert_on"`
 }
 
 type Violation struct {

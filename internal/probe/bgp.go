@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // ripeNetworkInfo is the response from stat.ripe.net/data/network-info.

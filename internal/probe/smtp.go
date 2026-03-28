@@ -8,7 +8,7 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 type SMTPProber struct{}

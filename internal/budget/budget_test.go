@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/probe"
 )
 
 func TestLoadBudgets(t *testing.T) {
@@ -52,9 +52,9 @@ func TestLoadBudgets(t *testing.T) {
 
 func TestEvaluateNoViolations(t *testing.T) {
 	result := &probe.Result{
-		Name:    "test",
-		Type:    config.ProbeTypeHTTP,
-		Success: true,
+		Name:     "test",
+		Type:     config.ProbeTypeHTTP,
+		Success:  true,
 		Duration: 500 * time.Millisecond,
 	}
 

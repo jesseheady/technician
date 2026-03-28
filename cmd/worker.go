@@ -10,14 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/monkeyWzr/technician/internal/budget"
-	"github.com/monkeyWzr/technician/internal/config"
-	"github.com/monkeyWzr/technician/internal/exporter"
-	"github.com/monkeyWzr/technician/internal/metrics"
-	"github.com/monkeyWzr/technician/internal/notify"
-	"github.com/monkeyWzr/technician/internal/scheduler"
-	"github.com/monkeyWzr/technician/internal/server"
-	"github.com/monkeyWzr/technician/internal/status"
+	"github.com/m0nkey/technician/internal/budget"
+	"github.com/m0nkey/technician/internal/config"
+	"github.com/m0nkey/technician/internal/exporter"
+	"github.com/m0nkey/technician/internal/metrics"
+	"github.com/m0nkey/technician/internal/notify"
+	"github.com/m0nkey/technician/internal/scheduler"
+	"github.com/m0nkey/technician/internal/server"
+	"github.com/m0nkey/technician/internal/status"
 	"github.com/spf13/cobra"
 )
 
