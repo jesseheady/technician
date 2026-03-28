@@ -13,26 +13,24 @@ A single Go binary that probes your infrastructure over the network. Thirteen pr
 
 ## Architecture
 
-```
-                        ┌──────────────────────────────────┐
-                        │         technician worker        │
-                        │                                  │
-  technician.yml ──────►│  Scheduler (cron + stagger)      │
-  probes/*.yml ────────►│    │                              │
-                        │    ├─► HTTP Prober (httptrace)    │
-                        │    ├─► SMTP Prober               │
-                        │    ├─► Traceroute Prober (mtr)   │
-                        │    └─► Playwright Prober (Node)  │
-                        │           │                      │
-                        │    Results ▼                      │
-                        │  ┌─────────────────┐             │
-                        │  │ Metrics (Prom)   │◄── /metrics │──► Prometheus ──► Grafana
-                        │  │ Traces  (OTLP)   │            │──► Jaeger / etc.
-                        │  │ Artifacts (S3/..) │            │
-                        │  └─────────────────┘             │
-                        │         /probe ──────────────────►│  (blackbox-exporter compat)
-                        │         /health                   │
-                        └──────────────────────────────────┘
+```mermaid
+graph LR
+    yml[technician.yml] --> sched
+    probes[probes/*.yml] --> sched
+
+    subgraph worker [Technician Worker]
+        sched[Scheduler<br/>cron + stagger]
+        probers[HTTP · TCP · UDP · ICMP · DNS<br/>NTP · SMTP · gRPC · TLS · BGP<br/>Domain · Traceroute · Playwright]
+        sched --> probers
+    end
+
+    probers --> metrics["/metrics"]
+    probers --> traces["OTLP traces"]
+    probers --> artifacts["Artifacts · S3"]
+    probers --> probe_ep["/probe · blackbox compat"]
+
+    metrics --> prom[Prometheus] --> grafana[Grafana]
+    traces --> jaeger[Jaeger / etc.]
 ```
 
 ## Quick start
