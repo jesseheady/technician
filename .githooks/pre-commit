@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+echo "==> go build"
+go build ./...
+
+echo "==> go vet"
+go vet ./...
+
+echo "==> go test -race"
+go test -race ./...
+
+echo "==> govulncheck"
+if command -v govulncheck >/dev/null 2>&1; then
+    govulncheck ./...
+else
+    echo "    govulncheck not installed, skipping (go install golang.org/x/vuln/cmd/govulncheck@latest)"
+fi
+
+echo "==> All checks passed"
