@@ -60,6 +60,12 @@ else
   warn "Docker / Docker Compose not found. Use 'docker compose up' for full stack (Prometheus + Grafana)."
 fi
 
+# --- Git hooks ---
+if [ -d .githooks ]; then
+  git config core.hooksPath .githooks
+  info "Git hooks configured (.githooks/pre-commit)"
+fi
+
 # --- Optional: create local dev dirs ---
 mkdir -p /tmp/technician/artifacts /tmp/technician-videos 2>/dev/null || true
 
