@@ -101,9 +101,72 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 - `docs/proposals/cloudflare-workers.md` – Cloudflare Workers and AWS options (Health Checks, Synthetics, Lambda).
 - `docs/README.md` – Full index of all documentation.
 
-## CI
+## CI and workflows
 
-- `.github/workflows/ci.yml` – main CI: build, test, lint, validate (with and without Playwright). Runs on push to main and PRs.
-- `.github/workflows/canary.yml` – canary synthetic check post-deployment.
+- `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. Skips for docs-only changes (paths-ignore on `docs/`, `dashboards/`, `examples/`, `scripts/`, `*.md`, `LICENSE`, `.github/dependabot.yml`). A `CI Passed` gate job aggregates all results for branch protection.
+- `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
+- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached.
+- `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
+- `.github/dependabot.yml` – Weekly dependency updates for Go modules and GitHub Actions.
+
+## Pre-commit hook
+
+`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, and `govulncheck` (skipped if not installed). This mirrors CI so issues are caught before pushing. The hook is configured automatically by `scripts/init-mac.sh` via `git config core.hooksPath .githooks`. New contributors must run the init script or set this manually.
+
+## Branch protection
+
+Main branch requires the `CI Passed` status check. Admin bypass is enabled for the maintainer to push directly. Contributors must open PRs that pass CI before merging.
+
+## Releases
+
+- Use annotated tags: `git tag -a v0.2.0 -m "Short summary"`.
+- The release workflow builds multi-platform binaries and creates a GitHub Release with auto-generated notes.
+- Auto-generated notes are categorized by PR labels (configured in `.github/release.yml`).
+- For the tag annotation, write a short summary. For the GitHub Release, the auto-generated notes cover PR-level detail; add a hand-written summary at the top for major releases.
+- First release was `v0.1.0`. Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
+
+## PR labels
+
+Use labels on PRs for changelog categorization:
+
+| Label | Use for |
+|-------|---------|
+| `enhancement` | New feature or improvement |
+| `bug` | Bug fix |
+| `performance` | Performance improvement |
+| `documentation` | Docs changes |
+| `infrastructure` | CI, build, deployment |
+| `dependencies` | Dependency updates (Dependabot adds this automatically) |
+| `skip-changelog` | Exclude from release notes |
+
+## Commit style
+
+Single-line commit messages. No multi-line body. No Co-Authored-By trailers.
+
+## Config changes vs code changes
+
+- Config changes (`config/`, `technician.yml`, `probes/*.yml`): `docker compose restart technician`. No rebuild needed; config is volume-mounted.
+- Code changes (Go source, Dockerfile): `docker compose build technician && docker compose up`.
+
+## Security
+
+- `SECURITY.md` directs vulnerability reports to GitHub's private vulnerability reporting (Security tab). No public issues for security reports.
+- Private vulnerability reporting is enabled on the repo.
+- Dependabot alerts and security updates are enabled.
+
+## Probe schedule guidance
+
+Not all probes need the same frequency. Recommended production intervals:
+
+| Category | Interval |
+|----------|----------|
+| Your own services (HTTP, gRPC) | 30s–1min |
+| Infrastructure connectivity (TCP, ICMP, UDP) | 2min |
+| DNS resolution | 5min |
+| Third-party APIs | 5min |
+| NTP | 10min |
+| BGP, SMTP | 15min |
+| Traceroute | 30min |
+| TLS certificates, domain expiry | 6h |
 
 When editing code, preserve existing patterns: probe results feed metrics and (where applicable) OTLP; new metrics should follow the naming in `internal/metrics/prometheus.go`; budget metric names must match threshold keys in `budgets.yml`.
