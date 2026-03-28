@@ -1,0 +1,18 @@
+changelog:
+  categories:
+    - title: Features
+      labels: [enhancement]
+    - title: Bug Fixes
+      labels: [bug]
+    - title: Performance
+      labels: [performance]
+    - title: Documentation
+      labels: [documentation]
+    - title: Infrastructure
+      labels: [infrastructure, github_actions]
+    - title: Dependencies
+      labels: [dependencies, go]
+    - title: Other
+      labels: ["*"]
+  exclude:
+    labels: [skip-changelog]
