@@ -456,7 +456,7 @@ Every external dependency Technician touches, and whether it can be swapped:
 
 | Data | Store | Retention | Survives restart? |
 |------|-------|-----------|-------------------|
-| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | ~45 min at 30s intervals | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
+| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | Depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
 | Metrics time-series | Prometheus / AMP | Configurable (default 90 days in docker-compose, up to years) | Yes |
 | Dashboards, uptime history, trends | Grafana querying Prometheus | As long as Prometheus retains the data | Yes |
 | HAR files, screenshots, videos | Local disk or S3 | Configurable (`artifacts.retention`) | Yes (if S3) |
@@ -490,7 +490,7 @@ All storage is bounded. No container grows without a configured limit or automat
 
 | Data | Default retention | Configurable? | How to change |
 |------|------------------|---------------|---------------|
-| Probe history (ring buffer) | ~45 min (90 entries at 30s) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
+| Probe history (ring buffer) | 90 entries per probe (~45 min at 30s, ~3h at 2min, ~7.5h at 5min) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
 | Status backups | 90 days | No (compile-time) | Change retention in `SaveBackup()` in `internal/status/store.go` |
 | Playwright artifacts | 72h | Yes | `artifacts.retention` in `technician.yml` |
 | Prometheus time-series | 90 days | Yes | `--storage.tsdb.retention.time=` in `docker-compose.yml` Prometheus command |
@@ -593,7 +593,7 @@ This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, rete
 
 ### Enriching the status page with historical data
 
-The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (~45 minutes). To show 30-day uptime bars like the Grafana dashboards, two approaches:
+The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (90 entries per probe — the visible window depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min). To show 30-day uptime bars like the Grafana dashboards, two approaches:
 
 **Approach A: Query Prometheus API from the status page (recommended)**
 
@@ -640,6 +640,23 @@ The built-in status page shows real-time data from this worker's ring buffer. Fo
 - **Budget violations** — threshold tracking over time
 
 For a public-facing status page with extended history, use Grafana's anonymous viewer role, or have the status page query Prometheus/AMP directly (Approach A).
+
+## Probe schedule guidance
+
+Not all probes need the same frequency. Shorter intervals increase request volume, Prometheus series churn, and load on third-party targets. Recommended intervals by probe category:
+
+| Category | Interval | Rationale |
+|----------|----------|-----------|
+| Your own services (HTTP, gRPC) | 30s–1min | These are your SLA. Fast detection matters. |
+| Infrastructure connectivity (TCP, ICMP, UDP) | 2min | Detects outages within minutes. 60s is unnecessary for connectivity checks. |
+| DNS resolution | 5min | DNS records change infrequently and are cached upstream. |
+| Third-party APIs | 5min | Be respectful of services you don't control. Higher frequency risks rate limiting. |
+| NTP | 10min | Clock drift is slow. More frequent checks add no value. |
+| BGP, SMTP | 15min | Route changes and mail server state are slow-moving. |
+| Traceroute | 30min | Expensive (spawns mtr subprocess). Path changes are infrequent. |
+| TLS certificates, domain expiry | 6h | Certificates don't expire between checks. Daily or 6h is sufficient. |
+
+A typical production deployment with 30 probes using the intervals above generates ~350 requests/hour — well within the capacity of a single worker and comfortable for third-party targets.
 
 ## Sizing by deployment mode
 
