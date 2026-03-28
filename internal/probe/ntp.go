@@ -18,7 +18,7 @@ const ntpEpochOffset = 2208988800
 
 // ntpPacket is a minimal NTPv4 packet (48 bytes).
 type ntpPacket struct {
-	LiVnMode       uint8  // LI (2 bits) | VN (3 bits) | Mode (3 bits)
+	LiVnMode       uint8 // LI (2 bits) | VN (3 bits) | Mode (3 bits)
 	Stratum        uint8
 	Poll           int8
 	Precision      int8

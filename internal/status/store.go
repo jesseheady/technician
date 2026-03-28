@@ -80,8 +80,8 @@ type ProbeState struct {
 	Type         config.ProbeType `json:"type"`
 	Domain       string           `json:"domain,omitempty"` // canonical hostname for domain grouping
 	Status       string           `json:"status"`           // "up", "down", "pending"
-	DownSince    string           `json:"down_since"` // human-readable, e.g. "for 2h 15m"
-	Uptime       string           `json:"uptime"`    // e.g. "99.7%"
+	DownSince    string           `json:"down_since"`       // human-readable, e.g. "for 2h 15m"
+	Uptime       string           `json:"uptime"`           // e.g. "99.7%"
 	Latency      *Latency         `json:"latency,omitempty"`
 	Timing       *TimingBreakdown `json:"timing,omitempty"`
 	Latest       *Entry           `json:"latest,omitempty"`
@@ -153,8 +153,8 @@ type probeRing struct {
 	group     string
 	target    string // canonical hostname/domain
 	entries   []Entry
-	head      int  // next write position (circular)
-	full      bool // true once the buffer has wrapped
+	head      int       // next write position (circular)
+	full      bool      // true once the buffer has wrapped
 	downSince time.Time // zero if currently up
 }
 
@@ -212,15 +212,15 @@ func probeKey(typ config.ProbeType, name string) string {
 // Push adds a probe result to the store.
 func (s *Store) Push(r *probe.Result) {
 	e := Entry{
-		Success:    r.Success,
-		InfraError: r.InfraError,
-		DurationMs: float64(r.Duration) / float64(time.Millisecond),
-		Timestamp:  r.Timestamp,
-		Error:      r.Error,
-		StatusCode: r.StatusCode,
-		DNSMs:      float64(r.DNSDuration) / float64(time.Millisecond),
-		TLSMs:      float64(r.TLSDuration) / float64(time.Millisecond),
-		TTFBMs:      float64(r.TTFBDuration) / float64(time.Millisecond),
+		Success:           r.Success,
+		InfraError:        r.InfraError,
+		DurationMs:        float64(r.Duration) / float64(time.Millisecond),
+		Timestamp:         r.Timestamp,
+		Error:             r.Error,
+		StatusCode:        r.StatusCode,
+		DNSMs:             float64(r.DNSDuration) / float64(time.Millisecond),
+		TLSMs:             float64(r.TLSDuration) / float64(time.Millisecond),
+		TTFBMs:            float64(r.TTFBDuration) / float64(time.Millisecond),
 		NTPOffsetMs:       r.NTPOffsetMs,
 		CertDaysRemaining: r.CertDaysRemaining,
 		CertValid:         r.CertValid,
@@ -574,9 +574,9 @@ type persistedBudget struct {
 }
 
 type persistedStore struct {
-	Order        []string                    `json:"order"`
-	Rings        map[string]persistedRing    `json:"rings"`
-	BudgetChecks map[string]persistedBudget  `json:"budget_checks,omitempty"` // "probe:metric" -> state
+	Order        []string                   `json:"order"`
+	Rings        map[string]persistedRing   `json:"rings"`
+	BudgetChecks map[string]persistedBudget `json:"budget_checks,omitempty"` // "probe:metric" -> state
 }
 
 // persistedStoreRaw is used for backwards-compatible loading: budget_checks

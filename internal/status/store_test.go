@@ -487,7 +487,7 @@ func TestSnapshotIncludesLatency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := &probe.Result{
 			Name: "a", Type: config.ProbeTypeHTTP, Success: true,
-			Duration: time.Duration((i+1)*100) * time.Millisecond,
+			Duration:  time.Duration((i+1)*100) * time.Millisecond,
 			Timestamp: time.Now(),
 		}
 		s.Push(r)

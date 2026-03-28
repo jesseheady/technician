@@ -10,9 +10,9 @@ import (
 )
 
 type Budget struct {
-	Probe      string            `yaml:"probe"`
+	Probe      string             `yaml:"probe"`
 	Thresholds map[string]float64 `yaml:"thresholds"`
-	AlertOn    string            `yaml:"alert_on"`
+	AlertOn    string             `yaml:"alert_on"`
 }
 
 type Violation struct {

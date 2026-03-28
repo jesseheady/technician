@@ -16,10 +16,10 @@ type AssertionResult struct {
 }
 
 type Result struct {
-	Name      string
-	Type      config.ProbeType
-	Group     string
-	Target    string // canonical hostname/domain for status page grouping
+	Name       string
+	Type       config.ProbeType
+	Group      string
+	Target     string // canonical hostname/domain for status page grouping
 	Success    bool
 	InfraError bool // true when the probe infrastructure itself failed (not the target)
 	Duration   time.Duration
@@ -27,19 +27,19 @@ type Result struct {
 	Timestamp  time.Time
 
 	// HTTP-specific
-	StatusCode    int
-	DNSDuration   time.Duration
-	TLSDuration   time.Duration
-	ConnDuration  time.Duration
-	TTFBDuration  time.Duration
+	StatusCode       int
+	DNSDuration      time.Duration
+	TLSDuration      time.Duration
+	ConnDuration     time.Duration
+	TTFBDuration     time.Duration
 	TransferDuration time.Duration
-	ResponseBytes int64
-	Assertions    []AssertionResult
+	ResponseBytes    int64
+	Assertions       []AssertionResult
 
 	// Browser-specific (Playwright)
-	WebVitals    *WebVitals
-	HARData      *HARData
-	VideoPath    string
+	WebVitals     *WebVitals
+	HARData       *HARData
+	VideoPath     string
 	ResourceCount int
 
 	// Traceroute-specific
@@ -65,9 +65,9 @@ type Result struct {
 	GRPCStatus string // serving status from health check
 
 	// NTP-specific
-	NTPOffsetMs  float64       // clock offset in milliseconds (positive = local ahead)
-	NTPStratum   int           // stratum level (1 = primary reference, 2+ = secondary)
-	NTPRTT       time.Duration // round-trip time to NTP server
+	NTPOffsetMs float64       // clock offset in milliseconds (positive = local ahead)
+	NTPStratum  int           // stratum level (1 = primary reference, 2+ = secondary)
+	NTPRTT      time.Duration // round-trip time to NTP server
 
 	// UDP-specific
 	UDPRTT           time.Duration // round-trip time (send to response)
@@ -106,16 +106,16 @@ type Result struct {
 
 type WebVitals struct {
 	TTFB        float64 `json:"ttfb"`
-	FCP         float64 `json:"fcp"`   // First Contentful Paint (optional; Core Web Vitals are LCP, INP, CLS)
-	LCP         float64 `json:"lcp"`   // Largest Contentful Paint – good ≤2.5s
-	CLS         float64 `json:"cls"`   // Cumulative Layout Shift – good ≤0.1
-	INP         float64 `json:"inp"`   // Interaction to Next Paint – good ≤200ms
+	FCP         float64 `json:"fcp"` // First Contentful Paint (optional; Core Web Vitals are LCP, INP, CLS)
+	LCP         float64 `json:"lcp"` // Largest Contentful Paint – good ≤2.5s
+	CLS         float64 `json:"cls"` // Cumulative Layout Shift – good ≤0.1
+	INP         float64 `json:"inp"` // Interaction to Next Paint – good ≤200ms
 	DOMComplete float64 `json:"dom_complete"`
 }
 
 type HARData struct {
-	Entries []HAREntry `json:"entries"`
-	TotalTransferBytes int64 `json:"total_transfer_bytes"`
+	Entries            []HAREntry `json:"entries"`
+	TotalTransferBytes int64      `json:"total_transfer_bytes"`
 }
 
 type HAREntry struct {
@@ -128,11 +128,11 @@ type HAREntry struct {
 }
 
 type TracerouteHop struct {
-	Hop     int     `json:"hop"`
-	Host    string  `json:"host"`
-	IP      string  `json:"ip"`
-	ASN     int     `json:"asn"`
-	AvgMs   float64 `json:"avg_ms"`
+	Hop         int     `json:"hop"`
+	Host        string  `json:"host"`
+	IP          string  `json:"ip"`
+	ASN         int     `json:"asn"`
+	AvgMs       float64 `json:"avg_ms"`
 	LossPercent float64 `json:"loss_percent"`
 }
 

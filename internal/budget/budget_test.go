@@ -52,9 +52,9 @@ func TestLoadBudgets(t *testing.T) {
 
 func TestEvaluateNoViolations(t *testing.T) {
 	result := &probe.Result{
-		Name:    "test",
-		Type:    config.ProbeTypeHTTP,
-		Success: true,
+		Name:     "test",
+		Type:     config.ProbeTypeHTTP,
+		Success:  true,
 		Duration: 500 * time.Millisecond,
 	}
 

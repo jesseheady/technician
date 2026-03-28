@@ -264,7 +264,7 @@ Output:
 - `--update-baselines` flag to regenerate
 
 ### Phase 4: PR integration
-- GitHub Actions action (`uses: jesseheady/technician-action@v1`)
+- GitHub Actions action (`uses: m0nkey/technician-action@v1`)
 - Auto-comment on PR with results table
 - Status check integration (pass/fail on the PR)
 
