@@ -10,7 +10,8 @@
 #     Residential / Docker:      500ms
 # Dedicated NTP servers are anycast and fast (20-40ms). pool.ntp.org round-robins
 # to volunteer servers that may be geographically distant, with p90 latencies
-# 5-10x higher than dedicated servers.
+# 5-10x higher than dedicated servers. Consider a regional zone
+# (e.g. us.pool.ntp.org, europe.pool.ntp.org) for more consistent results.
 
 - name: Pool NTP
   group: Infrastructure
@@ -19,7 +20,7 @@
   schedule: "0 */10 * * * *"
   degraded_after: 500ms
   retry:
-    count: 1
+    count: 2
     backoff: none
     delay: 2s
 
