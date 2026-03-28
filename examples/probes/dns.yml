@@ -14,7 +14,7 @@
   server: "8.8.8.8:53"
   record_type: A
   timeout: 10s
-  schedule: "*/60 * * * * *"
+  schedule: "0 */5 * * * *"
   degraded_after: 500ms
   retry:
     count: 1

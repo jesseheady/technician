@@ -24,7 +24,7 @@
   url: https://jsonplaceholder.typicode.com/posts/1
   expected_status: 200
   timeout: 5s
-  schedule: "*/60 * * * * *"
+  schedule: "0 */5 * * * *"
   degraded_after: 2s
   retry:
     count: 1
