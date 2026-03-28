@@ -16,7 +16,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository }}/technician:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run canary probes
         run: technician validate --config canary.yml --budget budgets.yml --output gha
