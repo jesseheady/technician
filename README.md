@@ -116,7 +116,7 @@ Technician is built around Prometheus pull-based scraping because:
 
 ## Acknowledgments
 
-Technician was inspired by [Upright](https://github.com/basecamp/upright) by 37signals. Technician is an independent implementation in Go with a different architecture and feature set.
+Inspired by [Upright](https://github.com/basecamp/upright), [Gatus](https://github.com/TwiN/gatus), [OpenStatus](https://github.com/openstatusHQ/openstatus), and [UptimeRobot](https://uptimerobot.com). Each inspired aspects of Technician's design. Technician is an independent implementation of synthetic monitoring in Go.
 
 ## Development
 
