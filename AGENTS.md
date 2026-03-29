@@ -139,6 +139,16 @@ Use labels on PRs for changelog categorization:
 | `dependencies` | Dependency updates (Dependabot adds this automatically) |
 | `skip-changelog` | Exclude from release notes |
 
+## Tracking completed work
+
+When a GitHub issue, roadmap item, or todo is completed:
+
+1. Close the GitHub issue.
+2. Move the item from its current roadmap section to "Recently completed" in `docs/roadmap.md` with a short summary of what shipped.
+3. If the item was on a todo list, check it off or remove it.
+
+All three locations (issues, roadmap, todos) must stay in sync. The "Recently completed" section in the roadmap feeds into release notes when tagging a new version.
+
 ## Commit style
 
 Single-line commit messages. No multi-line body. No Co-Authored-By trailers.
