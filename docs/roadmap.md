@@ -113,6 +113,21 @@ Terraform or CloudFormation templates for common deployment patterns:
 
 Features planned for the next development cycle.
 
+### Probe filtering
+
+Run a targeted subset of probes per worker based on type, group, or tag. Configured in `technician.yml` via `probe_filter` or CLI flags (`--types`, `--groups`). Enables deploying specialized workers from a single shared probe config repo: HTTP-only on Cloudflare Workers, lightweight probes on Lambda, browser probes on a dedicated runner, etc.
+
+**What's needed:**
+
+- `probe_filter` config block with `types`, `groups`, and `tags` fields. Filters are additive.
+- CLI flags `--types` and `--groups` as overrides.
+- New `tags` field on probe configs (types and groups already exist).
+- Filtering at config load time in `internal/config/`, not at runtime.
+- `technician validate` should respect filters for per-target CI validation.
+- Documentation: multi-target deployment patterns showing how one probe repo serves VPS, Lambda, and Workers targets with different filters.
+
+**Current workaround:** Separate `config/probes/` directories per worker with only the desired probe YAML files. Works but duplicates probe definitions. See [#15](https://github.com/m0nkey/technician/issues/15).
+
 ### Maintenance mode
 
 Suppress alerting and mark probes as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
