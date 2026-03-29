@@ -443,4 +443,32 @@ Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, TLS, UDP, BGP, and domain
 
 ### CI workflow
 
-GitHub Actions workflow (`.github/workflows/ci.yml`) with build, test (race detector + coverage), lint, validate (with and without Playwright), and Docker build jobs. Generic CI guidance for GitLab, CircleCI, and Jenkins in [docs/ci.md](ci.md).
+GitHub Actions workflow (`.github/workflows/ci.yml`) with build, test (race detector + coverage), lint, validate (with and without Playwright), Docker build, and govulncheck security scan. `CI Passed` gate job aggregates results for branch protection. Paths-ignore skips CI for docs-only changes. Generic CI guidance for GitLab, CircleCI, and Jenkins in [docs/ci.md](ci.md).
+
+### Release workflow
+
+GitHub Actions workflow (`.github/workflows/release.yml`) triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached and auto-generated changelog categorized by PR labels (`.github/release.yml`). First release: v0.1.0.
+
+### Pre-commit hook
+
+`.githooks/pre-commit` runs `go build`, `go vet`, `go test -race`, and `govulncheck` (optional) on every commit. Mirrors CI locally. Configured automatically by `scripts/init-mac.sh` via `git config core.hooksPath .githooks`.
+
+### Dependabot
+
+`.github/dependabot.yml` configured for weekly Go module and GitHub Actions dependency updates. Vulnerability alerts enabled.
+
+### Branch protection
+
+Main branch requires `CI Passed` status check. Admin bypass enabled for maintainer direct pushes. Contributors must open PRs.
+
+### Log level flag
+
+`--log-level` CLI flag (debug, info, warn, error) for controlling log verbosity. Default remains INFO. Part of the broader structured logging effort ([#24](https://github.com/jesseheady/technician/issues/24)); remaining work includes JSON format config, per-probe health log lines, self-health metrics, and correlation IDs.
+
+### CONTRIBUTING.md and SECURITY.md
+
+Contributing guide with setup, pre-commit hooks, code style, and PR guidelines. Security policy directing vulnerability reports to GitHub's private reporting feature.
+
+### Mermaid architecture diagram
+
+README architecture diagram updated from ASCII art to Mermaid with all 13 probe types. Renders natively on GitHub.
