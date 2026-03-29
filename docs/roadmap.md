@@ -46,9 +46,23 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 
 **Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker.
 
-**Path B: Embedded SQLite** — Use `modernc.org/sqlite` (pure Go, no CGO) for local probe result persistence. Adds ~2 MB to the binary. Stores 30 days of results in a local file (~100 MB for 10 probes). Good for standalone workers without Prometheus access.
+**Path B: Embedded SQLite (recommended for public status page)** — Use `modernc.org/sqlite` (pure Go, no CGO) for local probe result persistence. Adds ~2 MB to the binary. Good for standalone workers without Prometheus access, and the key enabler for a public-facing status page with meaningful history.
 
-See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-historical-data) for the full analysis.
+**Sizing estimates (30 probes, recommended production intervals):**
+
+| Retention | Rows | Disk | Memory |
+|---|---|---|---|
+| 30 days | ~674K | 70–130 MB | 2–5 MB |
+| 90 days | ~2M | 200–400 MB | 2–5 MB |
+| 12 months | ~8.2M | 0.8–1.6 GB | 2–5 MB |
+
+Memory does not scale with retention. SQLite reads pages on demand; the page cache stays at 2–5 MB. At 100 probes and 12 months, disk reaches 2.5–5 GB. At 500 probes, 12–25 GB.
+
+**Implementation:** Single `probe_results` table, covering index on `(name, timestamp, success)`, configurable retention (`persistence.retention: 90d`), periodic prune with `PRAGMA auto_vacuum=incremental`. The existing ring buffer stays for real-time rendering; SQLite is queried for historical views.
+
+**Port separation:** A public-facing status page should not share a port with `/metrics`, `/probe`, and `/health`. These are internal operational endpoints. Options include a separate listen address (`status.listen: :8080`) or a config toggle to disable operational endpoints on the status port.
+
+See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-historical-data) for the full analysis and [#16](https://github.com/jesseheady/technician/issues/16) for implementation tracking.
 
 ### SLA reporting
 
