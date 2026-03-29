@@ -4,7 +4,7 @@ Work that's been planned or partially designed but not yet implemented. See also
 
 ## Edge deployment adapters
 
-### AWS Lambda adapter
+### AWS Lambda adapter [#17](https://github.com/jesseheady/technician/issues/17)
 
 Technician's Go binary can run in a Lambda container image (regional Lambda), but there's no Lambda-specific packaging or infrastructure yet.
 
@@ -16,7 +16,7 @@ Technician's Go binary can run in a Lambda container image (regional Lambda), bu
 - Push mechanism for metrics: Prometheus can't scrape a short-lived Lambda. Options are Pushgateway, Prometheus remote-write, or an in-VPC aggregator that Prometheus scrapes. See [central-prometheus-grafana.md](architecture/central-prometheus-grafana.md).
 - Lambda@Edge (Node.js/Python only) would need a separate lightweight HTTP probe adapter, not the Go binary.
 
-### Cloudflare Workers adapter
+### Cloudflare Workers adapter [#18](https://github.com/jesseheady/technician/issues/18)
 
 Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). The proposal recommends "Path A" — a small JS/TS Worker that performs one HTTP probe per request and returns Prometheus text or JSON.
 
@@ -29,7 +29,7 @@ Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). 
 
 ## Metrics and persistence
 
-### Prometheus remote-write
+### Prometheus remote-write [#19](https://github.com/jesseheady/technician/issues/19)
 
 Add native Prometheus remote-write support to Technician, configured via `metrics.prometheus.remote_write_url` in `technician.yml`. This lets workers push metrics directly to AWS Managed Prometheus (AMP), Grafana Cloud, Thanos, or Mimir without needing a sidecar agent.
 
@@ -64,7 +64,7 @@ Memory does not scale with retention. SQLite reads pages on demand; the page cac
 
 See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-historical-data) for the full analysis and [#16](https://github.com/jesseheady/technician/issues/16) for implementation tracking.
 
-### SLA reporting
+### SLA reporting [#20](https://github.com/jesseheady/technician/issues/20)
 
 Generate periodic SLA reports showing uptime, latency percentiles, and incident counts over configurable windows (30, 90, 365 days). Reports can be scoped to specific probe groups — e.g. report on "Marketing" and "Infrastructure" while omitting "Third Party" probes that aren't covered by your SLA.
 
@@ -114,7 +114,7 @@ WHERE success = 1
 GROUP BY name, group_name;
 ```
 
-### IaC templates
+### IaC templates [#21](https://github.com/jesseheady/technician/issues/21)
 
 Terraform or CloudFormation templates for common deployment patterns:
 
@@ -142,7 +142,7 @@ Run a targeted subset of probes per worker based on type, group, or tag. Configu
 
 **Current workaround:** Separate `config/probes/` directories per worker with only the desired probe YAML files. Works but duplicates probe definitions. See [#15](https://github.com/jesseheady/technician/issues/15).
 
-### Maintenance mode
+### Maintenance mode [#22](https://github.com/jesseheady/technician/issues/22)
 
 Suppress alerting and mark probes as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
 
@@ -169,7 +169,7 @@ Suppress alerting and mark probes as "maintenance" on the status page during pla
 
 **Status page display:** Maintenance probes show a wrench/tool icon and "Scheduled Maintenance" label with the reason text, replacing the normal up/down indicator.
 
-### WebSocket monitoring
+### WebSocket monitoring [#23](https://github.com/jesseheady/technician/issues/23)
 
 WS/WSS probe type for real-time services. Connect, optionally send a message, assert on the response, measure connection time.
 
@@ -193,7 +193,7 @@ WS/WSS probe type for real-time services. Connect, optionally send a message, as
   schedule: "*/60 * * * * *"
 ```
 
-### Structured logging for Loki
+### Structured logging for Loki [#24](https://github.com/jesseheady/technician/issues/24)
 
 Technician already uses Go's `slog` for structured logging to stdout. Enhance the log output so it's immediately useful when consumed by Grafana Loki (or any log aggregation pipeline), giving visibility into how Technician itself is performing.
 
@@ -219,7 +219,7 @@ logging:
 {"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"scheduler_tick","active_probes":12,"goroutines":28,"heap_mb":8.2}
 ```
 
-### Status page redesign
+### Status page redesign [#25](https://github.com/jesseheady/technician/issues/25)
 
 Redesign the built-in status page. Reference layout based on Upptime, Cachet, and Gatus.
 
@@ -279,7 +279,7 @@ Technician's scope: **probe execution, scheduling, metrics export, status page, 
 
 ## Companion tooling
 
-### k6 load testing integration
+### k6 load testing integration [#26](https://github.com/jesseheady/technician/issues/26)
 
 k6 (Grafana's open-source load testing tool) is a natural companion to Technician. Technician answers "is my service healthy?"; k6 answers "how does it behave under load?" Running both together lets you generate traffic with k6 and watch Technician's probes reflect the degradation in real-time.
 
@@ -322,47 +322,47 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Probes and protocol
 
-- **TLS version constraints** — Min/max TLS version for HTTP and TCP probes. Low priority; rarely needed for synthetic monitoring.
+- **TLS version constraints** [#27](https://github.com/jesseheady/technician/issues/27) — Min/max TLS version for HTTP and TCP probes. Low priority; rarely needed for synthetic monitoring.
 
-- **Proxy support** — HTTP proxy configuration for probes running behind corporate proxies. Edge case for most deployments.
+- **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for probes running behind corporate proxies. Edge case for most deployments.
 
-- **IP protocol preference for HTTP** — Force IPv4 or IPv6 for HTTP probes (TCP/DNS/ICMP already support this). Low priority.
+- **IP protocol preference for HTTP** [#29](https://github.com/jesseheady/technician/issues/29) — Force IPv4 or IPv6 for HTTP probes (TCP/DNS/ICMP already support this). Low priority.
 
-- **Full SOA record support** — DNS probe SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
+- **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS probe SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
-- **Native HTTP Basic/Bearer auth fields** — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
+- **Native HTTP Basic/Bearer auth fields** [#31](https://github.com/jesseheady/technician/issues/31) — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
 
-- **SMTP STARTTLS and auth** — The SMTP probe currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
+- **SMTP STARTTLS and auth** [#32](https://github.com/jesseheady/technician/issues/32) — The SMTP probe currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
 
 ### Observability and export
 
-- **Full OTel metrics export** — Push probe metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
+- **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push probe metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
 
-- **Prometheus backfill on startup** — If the local store is empty or stale, query Prometheus for recent probe metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
+- **Prometheus backfill on startup** [#34](https://github.com/jesseheady/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent probe metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
 
 ### Status page and UI
 
-- **Latency percentile Grafana panels** — The Grafana dashboards have latency trend graphs but no dedicated P50/P90/P99 panels. Add percentile stat panels and histogram panels to the HTTP Timing and Uptime Overview dashboards.
+- **Latency percentile Grafana panels** [#35](https://github.com/jesseheady/technician/issues/35) — The Grafana dashboards have latency trend graphs but no dedicated P50/P90/P99 panels. Add percentile stat panels and histogram panels to the HTTP Timing and Uptime Overview dashboards.
 
-- **Per-region latency comparison** — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
+- **Per-region latency comparison** [#36](https://github.com/jesseheady/technician/issues/36) — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
 
-- **Latency trend sparklines on status page** — Small inline SVG sparklines per probe row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
+- **Latency trend sparklines on status page** [#37](https://github.com/jesseheady/technician/issues/37) — Small inline SVG sparklines per probe row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
 
-- **Tags and filtering** — Arbitrary key-value tags on probes for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
+- **Tags and filtering** [#38](https://github.com/jesseheady/technician/issues/38) — Arbitrary key-value tags on probes for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
 
-- **Public/private visibility toggle** — Control which probes are visible on the public status page vs internal-only.
+- **Public/private visibility toggle** [#39](https://github.com/jesseheady/technician/issues/39) — Control which probes are visible on the public status page vs internal-only.
 
 ### Notifications and alerting
 
-- **Additional notification channels** — First-class Email, Telegram, PagerDuty, OpsGenie senders. The generic webhook sender already covers any HTTP-based integration. Add first-class senders only when the generic sender proves insufficient for a specific channel's payload format.
+- **Additional notification channels** [#40](https://github.com/jesseheady/technician/issues/40) — First-class Email, Telegram, PagerDuty, OpsGenie senders. The generic webhook sender already covers any HTTP-based integration. Add first-class senders only when the generic sender proves insufficient for a specific channel's payload format.
 
 - **Slack chatbot / agent** — Manage status pages and incidents via Slack commands. Overlaps with Grafana OnCall and existing webhook notifications. Not justified at current scale.
 
 ### Operations
 
-- **Module path** — `github.com/jesseheady/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
+- **Module path** [#42](https://github.com/jesseheady/technician/issues/42) — `github.com/jesseheady/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
 
-- **Status store backup rotation** — Keep N rotated copies of `status.json` to guard against corrupt writes. Simple, no external dependencies.
+- **Status store backup rotation** [#41](https://github.com/jesseheady/technician/issues/41) — Keep N rotated copies of `status.json` to guard against corrupt writes. Simple, no external dependencies.
 
 - **Incident tracking** — Automatic incident creation/resolution from probe failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
 
