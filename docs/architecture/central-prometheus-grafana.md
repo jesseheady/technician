@@ -119,7 +119,7 @@ Your current repo is: **Technician** (exposes `/metrics` on 9590), **Prometheus*
 ### What stays the same
 
 - **Technician binary and config** – Same Dockerfile, same `technician.yml` and `probes/` layout. Technician still listens on `:9590` and serves `/metrics`, `/health`, `/probe`.
-- **Probe definitions** – Same YAML (all 11 probe types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
+- **Probe definitions** – Same YAML (all 13 probe types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
 - **Prometheus rules** – Same `prometheus/rules.yml` (ProbeFailing, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
 - **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`region`, `probe`) already work with whatever sites you run.
 
