@@ -53,3 +53,4 @@ jobs:
           image-ref: technician:scan
           format: table
           severity: CRITICAL,HIGH
+          # exit-code: '1' - Deliberately disabled; unfixed Debian CVEs would block CI. Filesystem scan still enforces Go/Node deps.
