@@ -152,31 +152,22 @@ As Playwright probe count grows, you'll want to separate browser probes from lig
 
 All probes on one host. `max_browsers` prevents OOM.
 
-```
-┌─────────────────────────┐
-│  Technician worker       │
-│  HTTP, TCP, DNS, ...     │
-│  Playwright (max: 2)     │
-│  :9590                   │
-└─────────────────────────┘
+```mermaid
+graph TD
+    W["Technician worker<br/>HTTP, TCP, DNS, ...<br/>Playwright (max: 2)<br/>:9590"]
 ```
 
 ### Stage 2: Dedicated browser worker
 
 Split into two workers at the same site. One runs lightweight probes, the other runs only Playwright probes with more resources.
 
-```
-┌─────────────────────────┐  ┌─────────────────────────┐
-│  Worker (lightweight)    │  │  Worker (browser)        │
-│  HTTP, TCP, DNS, ICMP,   │  │  Playwright only         │
-│  NTP, SMTP, gRPC         │  │  max_browsers: 4         │
-│  :9590                   │  │  :9395                   │
-│  256 MB, 1 vCPU          │  │  4 GB, 4 vCPU            │
-└─────────────────────────┘  └─────────────────────────┘
-         │                             │
-         └──────────┬──────────────────┘
-                    ▼
-             Prometheus (scrapes both)
+```mermaid
+graph TD
+    LW["Worker (lightweight)<br/>HTTP, TCP, DNS, ICMP,<br/>NTP, SMTP, gRPC<br/>:9590 — 256 MB, 1 vCPU"]
+    BW["Worker (browser)<br/>Playwright only<br/>max_browsers: 4<br/>:9395 — 4 GB, 4 vCPU"]
+
+    LW --> P["Prometheus (scrapes both)"]
+    BW --> P
 ```
 
 This already works today with separate config directories:
@@ -195,17 +186,10 @@ Prometheus scrapes both on different ports. Grafana sees all metrics with the sa
 
 For teams running many browser probes across regions, a dedicated Playwright server that workers connect to over the network:
 
-```
-┌──────────────┐       ┌──────────────────────┐
-│  Worker       │──────►│  Playwright server     │
-│  us-east-1    │  gRPC │  (pool of browsers)    │
-│  :9590        │       │  max_browsers: 10       │
-└──────────────┘       │  4 vCPU, 8 GB           │
-                       └──────────────────────┘
-┌──────────────┐
-│  Worker       │──────► same server or regional
-│  eu-west-1    │
-└──────────────┘
+```mermaid
+graph LR
+    W1["Worker<br/>us-east-1 :9590"] -->|gRPC| PS["Playwright server<br/>pool of browsers<br/>max_browsers: 10<br/>4 vCPU, 8 GB"]
+    W2["Worker<br/>eu-west-1 :9590"] -->|gRPC| PS
 ```
 
 The config already has `playwright.mode` and `playwright.server_url` fields for this:
@@ -229,8 +213,9 @@ In `managed` mode, the worker sends probe configs to the remote server instead o
 
 For cloud-native deployments, each browser probe spawns an ephemeral container:
 
-```
-Worker → API call → Cloud Run / ECS task → run browser → return result → container dies
+```mermaid
+graph LR
+    W["Worker"] -->|API call| C["Cloud Run / ECS task"] -->|run browser| R["return result"] -->|done| D["container dies"]
 ```
 
 This scales to hundreds of concurrent browsers with no long-running infrastructure. The trade-off is cold-start latency (~3-5s for Chromium in a container).
