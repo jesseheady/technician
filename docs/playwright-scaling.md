@@ -34,6 +34,8 @@ The image size is fixed regardless of probe count -- Chromium is installed once.
 
 Each Playwright probe invocation launches a fresh Chromium instance. There is no browser pooling -- `run.js` calls `chromium.launch()` every time, and the Go process spawns a new `node` subprocess per run.
 
+> **Init process required.** Because each probe spawns Node.js → Chromium child processes, the container must run an init system (e.g. `tini`) as PID 1 to reap exited children. Without it, terminated Chromium processes accumulate as zombies, consuming kernel memory that grows linearly with probe runs. In Docker Compose, add `init: true` to the service. In Kubernetes, set `shareProcessNamespace: true` or use a `tini` entrypoint. In ECS, enable `initProcessEnabled` in the container definition.
+
 The `max_browsers` setting in `technician.yml` caps concurrent Chromium instances using a channel-based semaphore. Additional probes queue until a slot opens or their timeout expires.
 
 ```yaml
