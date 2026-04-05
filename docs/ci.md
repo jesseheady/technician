@@ -56,7 +56,7 @@ It uses the pre-built Docker image with Chromium included and uploads HAR artifa
 Both workflows upload probe artifacts (HAR files, videos) so you can debug failures:
 
 ```yaml
-- uses: actions/upload-artifact@v4
+- uses: actions/upload-artifact@v7
   with:
     name: probe-results
     path: /tmp/technician/artifacts/
