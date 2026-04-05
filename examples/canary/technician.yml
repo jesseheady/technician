@@ -14,7 +14,3 @@ metrics:
 artifacts:
   driver: local
   path: /tmp/technician/artifacts
-  retention: 24h
-
-playwright:
-  mode: local
