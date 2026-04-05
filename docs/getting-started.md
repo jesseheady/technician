@@ -4,7 +4,7 @@ Get Technician running on your machine for local development and testing.
 
 ## Prerequisites
 
-- **Go 1.25+** – [go.dev/dl](https://go.dev/dl/)
+- **Go 1.26+** – [go.dev/dl](https://go.dev/dl/)
 - **macOS** – For the init script; other platforms see [Run without the script](#run-without-the-script) below.
 
 Optional (for full feature set):
@@ -268,7 +268,7 @@ Output formats: `--output text` (default), `--output json`, `--output gha` (GitH
 
 ## Run without the script
 
-1. Install Go 1.25+ and ensure `go` is on your `PATH`.
+1. Install Go 1.26+ and ensure `go` is on your `PATH`.
 2. From the repo root: `go mod download` then `go build -o technician .`.
 3. Copy examples to config: `cp -r examples/ config/` and customise.
 4. Run: `./technician worker --config config/technician.yml`.

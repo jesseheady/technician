@@ -145,7 +145,7 @@ stages:
 
 build:
   stage: build
-  image: golang:1.25
+  image: golang:1.26
   script:
     - CGO_ENABLED=0 go build -ldflags="-s -w" -o technician .
   artifacts:
@@ -154,7 +154,7 @@ build:
 
 test:
   stage: test
-  image: golang:1.25
+  image: golang:1.26
   script:
     - go test -race -coverprofile=coverage.out ./...
   artifacts:
@@ -185,7 +185,7 @@ version: 2.1
 jobs:
   build-and-test:
     docker:
-      - image: golang:1.25
+      - image: golang:1.26
     steps:
       - checkout
       - run: go test -race ./...
