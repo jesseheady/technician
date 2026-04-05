@@ -1,6 +1,7 @@
 services:
   technician:
     build: .
+    init: true
     ports:
       - "9590:9590"
     volumes:
