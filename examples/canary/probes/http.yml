@@ -1,0 +1,6 @@
+- name: canary-target
+  url: "${CANARY_URL}"
+  method: GET
+  schedule: "*/60 * * * * *"
+  timeout: 10s
+  expected_status: 200
