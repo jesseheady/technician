@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    "schedule:weekdays"
+  ],
+  "labels": ["dependencies"],
+  "postUpdateOptions": ["gomodTidy"],
+  "packageRules": [
+    {
+      "description": "Group all patch updates into a single PR",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "patch updates",
+      "automerge": true
+    },
+    {
+      "description": "Group all minor updates into a single PR",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "minor updates"
+    },
+    {
+      "description": "Group all GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": true
+    },
+    {
+      "description": "Group all OpenTelemetry packages",
+      "matchPackagePrefixes": ["go.opentelemetry.io/otel"],
+      "groupName": "opentelemetry"
+    },
+    {
+      "description": "Group all AWS SDK packages",
+      "matchPackagePrefixes": ["github.com/aws/aws-sdk-go-v2"],
+      "groupName": "aws-sdk-go-v2"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "dockerfile": {
+    "fileMatch": ["(^|/)Dockerfile$"]
+  }
+}
