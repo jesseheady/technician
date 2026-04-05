@@ -27,13 +27,15 @@
     },
     {
       "description": "Group all OpenTelemetry packages",
-      "matchPackagePrefixes": ["go.opentelemetry.io/otel"],
-      "groupName": "opentelemetry"
+      "matchPackageNames": ["go.opentelemetry.io/otel**"],
+      "groupName": "opentelemetry",
+      "automerge": true
     },
     {
       "description": "Group all AWS SDK packages",
-      "matchPackagePrefixes": ["github.com/aws/aws-sdk-go-v2"],
-      "groupName": "aws-sdk-go-v2"
+      "matchPackageNames": ["github.com/aws/aws-sdk-go-v2**"],
+      "groupName": "aws-sdk-go-v2",
+      "automerge": true
     }
   ],
   "vulnerabilityAlerts": {

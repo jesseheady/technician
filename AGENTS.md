@@ -105,7 +105,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. Skips for docs-only changes (paths-ignore on `docs/`, `dashboards/`, `examples/`, `scripts/`, `*.md`, `LICENSE`, `.github/dependabot.yml`). A `CI Passed` gate job aggregates all results for branch protection.
 - `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
-- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached.
+- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
 - `.github/dependabot.yml` – Weekly dependency updates for Go modules and GitHub Actions.
 
@@ -148,6 +148,18 @@ When a GitHub issue, roadmap item, or todo is completed:
 3. If the item was on a todo list, check it off or remove it.
 
 All three locations (issues, roadmap, todos) must stay in sync. The "Recently completed" section in the roadmap feeds into release notes when tagging a new version.
+
+## Companion edits
+
+Every code change should include a review of related docs, tests, and examples in the same branch and PR. Before marking a feature branch as ready:
+
+- **Docs** — Check `docs/deployment-sizing.md`, `docs/getting-started.md`, `docs/ci.md`, `README.md`, and architecture docs for any claims affected by the change (binary sizes, image sizes, probe counts, resource estimates, version numbers, diagrams).
+- **Tests** — Add or update tests that cover the changed behavior.
+- **Examples** — Update `examples/` configs if the change adds, removes, or renames config fields.
+- **Internal docs** — Update `docs/internal/` comparison docs if the change affects feature parity, resource footprint, or cost estimates.
+- **AGENTS.md** — Update this file if the change affects workflows, CI, deployment, or contributor-facing processes.
+
+Do not push docs-only or test-only changes directly to main. Bundle them with the feature branch so the PR captures the full scope of the change.
 
 ## Commit style
 

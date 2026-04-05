@@ -1,0 +1,16 @@
+service: technician-canary
+
+sites:
+  - code: ci
+    city: GitHub Actions
+    country: US
+    location_hash: ci
+    infra_provider: github
+
+metrics:
+  prometheus:
+    listen: ":9590"
+
+artifacts:
+  driver: local
+  path: /tmp/technician/artifacts
