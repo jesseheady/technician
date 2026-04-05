@@ -105,7 +105,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. Skips for docs-only changes (paths-ignore on `docs/`, `dashboards/`, `examples/`, `scripts/`, `*.md`, `LICENSE`, `.github/dependabot.yml`). A `CI Passed` gate job aggregates all results for branch protection.
 - `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
-- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached.
+- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
 - `.github/dependabot.yml` – Weekly dependency updates for Go modules and GitHub Actions.
 
