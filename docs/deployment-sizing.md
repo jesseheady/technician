@@ -4,7 +4,7 @@ Resource requirements, deployment topology, and scaling considerations.
 
 ## Context
 
-Technician is a static Go binary (14 MB, stripped) with no database, no runtime interpreter, and no background job system. Probes run as goroutines inside a single process. The main variable is whether you include **Playwright browser probes**, which require Node.js and Chromium.
+Technician is a static Go binary (15 MB, stripped) with no database, no runtime interpreter, and no background job system. Probes run as goroutines inside a single process. The main variable is whether you include **Playwright browser probes**, which require Node.js and Chromium.
 
 ## Measured resource usage
 
@@ -26,8 +26,8 @@ Numbers below were measured with 31 probes active across all 13 probe types (7 H
 | Go binary | 15 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
 | Docker image (with Playwright) | 1.62 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
 | Docker image (without Playwright) | ~80 MB | Alpine or distroless base + Go binary + mtr + ca-certificates |
-| Prometheus image | 303 MB | |
-| Grafana image | 693 MB | |
+| Prometheus image | ~300 MB | |
+| Grafana image | ~550 MB | |
 
 ### Playwright overhead
 
@@ -102,42 +102,32 @@ Technician includes several layers of optimization to minimize resource usage an
 
 Technician is designed as a set of independent components. You can run everything on one box or spread across multiple hosts. Here's the full picture:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Your infrastructure                      │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  Technician   │  │  Technician   │  │  Technician   │     │
-│  │  worker       │  │  worker       │  │  worker       │     │
-│  │  us-east-1    │  │  us-west-2    │  │  eu-west-1    │     │
-│  │  :9590        │  │  :9590        │  │  :9590        │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                  │                  │               │
-│         │    ┌─────────────┴─────────────┐   │               │
-│         └───►│     Prometheus (central)   │◄──┘               │
-│              │     scrapes all workers    │                   │
-│              │     :9090                  │                   │
-│              └─────────────┬─────────────┘                   │
-│                            │                                 │
-│              ┌─────────────▼─────────────┐                   │
-│              │     Grafana (central)      │                   │
-│              │     dashboards + alerts    │                   │
-│              │     :3000                  │                   │
-│              └───────────────────────────┘                   │
-│                                                              │
-│  Optional:                                                   │
-│  ┌──────────────┐  ┌──────────────┐                         │
-│  │  Pushgateway  │  │  Alertmanager │                        │
-│  │  for edge     │  │  notifications│                        │
-│  │  :9091        │  │  :9093        │                        │
-│  └──────────────┘  └──────────────┘                         │
-│                                                              │
-│  Edge (no long-lived process):                               │
-│  ┌──────────────┐  ┌──────────────┐                         │
-│  │  Lambda       │  │  CF Worker    │──push──► Pushgateway   │
-│  │  scheduled    │  │  HTTP probes  │                        │
-│  └──────────────┘  └──────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Workers
+        W1["Technician worker<br/>us-east-1 :9590"]
+        W2["Technician worker<br/>us-west-2 :9590"]
+        W3["Technician worker<br/>eu-west-1 :9590"]
+    end
+
+    W1 --> P["Prometheus (central)<br/>scrapes all workers :9090"]
+    W2 --> P
+    W3 --> P
+    P --> G["Grafana (central)<br/>dashboards + alerts :3000"]
+
+    subgraph Optional
+        PG["Pushgateway :9091<br/>for edge workers"]
+        AM["Alertmanager :9093<br/>notifications"]
+    end
+
+    subgraph Edge
+        L["Lambda<br/>scheduled"]
+        CF["CF Worker<br/>HTTP probes"]
+    end
+
+    L -->|push| PG
+    CF -->|push| PG
+    P --> AM
 ```
 
 ### Component roles
@@ -178,27 +168,17 @@ Separate concerns for reliability and geographic coverage:
 
 One repo produces multiple deployment targets. Here's what ships where and how:
 
-```
-                        ┌─────────────────────┐
-                        │   technician repo    │
-                        └──────────┬──────────┘
-                                   │
-               ┌───────────────────┼───────────────────┐
-               │                   │                   │
-               ▼                   ▼                   ▼
-    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-    │  Go binary        │ │  Docker image     │ │  JS Worker       │
-    │  `go build`       │ │  `docker build`   │ │  `wrangler`      │
-    │                   │ │                   │ │                   │
-    │  14 MB, static    │ │  1.6 GB (full)    │ │  < 1 MB bundle   │
-    │  No dependencies  │ │  80 MB  (slim)    │ │  HTTP probes only │
-    └────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
-             │                    │                     │
-     ┌───────┴───────┐   ┌───────┴───────┐            │
-     │               │   │               │            │
-     ▼               ▼   ▼               ▼            ▼
-   VPS/EC2        Lambda  ECS/K8s     Lambda      CF Workers
-  (systemd)    (container) (task)  (container)    (edge PoPs)
+```mermaid
+graph TD
+    R["technician repo"] --> B["Go binary<br/>go build<br/>~15 MB, static"]
+    R --> D["Docker image<br/>docker build<br/>~1.6 GB full / ~80 MB slim"]
+    R --> J["JS Worker<br/>wrangler<br/>< 1 MB, HTTP probes only"]
+
+    B --> VPS["VPS / EC2<br/>(systemd)"]
+    B --> LAM1["Lambda<br/>(container)"]
+    D --> ECS["ECS / K8s<br/>(task)"]
+    D --> LAM2["Lambda<br/>(container)"]
+    J --> CF["CF Workers<br/>(edge PoPs)"]
 ```
 
 ### What each target runs
@@ -344,22 +324,23 @@ The built-in status page at each worker's `:9590/` is a **per-worker view** — 
 
 A complete multi-region deployment from this repo:
 
-```
-┌─ Your repo ──────────────────────────────────────────────┐
-│                                                           │
-│  go build ──► binary ──► scp to VPS (us-east-1)          │
-│                     └──► scp to VPS (eu-west-1)           │
-│                                                           │
-│  docker build ──► image ──► ECR ──► ECS (us-west-2)      │
-│                         └──► Lambda (ap-southeast-1)      │
-│                                                           │
-│  wrangler deploy ──► CF Worker (global edge PoPs)         │
-│                                                           │
-│  docker compose up ──► Prometheus + Grafana (central VPS) │
-│                                                           │
-│  prometheus/ ──► rules.yml, scrape config (central)       │
-│  dashboards/ ──► Grafana provisioned dashboards           │
-└───────────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph "Your repo"
+        GB["go build"] --> BIN["binary"]
+        DB["docker build"] --> IMG["image"]
+        WR["wrangler deploy"]
+        DC["docker compose up"]
+        CFG["prometheus/ + dashboards/"]
+    end
+
+    BIN -->|scp| VPS1["VPS (us-east-1)"]
+    BIN -->|scp| VPS2["VPS (eu-west-1)"]
+    IMG -->|ECR| ECS["ECS (us-west-2)"]
+    IMG --> LAM["Lambda (ap-southeast-1)"]
+    WR --> CF["CF Worker (global edge)"]
+    DC --> CENTRAL["Prometheus + Grafana (central VPS)"]
+    CFG --> CENTRAL
 ```
 
 All probe results — from VPS workers, ECS tasks, Lambda functions, and Cloudflare Workers — end up in the same central Prometheus. Grafana queries that one Prometheus and shows everything on the same dashboards, filterable by `region` and probe type.
@@ -471,10 +452,10 @@ All storage is bounded. No container grows without a configured limit or automat
 | Container | Docker image | Named volume | Data at first boot |
 |-----------|-------------|-------------|-------------------|
 | Technician | 1.62 GB (with Playwright) / 80 MB (without) | `technician_data` | Empty `status.json` (~1 KB) |
-| Prometheus | 303 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
-| Grafana | 693 MB | `grafana_data` | SQLite database (~5 MB) |
-| Alertmanager | 100 MB | None (ephemeral) | Silence + notification log (~100 KB) |
-| **Total** | **~2.7 GB** (with Playwright) | | |
+| Prometheus | ~300 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
+| Grafana | ~550 MB | `grafana_data` | SQLite database (~5 MB) |
+| Alertmanager | ~75 MB | None (ephemeral) | Silence + notification log (~100 KB) |
+| **Total** | **~2.5 GB** (with Playwright) | | |
 
 **Steady-state growth (per day, 31 probes, 15s scrape interval)**
 
@@ -694,36 +675,54 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 | RAM | 1 GB (no Playwright) | 2 GB (with Playwright) |
 | Disk | 5 GB | 10 GB (90d Prometheus retention + Grafana + artifacts) |
 
-A $4–6/mo VPS (1 vCPU, 1 GB) handles this comfortably without Playwright. Grafana is the heaviest component (~300 MB RSS). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~700 MB of image + ~300 MB of RAM.
+A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest component (~300 MB RSS). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~700 MB of image + ~300 MB of RAM.
 
 ### Full spread, multi-region
 
-The "all in" deployment for production monitoring from multiple vantage points:
+The "all in" deployment: one Technician worker per region, one central Prometheus + Grafana instance. Each worker is independently provisioned — providers can be mixed freely since Prometheus just scrapes each worker's public IP.
 
-| Component | Instances | Specs each | Monthly cost estimate |
-|-----------|-----------|------------|----------------------|
-| Technician worker (no Playwright) | 1 per region | 1 vCPU, 256 MB, 1 GB disk | $2.50–5 |
-| Technician worker (with Playwright) | 1 per region | 1 vCPU, 1 GB, 3 GB disk | $5–6 |
-| Prometheus + Alertmanager | 1 central | 1 vCPU, 1 GB, 20 GB disk | $5–6 |
-| Grafana | 1 central | 1 vCPU, 1 GB, 5 GB disk | $5–6 (or free on Grafana Cloud) |
-| Pushgateway (if using edge) | 1 central | 1 vCPU, 256 MB | Collocate with Prometheus |
+| Component | Instances | Specs each |
+|-----------|-----------|------------|
+| Technician worker (no Playwright) | 1 per region | 1 vCPU, 256 MB, 1 GB disk |
+| Technician worker (with Playwright) | 1 per region | 1 vCPU, 1 GB, 3 GB disk |
+| Prometheus + Alertmanager + Grafana | 1 central | 2 vCPU, 2 GB, 20 GB disk |
+| Pushgateway (if using edge workers) | 1 central | Collocate with Prometheus |
 
-**Example: 3 regions, with Playwright, self-hosted Grafana**
+### VPS providers
 
-| | Count | Per unit | Total |
-|--|-------|----------|-------|
-| Workers | 3 | ~$6/mo | $18/mo |
-| Prometheus + Grafana | 1 | ~$10/mo | $10/mo |
-| **Total** | | | **~$28/mo** |
+The providers below all have official Terraform providers, proper APIs, and strong reliability reputations. All run the Docker Compose stack without modification — SSH in, clone the repo, `docker compose up -d`. Pick by coverage needed:
 
-**Example: 3 regions, HTTP-only probes, Grafana Cloud free tier**
+| Provider | Regions | Worker (no PW) | Worker (PW) | Full stack | Best for |
+|----------|---------|----------------|-------------|------------|----------|
+| **Hetzner** | US (2), EU (3), SG | ~$4/mo | ~$9/mo | ~$4–17/mo | Best value; US + EU coverage |
+| **Linode/Akamai** | US, EU, JP, SG, IN, AU (11+, expanding) | ~$5/mo | ~$12/mo | ~$12–48/mo | US + EU + Asia-Pacific |
+| **Vultr** | 32 cities, 19 countries | ~$5/mo | ~$12/mo | ~$10–48/mo | True global (LATAM, Africa, Middle East) |
+| **DigitalOcean** | US, EU, SG, AU, IN (10) | ~$6/mo | ~$12/mo | ~$12–48/mo | Best docs and ecosystem |
 
-| | Count | Per unit | Total |
-|--|-------|----------|-------|
-| Workers | 3 | ~$3/mo | $9/mo |
-| Prometheus | 1 | ~$5/mo | $5/mo |
-| Grafana Cloud | 1 | free | $0 |
-| **Total** | | | **~$14/mo** |
+Hetzner ARM instances (CAX series) are EU-only but their x86 plans (CX series) are available in the US. Vultr is the only provider with coverage in South America, Africa, and the Middle East.
+
+**Example: 3-region deployment (Playwright, self-hosted Grafana)**
+
+| Coverage | Provider | Workers (3×) | Central stack | Total |
+|----------|----------|-------------|---------------|-------|
+| US + EU | Hetzner | 3 × ~$5 | ~$9 | **~$24/mo** |
+| US + EU + APAC | Linode | 3 × ~$12 | ~$12 | **~$48/mo** |
+| Global (5+ continents) | Vultr | 3 × ~$12 | ~$12 | **~$48/mo** |
+| Cost-optimized global | Hetzner (US/EU) + Vultr (APAC) | 2 × $5 + 1 × $12 | ~$9 | **~$31/mo** |
+
+For HTTP-only probes without Playwright, halve the worker costs. Using Grafana Cloud (free tier) instead of self-hosted saves ~$4–6/mo on the central stack.
+
+**S3-compatible object storage (for `artifacts.driver: s3`)**
+
+| Provider | Price | Egress | Notes |
+|----------|-------|--------|-------|
+| Cloudflare R2 | $0.015/GB/mo | Free | Works from any provider |
+| Hetzner | ~$5.40/mo (1 TB incl.) | EUR 1/TB | |
+| DigitalOcean Spaces | $5/mo (250 GB incl.) | $0.01/GB | CDN included |
+| Linode | $5/mo (250 GB incl.) | $0.005/GB | |
+| Vultr | $5/mo (250 GB incl.) | $0.01/GB | |
+
+**AWS** — The same stack on AWS (ECS Fargate) costs 4–6x more due to managed-service overhead. See `examples/cloudformation/` for pre-built templates if AWS is a requirement.
 
 ### AWS Lambda
 
