@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Run canary probes
-        run: technician validate --config canary.yml --budget budgets.yml --output gha
+        run: technician validate --config examples/canary/technician.yml --budget examples/budgets.yml --output gha
         env:
           CANARY_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.target_url || github.event.deployment_status.environment_url }}
 
