@@ -149,6 +149,18 @@ When a GitHub issue, roadmap item, or todo is completed:
 
 All three locations (issues, roadmap, todos) must stay in sync. The "Recently completed" section in the roadmap feeds into release notes when tagging a new version.
 
+## Companion edits
+
+Every code change should include a review of related docs, tests, and examples in the same branch and PR. Before marking a feature branch as ready:
+
+- **Docs** — Check `docs/deployment-sizing.md`, `docs/getting-started.md`, `docs/ci.md`, `README.md`, and architecture docs for any claims affected by the change (binary sizes, image sizes, probe counts, resource estimates, version numbers, diagrams).
+- **Tests** — Add or update tests that cover the changed behavior.
+- **Examples** — Update `examples/` configs if the change adds, removes, or renames config fields.
+- **Internal docs** — Update `docs/internal/` comparison docs if the change affects feature parity, resource footprint, or cost estimates.
+- **AGENTS.md** — Update this file if the change affects workflows, CI, deployment, or contributor-facing processes.
+
+Do not push docs-only or test-only changes directly to main. Bundle them with the feature branch so the PR captures the full scope of the change.
+
 ## Commit style
 
 Single-line commit messages. No multi-line body. No Co-Authored-By trailers.
