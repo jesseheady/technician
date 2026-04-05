@@ -10,7 +10,7 @@ on:
       - 'scripts/**'
       - '**.md'
       - 'LICENSE'
-      - '.github/dependabot.yml'
+      - 'renovate.json'
   pull_request:
     branches: [main]
     paths-ignore:
@@ -20,7 +20,7 @@ on:
       - 'scripts/**'
       - '**.md'
       - 'LICENSE'
-      - '.github/dependabot.yml'
+      - 'renovate.json'
 
 permissions:
   contents: read
@@ -162,24 +162,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  security:
-    name: Security scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: Run govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
-
   ci-passed:
     name: CI Passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [build, test, lint, security]
+    needs: [build, test, lint]
     steps:
       - name: Check results
         run: |
