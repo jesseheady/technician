@@ -15,9 +15,6 @@ jobs:
   filesystem:
     name: Scan Go dependencies
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -26,24 +23,14 @@ jobs:
         with:
           scan-type: fs
           scan-ref: .
-          format: sarif
-          output: trivy-fs.sarif
+          format: table
           severity: CRITICAL,HIGH
-
-      - name: Upload SARIF to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-filesystem
+          exit-code: '1'
 
   container:
     name: Scan container image
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -64,13 +51,6 @@ jobs:
         with:
           scan-type: image
           image-ref: technician:scan
-          format: sarif
-          output: trivy-image.sarif
+          format: table
           severity: CRITICAL,HIGH
-
-      - name: Upload SARIF to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-image.sarif
-          category: trivy-container
+          exit-code: '1'
