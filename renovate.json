@@ -11,15 +11,21 @@
     {
       "description": "Group all patch updates into a single PR",
       "matchUpdateTypes": ["patch"],
-      "excludePackageNames": ["go.opentelemetry.io/otel**", "github.com/aws/aws-sdk-go-v2**"],
       "groupName": "patch updates",
-      "automerge": true
+      "automerge": true,
+      "matchPackageNames": [
+        "!go.opentelemetry.io/otel**",
+        "!github.com/aws/aws-sdk-go-v2**"
+      ]
     },
     {
       "description": "Group all minor updates into a single PR",
       "matchUpdateTypes": ["minor"],
-      "excludePackageNames": ["go.opentelemetry.io/otel**", "github.com/aws/aws-sdk-go-v2**"],
-      "groupName": "minor updates"
+      "groupName": "minor updates",
+      "matchPackageNames": [
+        "!go.opentelemetry.io/otel**",
+        "!github.com/aws/aws-sdk-go-v2**"
+      ]
     },
     {
       "description": "Group all GitHub Actions minor and patch updates",
