@@ -49,7 +49,10 @@ else
 fi
 
 if command -v node &>/dev/null; then
-  info "Node: $(node -v) (Playwright probes can use local Node)"
+  info "Node: $(node -v)"
+  info "Installing Playwright + Chromium for browser probes..."
+  (cd internal/playwright/scripts && npm init -y && npm install playwright && npx playwright install chromium) 2>&1 | tail -1
+  info "Playwright ready"
 else
   warn "Node not found. Playwright probes need Node.js (or run via Docker)."
 fi
