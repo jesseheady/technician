@@ -59,15 +59,24 @@
       },
       {
         "name": "type",
-        "type": "custom",
-        "query": "tcp,dns,icmp,grpc,ntp,tls,udp,bgp,domain_expiry",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(technician_probe_infra_error, type)",
+        "query": {
+          "query": "label_values(technician_probe_infra_error, type)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
         "current": {
           "selected": true,
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "refresh": 2
       }
     ]
   },
@@ -137,10 +146,59 @@
       }
     },
     {
+      "id": 102,
+      "title": "Probe Infrastructure Errors",
+      "description": "Probes whose own infrastructure is broken (e.g. missing Chromium, blocked API access). These probes are NOT testing their targets and produce no uptime data.",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "technician_probe_infra_error{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 1",
+          "instant": true,
+          "legendFormat": "{{name}} ({{type}}) @ {{region}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No infra errors",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": { "text": "INFRA ERROR", "color": "orange" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "title": "Filter to this probe →",
+              "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=${__field.labels.type}&var-region=${__field.labels.region}&${__url_time_range}"
+            }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
       "id": 101,
       "title": "Probe Duration (All Infrastructure)",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 2 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
