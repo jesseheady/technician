@@ -192,6 +192,30 @@ groups:
           summary: "High error rate for {{ $labels.name }}"
           description: "More than 50% of probes for {{ $labels.name }} are failing."
 
+  # ── Prometheus self-monitoring ──────────────────────────────────
+  # Requires the "prometheus" scrape job in prometheus.yml.
+  - name: prometheus_storage
+    rules:
+      - alert: PrometheusStorageHigh
+        expr: |
+          (prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes)
+          / (5 * 1024 * 1024 * 1024) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus storage above 80% of 5GB limit"
+          description: "Prometheus TSDB is using {{ $value | humanizePercentage }} of its 5GB retention limit. Consider pruning Docker resources or increasing --storage.tsdb.retention.size."
+
+      - alert: PrometheusWALCorruptions
+        expr: increase(prometheus_tsdb_wal_corruptions_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus WAL corruption detected"
+          description: "WAL corruption events detected in the last hour. This often indicates disk I/O failures (full disk, failing storage)."
+
       # ── Test alert ──────────────────────────────────────────────
       # Uncomment to validate the full alert pipeline:
       #   Prometheus rule → Alertmanager → receiver (Discord, Slack, etc.)
