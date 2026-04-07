@@ -474,7 +474,7 @@ All storage is bounded. No container grows without a configured limit or automat
 | Probe history (ring buffer) | 90 entries per probe (~45 min at 30s, ~3h at 2min, ~7.5h at 5min) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
 | Status backups | 90 days | No (compile-time) | Change retention in `SaveBackup()` in `internal/status/store.go` |
 | Playwright artifacts | 72h | Yes | `artifacts.retention` in `technician.yml` |
-| Prometheus time-series | 90 days | Yes | `--storage.tsdb.retention.time=` in `docker-compose.yml` Prometheus command |
+| Prometheus time-series | 90 days / 5 GB (whichever first) | Yes | `--storage.tsdb.retention.time` and `--storage.tsdb.retention.size` in `docker-compose.yml` Prometheus command |
 | Grafana data | Indefinite (< 10 MB) | N/A | N/A |
 
 **Scaling by probe count (steady-state at 90-day retention)**
@@ -496,6 +496,32 @@ All storage is bounded. No container grows without a configured limit or automat
 | Production (no Playwright) | 5–10 GB | 90d Prometheus retention, 90d status backups |
 | Production (with Playwright + video) | 10–20 GB | Artifact accumulation at 72h retention |
 | 500+ probes | 20–50 GB | 90d Prometheus retention at high cardinality |
+
+### Prometheus storage safeguards
+
+The `docker-compose.yml` includes guards to prevent Prometheus from exhausting disk. These were added after an incident where the shared Docker VM disk filled up (from dangling images and build cache), causing Prometheus WAL writes to fail with "no space left on device" — all queries returned empty and historical data was lost.
+
+| Flag | Value | Purpose |
+|------|-------|---------|
+| `--storage.tsdb.retention.time` | `90d` | Delete blocks older than 90 days |
+| `--storage.tsdb.retention.size` | `5GB` | Hard cap on total block size — deletes oldest blocks when exceeded, even if younger than 90d |
+| `--storage.tsdb.wal-compression` | (enabled) | Compresses WAL segments (~30–50% smaller), reducing peak disk usage |
+
+When both time and size retention are set, Prometheus deletes data when **either** limit is breached (whichever comes first). Under normal load (31 probes, ~2 GB at 90d), the time limit applies. Under disk pressure, the size limit kicks in and evicts old blocks to stay under 5 GB.
+
+**WAL is not bounded by `retention.size`** — the WAL holds the most recent ~2 hours of uncompacted data. For this workload (371 series at 15s scrape), the WAL stays under 200 MB. WAL compression reduces this further.
+
+**Tuning `retention.size` for larger deployments:**
+
+| Probes | 90d block size (est.) | Recommended `retention.size` |
+|--------|----------------------|------------------------------|
+| 10–50 | 0.6–1.8 GB | `5GB` (default in compose) |
+| 100 | ~3 GB | `8GB` |
+| 500 | ~12 GB | `25GB` |
+
+**Alert rules:** `PrometheusStorageHigh` fires at 80% of the size cap. `PrometheusWALCorruptions` fires immediately on WAL corruption. Both require the `prometheus` self-scrape job in `prometheus.yml`.
+
+**Docker disk management:** The Prometheus-level guards protect against TSDB growth, but the original incident was caused by Docker VM disk exhaustion from dangling images and build cache. To prevent recurrence: run `docker system prune --all --force` periodically, set Docker Desktop disk size above 20 GB, and add `docker builder prune --force` as a post-build step in CI.
 
 ### Status store scaling
 
