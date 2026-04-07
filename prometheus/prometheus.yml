@@ -27,3 +27,10 @@ scrape_configs:
       - targets:
           - technician:9590
     scrape_interval: 15s
+
+  # Self-monitoring — exposes prometheus_tsdb_* metrics for storage alerts.
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+    scrape_interval: 30s
