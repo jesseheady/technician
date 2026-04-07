@@ -172,6 +172,15 @@ groups:
           summary: "Domain not registered for {{ $labels.name }}"
           description: "Domain {{ $labels.name }} is not found in RDAP (may have expired or been dropped)."
 
+      - alert: ProbeInfraError
+        expr: technician_probe_infra_error == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.name }} has infrastructure errors"
+          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The probe is not testing its target — check logs for details (missing dependencies, network access, permissions)."
+
       - alert: HighErrorRate
         expr: |
           sum by (name) (technician_probe_up == 0)

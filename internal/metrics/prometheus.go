@@ -218,6 +218,13 @@ var (
 		Help: "Whether the domain is currently registered (1=registered, 0=not found)",
 	}, []string{"name", "region", "city", "country"})
 
+	// Infrastructure error indicator — recorded even when InfraError=true
+	// so that silently-failing probes become visible in dashboards and alerts.
+	probeInfraError = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_probe_infra_error",
+		Help: "1 if the probe's own infrastructure failed (not the target), 0 otherwise",
+	}, []string{"type", "name", "region", "city", "country"})
+
 	// Degraded indicator
 	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
@@ -264,6 +271,7 @@ func init() {
 		bgpOriginMatch,
 		domainExpiryDays,
 		domainRegistered,
+		probeInfraError,
 		probeDegraded,
 	)
 }
@@ -273,11 +281,20 @@ func Handler() http.Handler {
 }
 
 func RecordResult(result *probe.Result) {
-	// Don't record metrics for infrastructure errors — the probe didn't
-	// actually test the target, so probe_up=0 would be misleading.
+	labels := siteLabels(result)
+	typeStr := string(result.Type)
+
 	if result.InfraError {
+		// Record that this probe's infrastructure failed so dashboards and
+		// alerts can surface silently-broken probes. We still skip the
+		// target-level metrics (probe_up, duration, etc.) because they
+		// would be misleading — the target was never actually tested.
+		probeInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(1)
 		return
 	}
+
+	// Clear any previous infra-error state now that the probe ran normally.
+	probeInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(0)
 
 	// Guard against label-cardinality explosion. If more unique probe names
 	// appear than maxProbeCardinality, skip recording to protect Prometheus.
@@ -295,9 +312,6 @@ func RecordResult(result *probe.Result) {
 		seenProbeNames[result.Name] = struct{}{}
 	}
 	cardinalityMu.Unlock()
-
-	labels := siteLabels(result)
-	typeStr := string(result.Type)
 
 	up := float64(0)
 	if result.Success {
