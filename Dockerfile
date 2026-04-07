@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /technician .
 
-FROM node:22-slim
+FROM node:24-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
