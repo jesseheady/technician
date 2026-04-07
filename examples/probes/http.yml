@@ -96,6 +96,14 @@
 #       header: Content-Security-Policy
 #       target: "default-src"
 
+# Follow redirects (e.g. HTTP→HTTPS):
+# - name: example.com (follow)
+#   url: http://example.com
+#   expected_status: 200
+#   follow_redirects: true
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 3s
+
 # Skip TLS verification (self-signed certs):
 # - name: internal-service
 #   url: https://internal.example.com
