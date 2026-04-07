@@ -35,3 +35,12 @@
     cls: 0.15
     dom_complete: 8000
   alert_on: exceed
+
+- probe: "example.com (mobile 3g)"
+  thresholds:
+    duration: 45000
+    lcp: 6000
+    inp: 500
+    cls: 0.2
+    dom_complete: 15000
+  alert_on: exceed

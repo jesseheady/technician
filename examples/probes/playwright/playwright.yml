@@ -35,12 +35,16 @@
     backoff: none
     delay: 5s
 
-# Slow network example:
-# - name: "example.com (mobile 3g)"
-#   script: playwright/example_flow.js
-#   base_url: "https://example.com"
-#   network: "3g"
-#   device: "iPhone 14"
-#   schedule: "0 */10 * * * *"
-#   timeout: 180s
-#   degraded_after: 20s
+- name: "example.com (mobile 3g)"
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://example.com"
+  network: "3g"
+  device: "iPhone 14"
+  schedule: "0 */10 * * * *"
+  timeout: 180s
+  degraded_after: 20s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
