@@ -215,9 +215,12 @@ async function collectWebVitals(page) {
           onCLS((m) => { result.cls = m.value; resolve(); }, { reportAllChanges: true });
         });
 
-        // Force LCP/CLS to finalize by simulating a visibility change
-        // (web-vitals reports LCP on visibilitychange or page hide)
+        // Force LCP/CLS to finalize by simulating a visibility change.
+        // web-vitals v4 checks document.visibilityState === 'hidden'
+        // before reporting final values, so we must override the
+        // read-only property before dispatching the event.
         await new Promise((r) => setTimeout(r, 100));
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
         document.dispatchEvent(new Event('visibilitychange'));
 
         await Promise.race([
@@ -240,6 +243,7 @@ async function collectWebVitals(page) {
         return new Promise((resolve) => {
           onINP((m) => resolve(m.value), { reportAllChanges: true });
           // Force INP to report via visibility change
+          Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
           document.dispatchEvent(new Event('visibilitychange'));
           setTimeout(() => resolve(0), 1000);
         });
