@@ -59,15 +59,24 @@
       },
       {
         "name": "type",
-        "type": "custom",
-        "query": "tcp,dns,icmp,grpc,ntp,tls,udp,bgp,domain_expiry",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(technician_probe_infra_error, type)",
+        "query": {
+          "query": "label_values(technician_probe_infra_error, type)",
+          "refId": "A"
+        },
         "includeAll": true,
         "multi": true,
         "current": {
           "selected": true,
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "refresh": 2
       }
     ]
   },
