@@ -45,6 +45,13 @@
       "matchPackageNames": ["github.com/aws/aws-sdk-go-v2**"],
       "groupName": "aws-sdk-go-v2",
       "automerge": true
+    },
+    {
+      "description": "Pin and group Docker base image digest updates, weekly Monday",
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true,
+      "groupName": "docker base images",
+      "schedule": ["before 9am on monday"]
     }
   ],
   "vulnerabilityAlerts": {
