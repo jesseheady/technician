@@ -16,7 +16,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY internal/playwright/scripts/ /opt/technician/playwright/
-RUN cd /opt/technician/playwright && npm init -y && npm install playwright && npx playwright install --with-deps chromium
+RUN cd /opt/technician/playwright && npm ci && npx playwright install --with-deps chromium
 ENV NODE_PATH=/opt/technician/playwright/node_modules
 
 COPY --from=builder /technician /usr/local/bin/technician
