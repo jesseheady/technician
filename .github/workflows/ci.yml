@@ -116,8 +116,7 @@ jobs:
       - name: Install Playwright + Chromium
         run: |
           cd internal/playwright/scripts
-          npm init -y
-          npm install playwright
+          npm ci
           npx playwright install chromium
 
       - name: Download binary
