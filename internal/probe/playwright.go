@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
@@ -103,6 +105,7 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, "node", p.RunnerPath, string(configJSON))
+	cmd.Env = playwrightEnv()
 	output, err := cmd.Output()
 	result.Duration = time.Since(start)
 
@@ -149,4 +152,22 @@ func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, sit
 	)
 
 	return result
+}
+
+// playwrightEnv returns the process environment with NODE_PATH set to the local
+// node_modules directory when not already configured externally (CI, Docker).
+func playwrightEnv() []string {
+	env := os.Environ()
+	for _, e := range env {
+		if len(e) > 10 && e[:10] == "NODE_PATH=" {
+			return env
+		}
+	}
+	localModules := filepath.Join("internal", "playwright", "scripts", "node_modules")
+	if abs, err := filepath.Abs(localModules); err == nil {
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			return append(env, "NODE_PATH="+abs)
+		}
+	}
+	return env
 }

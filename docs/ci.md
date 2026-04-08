@@ -10,7 +10,7 @@ How to run Technician in CI pipelines. GitHub Actions is first-class with a read
 | **Test** | `go test -race ./...` with coverage | Yes |
 | **Lint** | `go vet ./...` | Yes |
 | **Validate** | Runs all probes once, checks performance budgets | Recommended |
-| **Validate (Playwright)** | Same as validate, but with Chromium installed for browser probes | Optional |
+| **Validate (Playwright)** | Same as validate, but with Chromium installed for browser probes | Yes |
 | **Docker build** | Builds the container image | On main branch |
 
 ## GitHub Actions
@@ -79,7 +79,7 @@ Browser probes need Node.js + Chromium. Two approaches:
     cd internal/playwright/scripts
     npm init -y
     npm install playwright
-    npx playwright install --with-deps chromium
+    npx playwright install chromium
 ```
 
 **Option B: Use the Docker image** (used in `canary.yml`)
@@ -168,7 +168,7 @@ validate:
   image: node:22-slim
   before_script:
     - apt-get update && apt-get install -y ca-certificates
-    - cd internal/playwright/scripts && npm init -y && npm install playwright && npx playwright install --with-deps chromium && cd -
+    - cd internal/playwright/scripts && npm init -y && npm install playwright && npx playwright install chromium && cd -
   script:
     - ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output json
   artifacts:
@@ -205,7 +205,7 @@ jobs:
       - run: |
           cd internal/playwright/scripts
           npm init -y && npm install playwright
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output json
       - store_artifacts:
           path: /tmp/technician/artifacts/

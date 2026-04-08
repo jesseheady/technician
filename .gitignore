@@ -25,6 +25,11 @@ Thumbs.db
 # Internal docs (comparison with internal projects, decision logs, cost analysis)
 /docs/internal/
 
+# Playwright local install (npm artifacts)
+internal/playwright/scripts/node_modules/
+internal/playwright/scripts/package.json
+internal/playwright/scripts/package-lock.json
+
 # Environment
 .env
 .env.*
