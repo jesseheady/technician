@@ -27,8 +27,6 @@ Thumbs.db
 
 # Playwright local install (npm artifacts)
 internal/playwright/scripts/node_modules/
-internal/playwright/scripts/package.json
-internal/playwright/scripts/package-lock.json
 
 # Environment
 .env
