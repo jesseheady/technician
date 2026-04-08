@@ -121,7 +121,7 @@ The `--output gha` flag emits GitHub Actions annotations for budget violations, 
 
 For Playwright probes in CI, either:
 - Use the pre-built Docker image (includes Chromium): `container: ghcr.io/your-org/technician:latest`
-- Or install Playwright in the job: `npx playwright install --with-deps chromium`
+- Or install Playwright in the job: `npx playwright install chromium`
 
 See `.github/workflows/ci.yml` for a complete example.
 
