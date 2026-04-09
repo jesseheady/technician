@@ -9,13 +9,45 @@ route:
   receiver: chatops
   routes:
     # Critical alerts go to the pager AND continue to chatops.
-    - match:
-        severity: critical
+    - matchers:
+        - severity = critical
       receiver: pager
       repeat_interval: 1h
       continue: true
+      # Silence pager during deploys:
+      # mute_time_intervals: ['maintenance']
     # All alerts (warnings + criticals via continue) go to chatops.
     - receiver: chatops
+      # Only notify during work hours:
+      # active_time_intervals: ['business-hours']
+
+# ── Time intervals ────────────────────────────────────────────────
+# Named time windows for use in routes above. Reference them as:
+#   mute_time_intervals: ['maintenance']     — silence during this window
+#   active_time_intervals: ['business-hours'] — only notify during this window
+#
+# All times are UTC. Intervals have no effect until a route references them.
+time_intervals:
+  # Weekly maintenance / deploy window. Adjust day and times to suit.
+  - name: maintenance
+    time_intervals:
+      - weekdays: ['tuesday']
+        times:
+          - start_time: '02:00'
+            end_time: '04:00'
+
+  # Weekends (Saturday and Sunday, all day).
+  - name: weekends
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']
+
+  # Business hours (weekdays 09:00–18:00 UTC).
+  - name: business-hours
+    time_intervals:
+      - weekdays: ['monday:friday']
+        times:
+          - start_time: '09:00'
+            end_time: '18:00'
 
 receivers:
   - name: chatops
@@ -67,15 +99,15 @@ receivers:
 
 inhibit_rules:
   # Critical alerts suppress warning alerts for the same probe.
-  - source_match:
-      severity: critical
-    target_match:
-      severity: warning
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
     equal: ['name']
 
   # Aggregate error rate warning suppresses individual probe failure warnings.
-  - source_match:
-      alertname: HighErrorRateWarn
-    target_match:
-      alertname: ProbeFailing
+  - source_matchers:
+      - alertname = HighErrorRateWarn
+    target_matchers:
+      - alertname = ProbeFailing
     equal: ['name']
