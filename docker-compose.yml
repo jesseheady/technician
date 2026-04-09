@@ -42,7 +42,7 @@ services:
       start_period: 15s
 
   alertmanager:
-    image: prom/alertmanager:v0.31.1
+    image: prom/alertmanager:v0.32.0
     ports:
       - "9093:9093"
     volumes:
