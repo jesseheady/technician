@@ -6,16 +6,20 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  receiver: default
+  receiver: chatops
   routes:
+    # Critical alerts go to the pager AND continue to chatops.
     - match:
         severity: critical
-      receiver: default
+      receiver: pager
       repeat_interval: 1h
+      continue: true
+    # All alerts (warnings + criticals via continue) go to chatops.
+    - receiver: chatops
 
 receivers:
-  - name: default
-    # Uncomment and configure one or more integrations:
+  - name: chatops
+    # Uncomment and configure one or more chat integrations:
     #
     # Slack:
     # slack_configs:
@@ -25,58 +29,53 @@ receivers:
     #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
     #     send_resolved: true
     #
-    # Discord (via alertmanager-discord bridge).
-    # Discord's API rejects Alertmanager's native Slack attachment format,
-    # so a bridge container is required. For simpler Discord notifications,
-    # use native webhooks in technician.yml instead (no bridge needed).
-    # See: https://github.com/benjojo/alertmanager-discord
+    # Discord (via alertmanager-discord bridge):
+    # See https://github.com/benjojo/alertmanager-discord
     # webhook_configs:
     #   - url: 'http://alertmanager-discord:9094'
     #     send_resolved: true
+
+  - name: pager
+    # Uncomment and configure a paging integration:
     #
     # PagerDuty:
     # pagerduty_configs:
     #   - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
     #     severity: '{{ if eq .GroupLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
     #
-    # Telegram:
-    # telegram_configs:
-    #   - bot_token: 'YOUR_BOT_TOKEN'
-    #     chat_id: 123456789
-    #     message: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
-    #     send_resolved: true
-    #
-    # Pushover:
-    # pushover_configs:
-    #   - user_key: 'YOUR_PUSHOVER_USER_KEY'
-    #     token: 'YOUR_PUSHOVER_APP_TOKEN'
-    #     priority: '{{ if eq .GroupLabels.severity "critical" }}1{{ else }}0{{ end }}'
-    #     send_resolved: true
-    #
     # OpsGenie:
     # opsgenie_configs:
     #   - api_key: 'YOUR_OPSGENIE_API_KEY'
-    #     priority: '{{ if eq .GroupLabels.severity "critical" }}P1{{ else }}P3{{ end }}'
-    #     send_resolved: true
-    #
-    # Email:
-    # email_configs:
-    #   - to: 'alerts@example.com'
-    #     from: 'technician@example.com'
-    #     smarthost: 'smtp.example.com:587'
-    #     auth_username: 'user'
-    #     auth_password: 'pass'
-    #     send_resolved: true
-    #
-    # Generic webhook (any HTTP endpoint):
-    # webhook_configs:
-    #   - url: 'http://your-webhook-endpoint/alerts'
-    #     send_resolved: true
+    #     priority: 'P1'
+
+# ── Acknowledging / silencing alerts ─────────────────────────────
+#
+# repeat_interval (above) limits re-notification, but to fully silence
+# an alert while investigating, use Alertmanager silences:
+#
+#   UI:  http://localhost:9093/#/silences  (create silence with matchers)
+#   CLI: amtool silence add alertname=ProbeFailing name=myprobe --duration=2h
+#   API: POST /api/v2/silences (for chatops bot integration)
+#
+# PagerDuty/OpsGenie ACKs stop escalation on their side but do NOT
+# silence Alertmanager — it will re-send at the next repeat_interval.
+# To silence both, create an Alertmanager silence as well.
+#
+# For chatops-driven silencing (e.g. react-to-silence in Slack/Discord),
+# see karma (https://github.com/prymitive/karma) or build a bot that
+# calls the Alertmanager silence API.
 
 inhibit_rules:
-  # If a probe is failing (critical), suppress the budget violation warnings for it.
+  # Critical alerts suppress warning alerts for the same probe.
   - source_match:
-      alertname: ProbeFailing
+      severity: critical
     target_match:
       severity: warning
+    equal: ['name']
+
+  # Aggregate error rate warning suppresses individual probe failure warnings.
+  - source_match:
+      alertname: HighErrorRateWarn
+    target_match:
+      alertname: ProbeFailing
     equal: ['name']

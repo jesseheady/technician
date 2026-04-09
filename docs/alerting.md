@@ -122,7 +122,59 @@ Alertmanager is included in `docker-compose.yml`. Configure receivers in `promet
 
 ### Alert rules
 
-Alert rules are defined in `prometheus/rules.yml`. A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline. See the file for the full list of pre-configured rules.
+Alert rules are defined in `prometheus/rules.yml`. Rules are organized into warn/crit pairs:
+
+- **Warning** — degraded state, routed to chatops (Slack/Discord).
+- **Critical** — outage or sustained failure, routed to a pager (PagerDuty/OpsGenie) AND chatops.
+
+#### Anti-flap treatment
+
+Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP) use `avg_over_time(...[15m])` — a 15-minute rolling average that smooths transient spikes. A single bad check cannot fire an alert; the average must exceed the threshold and the `for` duration must elapse across multiple evaluation cycles.
+
+Critical-severity performance alerts additionally require **>50% of probes** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-probe behavior.
+
+Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage, NTP offset) use raw values — smoothing would mask real state changes.
+
+| Category | Warning | Critical |
+|----------|---------|----------|
+| Probe health (all 13 types) | Single probe failing 3m; >25% error rate 5m | >50% error rate 10m |
+| Web Vitals (LCP/INP/CLS) | Google "needs improvement" (15m avg) | Google "poor" threshold, >50% of probes (15m avg) |
+| HTTP timing (TTFB/DNS/TLS) | Degraded (15m avg) | Functionally broken, >50% of probes (15m avg) |
+| TCP (connect/TLS) | Connect >1s, TLS >1s (15m avg) | Connect >5s / TLS >3s, >50% of probes (15m avg) |
+| DNS (probe) | Query >500ms (15m avg) | Query >2s, >50% of probes (15m avg) |
+| ICMP | Packet loss >5%, RTT >200ms | Packet loss >25%, RTT >1s (>50% of probes) |
+| NTP | Offset >±100ms | Offset >±500ms |
+| UDP | RTT >500ms (15m avg) | RTT >2s, >50% of probes (15m avg) |
+| TLS cert expiry | <30 days | ≤7 days |
+| Domain expiry | <60 days | ≤7 days |
+| BGP / TLS invalid / domain gone | — | Immediate (binary failure) |
+| SMTP / Traceroute / gRPC | ProbeFailing (warn) | HighErrorRate (crit) |
+| Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
+
+SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_probe_up`, `technician_probe_duration_seconds`). They receive full probe health coverage (ProbeFailing, HighErrorRate, ProbeInfraError) but do not have probe-specific threshold alerts.
+
+Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, and aggregate error rate warnings suppress individual probe failure warnings.
+
+A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline.
+
+### Severity routing
+
+Alertmanager routes alerts to two receivers based on severity:
+
+- **`chatops`** — receives all alerts (warnings + criticals). Configure with Slack or Discord.
+- **`pager`** — receives critical alerts only. Configure with PagerDuty or OpsGenie.
+
+Critical alerts use `continue: true` so they are delivered to both receivers.
+
+### Silencing / acknowledgement
+
+To suppress alerts while investigating, use Alertmanager silences:
+
+- **UI**: `http://localhost:9093/#/silences` — create a silence with label matchers and a duration.
+- **CLI**: `amtool silence add alertname=ProbeFailing name=myprobe --duration=2h`
+- **API**: `POST /api/v2/silences` — useful for chatops bot integration (e.g. react-to-silence).
+
+PagerDuty/OpsGenie ACKs stop escalation on their side but do not silence Alertmanager — create an Alertmanager silence as well to stop both. For chatops-driven silencing, see [karma](https://github.com/prymitive/karma) or build a bot that calls the Alertmanager silence API.
 
 ## Comparison
 
