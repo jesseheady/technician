@@ -1,3 +1,20 @@
+# ── Anti-flap strategy ───────────────────────────────────────────
+#
+# Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP)
+# use avg_over_time(...[15m]) to smooth transient spikes. A single
+# bad check cannot fire an alert — the 15-minute rolling average
+# must exceed the threshold, combined with a `for` duration that
+# requires the condition to hold across multiple evaluation cycles.
+#
+# Critical alerts additionally require >50% of probes (regions) to
+# exceed the threshold (aggregate), so a single flapping region
+# cannot page on-call. In single-region setups this degrades
+# gracefully to per-probe behavior.
+#
+# Alerts on inherently stable metrics (cert expiry, domain expiry,
+# packet loss percentage, NTP offset) use raw values — smoothing
+# would mask real state changes.
+
 groups:
   - name: technician_recording
     rules:
@@ -17,34 +34,201 @@ groups:
       - record: technician:browser_lcp_p95
         expr: quantile(0.95, technician_browser_lcp_ms) by (name)
 
-  - name: technician_alerts
+  # ── Probe health ─────────────────────────────────────────────────
+  - name: technician_probe_health
     rules:
       - alert: ProbeFailing
         expr: technician_probe_up == 0
         for: 3m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: "{{ $labels.name }} failing from {{ $labels.region }}"
           description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing from {{ $labels.region }} for 3 minutes."
 
-      - alert: HighLCP
-        expr: technician_browser_lcp_ms > 2500
+      - alert: HighErrorRateWarn
+        expr: |
+          sum by (name) (technician_probe_up == 0)
+          / count by (name) (technician_probe_up) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated error rate for {{ $labels.name }}"
+          description: "More than 25% of probes for {{ $labels.name }} are failing."
+
+      - alert: HighErrorRate
+        expr: |
+          sum by (name) (technician_probe_up == 0)
+          / count by (name) (technician_probe_up) > 0.5
         for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} are failing."
+
+      - alert: ProbeInfraError
+        expr: technician_probe_infra_error == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.name }} has infrastructure errors"
+          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The probe is not testing its target — check logs for details (missing dependencies, network access, permissions)."
+
+  # ── Web Vitals ───────────────────────────────────────────────────
+  - name: technician_web_vitals
+    rules:
+      - alert: HighLCP
+        expr: avg_over_time(technician_browser_lcp_ms[15m]) > 2500
+        for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High LCP for {{ $labels.name }}"
-          description: "LCP for {{ $labels.name }} is {{ $value }}ms (good ≤2500ms)."
+          description: "LCP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (15m avg, good ≤2500ms)."
+
+      - alert: HighLCPCritical
+        expr: |
+          count by (name) (avg_over_time(technician_browser_lcp_ms[15m]) > 4000)
+          / count by (name) (avg_over_time(technician_browser_lcp_ms[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LCP critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have LCP above 4000ms (15m avg, Google 'poor' threshold)."
 
       - alert: HighINP
-        expr: technician_browser_inp_ms > 200
-        for: 10m
+        expr: avg_over_time(technician_browser_inp_ms[15m]) > 200
+        for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High INP for {{ $labels.name }}"
-          description: "INP (Interaction to Next Paint) for {{ $labels.name }} is {{ $value }}ms (good ≤200ms)."
+          description: "INP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (15m avg, good ≤200ms)."
+
+      - alert: HighINPCritical
+        expr: |
+          count by (name) (avg_over_time(technician_browser_inp_ms[15m]) > 500)
+          / count by (name) (avg_over_time(technician_browser_inp_ms[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "INP critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have INP above 500ms (15m avg, Google 'poor' threshold)."
+
+      - alert: HighCLS
+        expr: avg_over_time(technician_browser_cls[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CLS for {{ $labels.name }}"
+          description: "CLS for {{ $labels.name }} is {{ $value | printf \"%.3f\" }} (15m avg, good ≤0.1)."
+
+      - alert: HighCLSCritical
+        expr: |
+          count by (name) (avg_over_time(technician_browser_cls[15m]) > 0.25)
+          / count by (name) (avg_over_time(technician_browser_cls[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CLS critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have CLS above 0.25 (15m avg, Google 'poor' threshold)."
+
+  # ── HTTP timing ──────────────────────────────────────────────────
+  - name: technician_http_timing
+    rules:
+      - alert: HighTTFB
+        expr: avg_over_time(technician_http_ttfb_seconds[15m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TTFB for {{ $labels.name }}"
+          description: "TTFB for {{ $labels.name }} is {{ $value | printf \"%.2f\" }}s (15m avg)."
+
+      - alert: HighTTFBCritical
+        expr: |
+          count by (name) (avg_over_time(technician_http_ttfb_seconds[15m]) > 5)
+          / count by (name) (avg_over_time(technician_http_ttfb_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TTFB critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have TTFB above 5s (15m avg)."
+
+      - alert: HighDNS
+        expr: avg_over_time(technician_http_dns_seconds[15m]) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High DNS latency for {{ $labels.name }}"
+          description: "DNS lookup for {{ $labels.name }} is {{ $value | printf \"%.3f\" }}s (15m avg, threshold 250ms)."
+
+      - alert: HighDNSCritical
+        expr: |
+          count by (name) (avg_over_time(technician_http_dns_seconds[15m]) > 1)
+          / count by (name) (avg_over_time(technician_http_dns_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DNS critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have DNS latency above 1s (15m avg)."
+
+      - alert: HighTLS
+        expr: avg_over_time(technician_http_tls_seconds[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TLS latency for {{ $labels.name }}"
+          description: "TLS handshake for {{ $labels.name }} is {{ $value | printf \"%.3f\" }}s (15m avg, threshold 500ms)."
+
+      - alert: HighTLSCritical
+        expr: |
+          count by (name) (avg_over_time(technician_http_tls_seconds[15m]) > 1.5)
+          / count by (name) (avg_over_time(technician_http_tls_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TLS critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have TLS handshake above 1.5s (15m avg)."
+
+  # ── Resources ────────────────────────────────────────────────────
+  - name: technician_resources
+    rules:
+      - alert: HighResourceCount
+        expr: technician_browser_resource_count > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High resource count for {{ $labels.name }}"
+          description: "{{ $labels.name }} loaded {{ $value }} resources (threshold 100)."
+
+      - alert: HighResourceCountCritical
+        expr: technician_browser_resource_count > 200
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Resource count critical for {{ $labels.name }}"
+          description: "{{ $labels.name }} loaded {{ $value }} resources (threshold 200)."
 
       - alert: BudgetViolation
         expr: technician_budget_violation == 1
@@ -55,51 +239,9 @@ groups:
           summary: "Budget violation for {{ $labels.name }}"
           description: "Metric {{ $labels.metric }} for probe {{ $labels.name }} exceeds budget."
 
-      - alert: HighTTFB
-        expr: technician_http_ttfb_seconds > 2
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High TTFB for {{ $labels.name }}"
-          description: "TTFB for {{ $labels.name }} is {{ $value }}s."
-
-      - alert: HighDNS
-        expr: technician_http_dns_seconds > 0.25
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High DNS latency for {{ $labels.name }}"
-          description: "DNS lookup for {{ $labels.name }} is {{ $value }}s (threshold 250ms)."
-
-      - alert: HighTLS
-        expr: technician_http_tls_seconds > 0.5
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High TLS latency for {{ $labels.name }}"
-          description: "TLS handshake for {{ $labels.name }} is {{ $value }}s (threshold 500ms)."
-
-      - alert: HighCLS
-        expr: technician_browser_cls > 0.1
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High CLS for {{ $labels.name }}"
-          description: "Cumulative Layout Shift for {{ $labels.name }} is {{ $value }} (good ≤0.1)."
-
-      - alert: HighResourceCount
-        expr: technician_browser_resource_count > 100
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High resource count for {{ $labels.name }}"
-          description: "{{ $labels.name }} loaded {{ $value }} resources (threshold 100)."
-
+  # ── TLS certificates ────────────────────────────────────────────
+  - name: technician_tls
+    rules:
       - alert: TLSCertExpiringSoon
         expr: technician_tls_cert_expiry_days < 30 and technician_tls_cert_expiry_days > 7
         for: 0m
@@ -127,26 +269,11 @@ groups:
           summary: "TLS certificate invalid for {{ $labels.name }}"
           description: "Certificate chain validation failed for {{ $labels.name }}."
 
-      - alert: BGPPrefixNotVisible
-        expr: technician_bgp_prefix_visible == 0
-        for: 3m
-        labels:
-          severity: critical
-        annotations:
-          summary: "BGP prefix not visible for {{ $labels.name }}"
-          description: "Prefix monitored by {{ $labels.name }} is not visible in the global routing table."
-
-      - alert: BGPOriginMismatch
-        expr: technician_bgp_origin_match == 0
-        for: 3m
-        labels:
-          severity: critical
-        annotations:
-          summary: "BGP origin AS mismatch for {{ $labels.name }}"
-          description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
-
+  # ── Domain expiry ────────────────────────────────────────────────
+  - name: technician_domain
+    rules:
       - alert: DomainExpiringSoon
-        expr: technician_domain_expiry_days < 30 and technician_domain_expiry_days > 7
+        expr: technician_domain_expiry_days < 60 and technician_domain_expiry_days > 7
         for: 0m
         labels:
           severity: warning
@@ -172,27 +299,184 @@ groups:
           summary: "Domain not registered for {{ $labels.name }}"
           description: "Domain {{ $labels.name }} is not found in RDAP (may have expired or been dropped)."
 
-      - alert: ProbeInfraError
-        expr: technician_probe_infra_error == 1
+  # ── BGP ──────────────────────────────────────────────────────────
+  - name: technician_bgp
+    rules:
+      - alert: BGPPrefixNotVisible
+        expr: technician_bgp_prefix_visible == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP prefix not visible for {{ $labels.name }}"
+          description: "Prefix monitored by {{ $labels.name }} is not visible in the global routing table."
+
+      - alert: BGPOriginMismatch
+        expr: technician_bgp_origin_match == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP origin AS mismatch for {{ $labels.name }}"
+          description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
+
+  # ── TCP ───────────────────────────────────────────────────────────
+  - name: technician_tcp
+    rules:
+      - alert: HighTCPConnect
+        expr: avg_over_time(technician_tcp_connect_seconds[15m]) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "{{ $labels.name }} has infrastructure errors"
-          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The probe is not testing its target — check logs for details (missing dependencies, network access, permissions)."
+          summary: "High TCP connect time for {{ $labels.name }}"
+          description: "TCP connect for {{ $labels.name }} is {{ $value | printf \"%.2f\" }}s (15m avg, threshold 1s)."
 
-      - alert: HighErrorRate
+      - alert: HighTCPConnectCritical
         expr: |
-          sum by (name) (technician_probe_up == 0)
-          / count by (name) (technician_probe_up) > 0.5
-        for: 10m
+          count by (name) (avg_over_time(technician_tcp_connect_seconds[15m]) > 5)
+          / count by (name) (avg_over_time(technician_tcp_connect_seconds[15m]))
+          > 0.5
+        for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "High error rate for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} are failing."
+          summary: "TCP connect critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have TCP connect above 5s (15m avg)."
 
-  # ── Prometheus self-monitoring ──────────────────────────────────
+      - alert: HighTCPTLS
+        expr: avg_over_time(technician_tcp_tls_seconds[15m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TCP TLS handshake for {{ $labels.name }}"
+          description: "TCP TLS handshake for {{ $labels.name }} is {{ $value | printf \"%.2f\" }}s (15m avg, threshold 1s)."
+
+      - alert: HighTCPTLSCritical
+        expr: |
+          count by (name) (avg_over_time(technician_tcp_tls_seconds[15m]) > 3)
+          / count by (name) (avg_over_time(technician_tcp_tls_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TCP TLS critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have TCP TLS handshake above 3s (15m avg)."
+
+  # ── DNS (probe) ─────────────────────────────────────────────────
+  - name: technician_dns
+    rules:
+      - alert: HighDNSQuery
+        expr: avg_over_time(technician_dns_query_seconds[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High DNS query time for {{ $labels.name }}"
+          description: "DNS query for {{ $labels.name }} is {{ $value | printf \"%.3f\" }}s (15m avg, threshold 500ms)."
+
+      - alert: HighDNSQueryCritical
+        expr: |
+          count by (name) (avg_over_time(technician_dns_query_seconds[15m]) > 2)
+          / count by (name) (avg_over_time(technician_dns_query_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DNS query critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have DNS query time above 2s (15m avg)."
+
+  # ── ICMP ─────────────────────────────────────────────────────────
+  - name: technician_icmp
+    rules:
+      - alert: HighPacketLoss
+        expr: technician_icmp_packet_loss_percent > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Packet loss for {{ $labels.name }}"
+          description: "ICMP packet loss for {{ $labels.name }} is {{ $value | printf \"%.1f\" }}% (threshold 5%)."
+
+      - alert: HighPacketLossCritical
+        expr: technician_icmp_packet_loss_percent > 25
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Packet loss critical for {{ $labels.name }}"
+          description: "ICMP packet loss for {{ $labels.name }} is {{ $value | printf \"%.1f\" }}% (threshold 25%)."
+
+      - alert: HighICMPRTT
+        expr: avg_over_time(technician_icmp_avg_rtt_seconds[15m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High ICMP RTT for {{ $labels.name }}"
+          description: "ICMP RTT for {{ $labels.name }} is {{ $value | printf \"%.3f\" }}s (15m avg, threshold 200ms)."
+
+      - alert: HighICMPRTTCritical
+        expr: |
+          count by (name) (avg_over_time(technician_icmp_avg_rtt_seconds[15m]) > 1)
+          / count by (name) (avg_over_time(technician_icmp_avg_rtt_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ICMP RTT critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have ICMP RTT above 1s (15m avg)."
+
+  # ── NTP ──────────────────────────────────────────────────────────
+  - name: technician_ntp
+    rules:
+      - alert: HighNTPOffset
+        expr: abs(technician_ntp_offset_ms) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High NTP offset for {{ $labels.name }}"
+          description: "NTP clock offset for {{ $labels.name }} is {{ $value | printf \"%.1f\" }}ms (threshold ±100ms)."
+
+      - alert: HighNTPOffsetCritical
+        expr: abs(technician_ntp_offset_ms) > 500
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NTP offset critical for {{ $labels.name }}"
+          description: "NTP clock offset for {{ $labels.name }} is {{ $value | printf \"%.1f\" }}ms (threshold ±500ms). Clock drift at this level can break TLS, distributed consensus, and log correlation."
+
+  # ── UDP ──────────────────────────────────────────────────────────
+  - name: technician_udp
+    rules:
+      - alert: HighUDPRTT
+        expr: avg_over_time(technician_udp_rtt_seconds[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High UDP RTT for {{ $labels.name }}"
+          description: "UDP RTT for {{ $labels.name }} is {{ $value | printf \"%.3f\" }}s (15m avg, threshold 500ms)."
+
+      - alert: HighUDPRTTCritical
+        expr: |
+          count by (name) (avg_over_time(technician_udp_rtt_seconds[15m]) > 2)
+          / count by (name) (avg_over_time(technician_udp_rtt_seconds[15m]))
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "UDP RTT critical for {{ $labels.name }}"
+          description: "More than 50% of probes for {{ $labels.name }} have UDP RTT above 2s (15m avg)."
+
+  # ── Prometheus self-monitoring ───────────────────────────────────
   # Requires the "prometheus" scrape job in prometheus.yml.
   - name: prometheus_storage
     rules:
@@ -206,6 +490,17 @@ groups:
         annotations:
           summary: "Prometheus storage above 80% of 5GB limit"
           description: "Prometheus TSDB is using {{ $value | humanizePercentage }} of its 5GB retention limit. Consider pruning Docker resources or increasing --storage.tsdb.retention.size."
+
+      - alert: PrometheusStorageCritical
+        expr: |
+          (prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes)
+          / (5 * 1024 * 1024 * 1024) > 0.95
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus storage above 95% of 5GB limit"
+          description: "Prometheus TSDB is using {{ $value | humanizePercentage }} of its 5GB retention limit. Immediate action needed — Prometheus may stop ingesting data."
 
       - alert: PrometheusWALCorruptions
         expr: increase(prometheus_tsdb_wal_corruptions_total[1h]) > 0
