@@ -1,6 +1,9 @@
 global:
   resolve_timeout: 5m
 
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
 route:
   group_by: ['alertname', 'name']
   group_wait: 30s
@@ -51,14 +54,16 @@ time_intervals:
 
 receivers:
   - name: chatops
-    # Uncomment and configure one or more chat integrations:
+    # Uncomment and configure one or more chat integrations.
+    # Templates from prometheus/templates/technician.tmpl are available
+    # for all receivers — see that file for the full list.
     #
     # Slack:
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
     #     channel: '#alerts'
-    #     title: '{{ .GroupLabels.alertname }}'
-    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
     #     send_resolved: true
     #
     # Discord (via alertmanager-discord bridge):
