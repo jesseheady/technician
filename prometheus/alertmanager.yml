@@ -103,6 +103,7 @@ receivers:
 # calls the Alertmanager silence API.
 
 inhibit_rules:
+  # ── Severity suppression ──────────────────────────────────────
   # Critical alerts suppress warning alerts for the same probe.
   - source_matchers:
       - severity = critical
@@ -115,4 +116,23 @@ inhibit_rules:
       - alertname = HighErrorRateWarn
     target_matchers:
       - alertname = ProbeFailing
+    equal: ['name']
+
+  # ── Invalid / gone suppression ────────────────────────────────
+  # When a cert is invalid or a domain is unregistered, expiry alerts
+  # are noise — including critical-tier expiry that the broad severity
+  # rule above doesn't cover (both source and target are critical).
+
+  # Invalid cert suppresses all expiry alerts.
+  - source_matchers:
+      - alertname = TLSCertInvalid
+    target_matchers:
+      - alertname =~ "TLSCertExpiringSoon|TLSCertExpiryCritical"
+    equal: ['name']
+
+  # Unregistered domain suppresses all expiry alerts.
+  - source_matchers:
+      - alertname = DomainNotRegistered
+    target_matchers:
+      - alertname =~ "DomainExpiringSoon|DomainExpiryCritical"
     equal: ['name']
