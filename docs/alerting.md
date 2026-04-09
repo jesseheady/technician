@@ -25,6 +25,18 @@ Grafana is the recommended alerting backend for production. It provides:
 
 Grafana evaluates rules independently of Prometheus Alertmanager, so you can use Grafana alerting with or without Alertmanager running.
 
+### File-based provisioning
+
+Grafana alerting resources (contact points, notification policies, mute timings) can also be managed via `prometheus/grafana-alerting.yml`, which is mounted into the Grafana container. This makes alerting config reproducible and version-controlled, matching the rest of the stack.
+
+The file contains commented examples for:
+
+- **Contact points**: infrastructure (PagerDuty + Slack), expiry (email), performance (Discord + Slack).
+- **Notification policies**: category-based routing with per-category grouping and repeat intervals.
+- **Mute timings**: maintenance windows and weekends.
+
+Uncomment and configure after adding your integration credentials. UI changes and file-provisioned resources coexist — file-provisioned resources appear in the UI but cannot be edited there.
+
 ## 2. Native webhooks (simple, self-contained)
 
 Technician can send notifications directly to Discord, Slack, or any HTTP endpoint. No external alerting stack required — useful for simple setups, edge deployments, or when running Technician standalone without Grafana.
@@ -153,18 +165,47 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 
 SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_probe_up`, `technician_probe_duration_seconds`). They receive full probe health coverage (ProbeFailing, HighErrorRate, ProbeInfraError) but do not have probe-specific threshold alerts.
 
-Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, and aggregate error rate warnings suppress individual probe failure warnings.
+Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, aggregate error rate warnings suppress individual probe failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
 A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline.
 
-### Severity routing
+### Route structure
 
-Alertmanager routes alerts to two receivers based on severity:
+Alertmanager routes alerts using a pager fan-out combined with category-based receivers:
 
-- **`chatops`** — receives all alerts (warnings + criticals). Configure with Slack or Discord.
-- **`pager`** — receives critical alerts only. Configure with PagerDuty or OpsGenie.
+1. **Pager fan-out** — all critical alerts go to the `pager` receiver with `continue: true`, so they also reach the matching category route below.
+2. **Category routing** — alerts are routed to a receiver based on their type:
 
-Critical alerts use `continue: true` so they are delivered to both receivers.
+| Receiver | Alerts | Repeat interval |
+|----------|--------|-----------------|
+| `pager` | All critical alerts (fan-out) | 1h |
+| `infrastructure` | ProbeFailing, HighErrorRate, TLSCertInvalid, BGP alerts, DomainNotRegistered, PrometheusWALCorruptions | 1h |
+| `expiry` | TLSCertExpiringSoon/Critical, DomainExpiringSoon/Critical | 12h |
+| `performance` | All timing/vitals/resource alerts, BudgetViolation | 4h |
+| `chatops` | Everything else (ProbeInfraError, PrometheusStorageHigh, any new rules) | 4h |
+
+Each receiver has commented integration examples in `alertmanager.yml`. A critical infrastructure alert is delivered to both `pager` and `infrastructure`. A warning performance alert goes only to `performance`.
+
+### Notification templates
+
+Reusable Go templates in `prometheus/templates/technician.tmpl` provide consistent message formatting across receivers:
+
+| Template | Use with |
+|----------|----------|
+| `technician.title` | Any receiver — `[FIRING:2] ProbeFailing — example.com` |
+| `technician.text` | Any receiver — lists all alerts with annotations |
+| `technician.slack.title` / `.slack.text` | Slack — mrkdwn formatting with bold and quotes |
+| `technician.email.subject` / `.email.html` | Email — HTML table with Alertmanager link |
+
+Reference templates in receiver configs:
+
+```yaml
+slack_configs:
+  - api_url: 'https://hooks.slack.com/services/...'
+    channel: '#alerts'
+    title: '{{ template "technician.slack.title" . }}'
+    text: '{{ template "technician.slack.text" . }}'
+```
 
 ### Silencing / acknowledgement
 
@@ -176,16 +217,44 @@ To suppress alerts while investigating, use Alertmanager silences:
 
 PagerDuty/OpsGenie ACKs stop escalation on their side but do not silence Alertmanager — create an Alertmanager silence as well to stop both. For chatops-driven silencing, see [karma](https://github.com/prymitive/karma) or build a bot that calls the Alertmanager silence API.
 
+### Mute time intervals
+
+Three time intervals are defined in `alertmanager.yml` for use with routes:
+
+| Name | Window | Use case |
+|------|--------|----------|
+| `maintenance` | Tuesday 02:00–04:00 UTC | Silence during deploys |
+| `weekends` | Saturday–Sunday all day | Skip non-critical weekend noise |
+| `business-hours` | Mon–Fri 09:00–18:00 UTC | Only page during work hours |
+
+Intervals are inert definitions until a route references them. Add `mute_time_intervals` or `active_time_intervals` to a route:
+
+```yaml
+routes:
+  - matchers:
+      - severity = critical
+    receiver: pager
+    mute_time_intervals: ['maintenance']      # silence pager during deploys
+    active_time_intervals: ['business-hours'] # or only page during work hours
+```
+
+Adjust days and times to match your schedule. All times are UTC.
+
 ## Comparison
 
 | Feature | Native webhooks | Grafana alerting | Alertmanager |
 |---------|----------------|------------------|--------------|
-| Setup complexity | Minimal (config only) | Low (UI config) | Moderate (YAML + containers) |
-| Severity routing | Yes (`severities` filter) | Yes (notification policies) | Yes (route matching) |
+| Setup complexity | Minimal (config only) | Low (UI or YAML) | Moderate (YAML + containers) |
+| Severity routing | Yes (`severities` filter) | Yes (notification policies) | Yes (pager fan-out) |
+| Category routing | No | Yes (file or UI) | Yes (named receivers) |
 | Discord support | Native | Native | Requires bridge container |
 | Slack support | Native | Native | Native |
 | Grouping / dedup | Per-probe cooldown | Full | Full |
+| Inhibit rules | No | No | Yes (4 pre-configured) |
 | Silencing | No | Yes (UI) | Yes (API/UI) |
+| Mute timings | No | Yes (file or UI) | Yes (time intervals) |
+| Notification templates | No | Yes (Go templates) | Yes (`technician.tmpl`) |
 | Escalation | No | Yes | Yes |
 | Alert history | No | Yes | No |
+| File provisioning | N/A | Yes (`grafana-alerting.yml`) | Yes (`alertmanager.yml`) |
 | Runs standalone | Yes | Needs Grafana + Prometheus | Needs Prometheus |
