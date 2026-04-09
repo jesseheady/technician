@@ -74,6 +74,7 @@ services:
       - ./dashboards:/var/lib/grafana/dashboards:ro
       - ./prometheus/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
       - ./prometheus/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./prometheus/grafana-alerting.yml:/etc/grafana/provisioning/alerting/alerting.yml:ro
       - grafana_data:/var/lib/grafana
     restart: unless-stopped
     healthcheck:

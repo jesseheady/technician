@@ -1,0 +1,97 @@
+# Grafana alerting provisioning.
+# Uncomment sections below after configuring your contact points.
+# This file mirrors the Alertmanager category-based routing structure
+# but uses Grafana's native alerting — no Alertmanager needed.
+#
+# Docs: https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/
+apiVersion: 1
+
+# ── Contact points ────────────────────────────────────────────────
+# Each contact point can bundle multiple receivers (e.g. Slack + PagerDuty).
+# Grafana natively supports Discord, Slack, PagerDuty, OpsGenie, Teams,
+# Email, Telegram, and more — no bridge containers needed.
+#
+# contactPoints:
+#   - orgId: 1
+#     name: infrastructure
+#     receivers:
+#       - uid: infra-pagerduty
+#         type: pagerduty
+#         settings:
+#           integrationKey: YOUR_PAGERDUTY_INTEGRATION_KEY
+#           severity: critical
+#       - uid: infra-slack
+#         type: slack
+#         settings:
+#           url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+#           recipient: '#incidents'
+#
+#   - orgId: 1
+#     name: expiry
+#     receivers:
+#       - uid: expiry-email
+#         type: email
+#         settings:
+#           addresses: certs@example.com
+#
+#   - orgId: 1
+#     name: performance
+#     receivers:
+#       - uid: perf-discord
+#         type: discord
+#         settings:
+#           url: https://discord.com/api/webhooks/YOUR/WEBHOOK
+#       - uid: perf-slack
+#         type: slack
+#         settings:
+#           url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+#           recipient: '#performance'
+
+# ── Notification policies ─────────────────────────────────────────
+# Routes alerts to contact points by label matching. The default
+# policy catches anything not matched by a sub-route.
+# Uncomment after configuring contact points above.
+#
+# policies:
+#   - orgId: 1
+#     receiver: grafana-default-email
+#     group_by: ['alertname', 'grafana_folder']
+#     group_wait: 30s
+#     group_interval: 5m
+#     repeat_interval: 4h
+#     routes:
+#       # Infrastructure critical — pages on-call.
+#       - receiver: infrastructure
+#         matchers:
+#           - alertname =~ "ProbeFailing|HighErrorRate|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered"
+#         repeat_interval: 1h
+#
+#       # Expiry — cert/domain renewal tracking.
+#       - receiver: expiry
+#         matchers:
+#           - alertname =~ "TLSCertExpiringSoon|TLSCertExpiryCritical|DomainExpiringSoon|DomainExpiryCritical"
+#         group_by: ['alertname']
+#         repeat_interval: 12h
+#
+#       # Performance — web vitals, HTTP timing, budgets.
+#       - receiver: performance
+#         matchers:
+#           - alertname =~ "HighLCP|HighINP|HighCLS|HighTTFB|HighDNS|HighTLS|HighResourceCount|BudgetViolation"
+#         repeat_interval: 4h
+
+# ── Mute timings ─────────────────────────────────────────────────
+# Named time windows referenced by notification policies above via
+# mute_time_intervals: ['maintenance']. All times are UTC.
+#
+# muteTimes:
+#   - orgId: 1
+#     name: maintenance
+#     time_intervals:
+#       - times:
+#           - start_time: '02:00'
+#             end_time: '04:00'
+#         weekdays: ['tuesday']
+#   - orgId: 1
+#     name: weekends
+#     time_intervals:
+#       - weekdays: ['saturday', 'sunday']
