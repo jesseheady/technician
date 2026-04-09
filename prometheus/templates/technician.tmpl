@@ -1,0 +1,64 @@
+{{/* ── Generic templates ──────────────────────────────────────── */}}
+
+{{ define "technician.title" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+{{- if .GroupLabels.name }} — {{ .GroupLabels.name }}{{ end }}
+{{- end }}
+
+{{ define "technician.text" -}}
+{{ range .Alerts -}}
+{{ .Annotations.summary }}
+{{ if .Annotations.description }}  {{ .Annotations.description }}{{ end }}
+{{ end -}}
+{{- end }}
+
+{{/* ── Slack (mrkdwn) ──────────────────────────────────────────
+     Use with:
+       title: '{{ template "technician.slack.title" . }}'
+       text:  '{{ template "technician.slack.text" . }}'
+*/}}
+
+{{ define "technician.slack.title" -}}
+{{ template "technician.title" . }}
+{{- end }}
+
+{{ define "technician.slack.text" -}}
+{{ range .Alerts -}}
+*{{ .Labels.alertname }}* — {{ .Labels.name }}
+> {{ .Annotations.summary }}
+{{ if .Annotations.description }}_{{ .Annotations.description }}_
+{{ end }}
+{{- end -}}
+{{- end }}
+
+{{/* ── Email ───────────────────────────────────────────────────
+     Use with:
+       headers:
+         Subject: '{{ template "technician.email.subject" . }}'
+       html:  '{{ template "technician.email.html" . }}'
+*/}}
+
+{{ define "technician.email.subject" -}}
+{{ template "technician.title" . }}
+{{- end }}
+
+{{ define "technician.email.html" -}}
+<html><body>
+<h2>{{ template "technician.title" . }}</h2>
+<table style="border-collapse:collapse;width:100%">
+<tr style="background:#f4f4f4">
+  <th style="padding:8px;text-align:left">Alert</th>
+  <th style="padding:8px;text-align:left">Probe</th>
+  <th style="padding:8px;text-align:left">Summary</th>
+</tr>
+{{ range .Alerts -}}
+<tr style="border-bottom:1px solid #ddd">
+  <td style="padding:8px">{{ .Labels.alertname }}</td>
+  <td style="padding:8px">{{ .Labels.name }}</td>
+  <td style="padding:8px">{{ .Annotations.summary }}</td>
+</tr>
+{{ end -}}
+</table>
+{{ if .ExternalURL }}<p><a href="{{ .ExternalURL }}">View in Alertmanager</a></p>{{ end }}
+</body></html>
+{{- end }}
