@@ -11,7 +11,10 @@ route:
   repeat_interval: 4h
   receiver: chatops
   routes:
-    # Critical alerts go to the pager AND continue to chatops.
+    # ── Pager fan-out ───────────────────────────────────────────
+    # Critical alerts go to the pager AND continue to the category
+    # routes below, so on-call gets paged while the right channel
+    # also gets the notification.
     - matchers:
         - severity = critical
       receiver: pager
@@ -19,7 +22,35 @@ route:
       continue: true
       # Silence pager during deploys:
       # mute_time_intervals: ['maintenance']
-    # All alerts (warnings + criticals via continue) go to chatops.
+
+    # ── Infrastructure ──────────────────────────────────────────
+    # Probe failures, BGP hijacks, invalid certs, dropped domains,
+    # Prometheus WAL corruption.
+    - matchers:
+        - alertname =~ "ProbeFailing|HighErrorRate|HighErrorRateWarn|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered|PrometheusWALCorruptions|PrometheusStorageCritical"
+      receiver: infrastructure
+      repeat_interval: 1h
+
+    # ── Expiry ──────────────────────────────────────────────────
+    # TLS certificate and domain expiry warnings/criticals.
+    # Grouped by alertname only (one notification per expiry type).
+    - matchers:
+        - alertname =~ "TLSCertExpiringSoon|TLSCertExpiryCritical|DomainExpiringSoon|DomainExpiryCritical"
+      receiver: expiry
+      group_by: ['alertname']
+      repeat_interval: 12h
+
+    # ── Performance ─────────────────────────────────────────────
+    # Web vitals, HTTP timing, TCP, DNS, ICMP, UDP, NTP, resource
+    # counts, and budget violations.
+    - matchers:
+        - alertname =~ "High(LCP|INP|CLS|TTFB|DNS|TLS|TCPConnect|TCPTLS|DNSQuery|ICMRTT|PacketLoss|NTPOffset|UDPRTT|ResourceCount)(Critical)?|BudgetViolation"
+      receiver: performance
+      repeat_interval: 4h
+
+    # ── Catch-all ───────────────────────────────────────────────
+    # Everything else (ProbeInfraError, PrometheusStorageHigh, and
+    # any new rules not yet routed above).
     - receiver: chatops
       # Only notify during work hours:
       # active_time_intervals: ['business-hours']
@@ -52,13 +83,17 @@ time_intervals:
           - start_time: '09:00'
             end_time: '18:00'
 
+# ── Receivers ─────────────────────────────────────────────────────
+# Each receiver targets a different alert category. Uncomment and
+# configure integrations as needed. Critical alerts are delivered to
+# the pager AND the matching category receiver via continue: true.
 receivers:
+  # Catch-all for alerts not matched by a category route above.
   - name: chatops
     # Uncomment and configure one or more chat integrations.
     # Templates from prometheus/templates/technician.tmpl are available
     # for all receivers — see that file for the full list.
     #
-    # Slack:
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
     #     channel: '#alerts'
@@ -72,18 +107,49 @@ receivers:
     #   - url: 'http://alertmanager-discord:9094'
     #     send_resolved: true
 
+  # On-call pager — receives all critical alerts.
   - name: pager
-    # Uncomment and configure a paging integration:
-    #
-    # PagerDuty:
     # pagerduty_configs:
     #   - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
-    #     severity: '{{ if eq .GroupLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
-    #
-    # OpsGenie:
+    #     severity: critical
     # opsgenie_configs:
     #   - api_key: 'YOUR_OPSGENIE_API_KEY'
-    #     priority: 'P1'
+    #     priority: P1
+    #     send_resolved: true
+
+  # Critical infrastructure — high-priority Slack/Discord channel.
+  - name: infrastructure
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#incidents'
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
+    #     send_resolved: true
+
+  # Certificate and domain expiry — renewal-tracking channel or email.
+  - name: expiry
+    # email_configs:
+    #   - to: 'certs@example.com'
+    #     from: 'technician@example.com'
+    #     smarthost: 'smtp.example.com:587'
+    #     auth_username: 'user'
+    #     auth_password: 'pass'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#renewals'
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
+    #     send_resolved: true
+
+  # Performance degradation — monitoring / perf channel.
+  - name: performance
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#performance'
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
+    #     send_resolved: true
 
 # ── Acknowledging / silencing alerts ─────────────────────────────
 #
