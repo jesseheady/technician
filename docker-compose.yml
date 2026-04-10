@@ -46,22 +46,30 @@ services:
     ports:
       - "9093:9093"
     volumes:
-      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
       - ./prometheus/templates:/etc/alertmanager/templates:ro
+    env_file:
+      - path: .env
+        required: false
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sed \
+          -e 's|__DISCORD_WEBHOOK_CHATOPS__|'"$$DISCORD_WEBHOOK_CHATOPS"'|g' \
+          -e 's|__DISCORD_WEBHOOK_INCIDENTS__|'"$$DISCORD_WEBHOOK_INCIDENTS"'|g' \
+          -e 's|__DISCORD_WEBHOOK_INFRA__|'"$$DISCORD_WEBHOOK_INFRA"'|g' \
+          -e 's|__DISCORD_WEBHOOK_EXPIRY__|'"$$DISCORD_WEBHOOK_EXPIRY"'|g' \
+          -e 's|__DISCORD_WEBHOOK_PERF__|'"$$DISCORD_WEBHOOK_PERF"'|g' \
+          -e 's|__PUSHOVER_USER_KEY__|'"$$PUSHOVER_USER_KEY"'|g' \
+          -e 's|__PUSHOVER_API_TOKEN__|'"$$PUSHOVER_API_TOKEN"'|g' \
+          /etc/alertmanager/alertmanager.yml.tmpl > /etc/alertmanager/alertmanager.yml
+        exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
       interval: 30s
       timeout: 5s
       retries: 3
-
-  # alertmanager-discord bridge (optional - only needed if using Alertmanager
-  # with Discord; native webhooks in technician.yml are simpler).
-  # See: https://github.com/benjojo/alertmanager-discord
-  # alertmanager-discord:
-  #   image: benjojo/alertmanager-discord:latest
-  #   environment:
-  #     - DISCORD_WEBHOOK=https://discord.com/api/webhooks/YOUR/WEBHOOK
 
   grafana:
     image: grafana/grafana:12.4.2
