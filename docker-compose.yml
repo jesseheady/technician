@@ -96,6 +96,55 @@ services:
       prometheus:
         condition: service_healthy
 
+  # One-shot: silences all alerts for 20 minutes while probes warm up.
+  # Runs automatically on every `docker compose up`. Set SILENCE_DURATION
+  # in .env to override the default (minutes).
+  warmup-silence:
+    image: alpine/curl:8.12.1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ALERTMANAGER_URL="http://alertmanager:9093"
+        DURATION="${SILENCE_DURATION:-20}"
+
+        echo "waiting for alertmanager ..."
+        retries=60
+        until curl -sf "$${ALERTMANAGER_URL}/-/healthy" >/dev/null 2>&1; do
+          retries=$$((retries - 1))
+          if [ "$$retries" -le 0 ]; then
+            echo "error: alertmanager not reachable" >&2
+            exit 1
+          fi
+          sleep 1
+        done
+
+        NOW=$$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+        ENDS=$$(date -u -d @$$(( $$(date +%s) + $${DURATION} * 60 )) +"%Y-%m-%dT%H:%M:%S.000Z")
+
+        RESP=$$(curl -sf -X POST "$${ALERTMANAGER_URL}/api/v2/silences" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"matchers\": [{
+              \"name\": \"alertname\",
+              \"value\": \".+\",
+              \"isRegex\": true,
+              \"isEqual\": true
+            }],
+            \"startsAt\": \"$${NOW}\",
+            \"endsAt\": \"$${ENDS}\",
+            \"createdBy\": \"warmup-silence\",
+            \"comment\": \"Stack restart - silencing alerts during $${DURATION}m warmup\"
+          }")
+
+        echo "silence created ($${DURATION}m): $${RESP}"
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      alertmanager:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   technician_data:
   prometheus_data:
