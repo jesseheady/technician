@@ -7,18 +7,18 @@ import (
 	"time"
 
 	"github.com/m0nkey/technician/internal/config"
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 )
 
 func TestLoadBudgets(t *testing.T) {
 	content := `
-- probe: checkout_flow
+- check: checkout_flow
   thresholds:
     lcp: 2500
     fcp: 1800
     ttfb: 800
   alert_on: exceed
-- probe: "*"
+- check: "*"
   thresholds:
     lcp: 4000
 `
@@ -36,14 +36,14 @@ func TestLoadBudgets(t *testing.T) {
 	if len(budgets) != 2 {
 		t.Fatalf("expected 2 budgets, got %d", len(budgets))
 	}
-	if budgets[0].Probe != "checkout_flow" {
-		t.Errorf("expected probe=checkout_flow, got %s", budgets[0].Probe)
+	if budgets[0].Check != "checkout_flow" {
+		t.Errorf("expected check=checkout_flow, got %s", budgets[0].Check)
 	}
 	if budgets[0].Thresholds["lcp"] != 2500 {
 		t.Errorf("expected lcp=2500, got %f", budgets[0].Thresholds["lcp"])
 	}
-	if budgets[1].Probe != "*" {
-		t.Errorf("expected probe=*, got %s", budgets[1].Probe)
+	if budgets[1].Check != "*" {
+		t.Errorf("expected check=*, got %s", budgets[1].Check)
 	}
 	if budgets[1].AlertOn != "exceed" {
 		t.Errorf("expected default alert_on=exceed, got %s", budgets[1].AlertOn)
@@ -51,16 +51,16 @@ func TestLoadBudgets(t *testing.T) {
 }
 
 func TestEvaluateNoViolations(t *testing.T) {
-	result := &probe.Result{
+	result := &check.Result{
 		Name:     "test",
-		Type:     config.ProbeTypeHTTP,
+		Type:     config.CheckTypeHTTP,
 		Success:  true,
 		Duration: 500 * time.Millisecond,
 	}
 
 	budgets := []Budget{
 		{
-			Probe:      "*",
+			Check:      "*",
 			Thresholds: map[string]float64{"duration": 5000},
 		},
 	}
@@ -72,12 +72,12 @@ func TestEvaluateNoViolations(t *testing.T) {
 }
 
 func TestEvaluateWithViolations(t *testing.T) {
-	result := &probe.Result{
+	result := &check.Result{
 		Name:     "slow-page",
-		Type:     config.ProbeTypePlaywright,
+		Type:     config.CheckTypePlaywright,
 		Success:  true,
 		Duration: 3 * time.Second,
-		WebVitals: &probe.WebVitals{
+		WebVitals: &check.WebVitals{
 			LCP:  3500,
 			FCP:  2000,
 			TTFB: 900,
@@ -86,7 +86,7 @@ func TestEvaluateWithViolations(t *testing.T) {
 
 	budgets := []Budget{
 		{
-			Probe: "slow-page",
+			Check: "slow-page",
 			Thresholds: map[string]float64{
 				"lcp":  2500,
 				"fcp":  1800,
@@ -102,16 +102,16 @@ func TestEvaluateWithViolations(t *testing.T) {
 }
 
 func TestEvaluateWildcard(t *testing.T) {
-	result := &probe.Result{
+	result := &check.Result{
 		Name:     "any-probe",
-		Type:     config.ProbeTypeHTTP,
+		Type:     config.CheckTypeHTTP,
 		Success:  true,
 		Duration: 10 * time.Second,
 	}
 
 	budgets := []Budget{
 		{
-			Probe:      "*",
+			Check:      "*",
 			Thresholds: map[string]float64{"duration": 5000},
 		},
 	}
@@ -125,17 +125,17 @@ func TestEvaluateWildcard(t *testing.T) {
 	}
 }
 
-func TestEvaluateNamedProbeOnly(t *testing.T) {
-	result := &probe.Result{
+func TestEvaluateNamedCheckOnly(t *testing.T) {
+	result := &check.Result{
 		Name:     "other-probe",
-		Type:     config.ProbeTypeHTTP,
+		Type:     config.CheckTypeHTTP,
 		Success:  true,
 		Duration: 10 * time.Second,
 	}
 
 	budgets := []Budget{
 		{
-			Probe:      "specific-probe",
+			Check:      "specific-probe",
 			Thresholds: map[string]float64{"duration": 5000},
 		},
 	}

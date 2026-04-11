@@ -9,8 +9,8 @@ How to run Technician in CI pipelines. GitHub Actions is first-class with a read
 | **Build** | Compiles the Go binary | Yes |
 | **Test** | `go test -race ./...` with coverage | Yes |
 | **Lint** | `go vet ./...` | Yes |
-| **Validate** | Runs all probes once, checks performance budgets | Recommended |
-| **Validate (Playwright)** | Same as validate, but with Chromium installed for browser probes | Yes |
+| **Validate** | Runs all checks once, checks performance budgets | Recommended |
+| **Validate (Playwright)** | Same as validate, but with Chromium installed for browser checks | Yes |
 | **Docker build** | Builds the container image | On main branch |
 
 ## GitHub Actions
@@ -23,7 +23,7 @@ The project includes `.github/workflows/ci.yml` which runs on push to `main` and
 - **Test** -- runs all tests with race detector and uploads coverage
 - **Lint** -- runs `go vet`
 - **Validate** -- runs `technician validate` with example config and budgets
-- **Validate Playwright** -- same as validate but installs Node.js + Chromium for browser probes
+- **Validate Playwright** -- same as validate but installs Node.js + Chromium for browser checks
 - **Docker build** -- builds the container image on `main` pushes
 
 ### Budget violation annotations
@@ -93,12 +93,12 @@ The Docker image includes Chromium, so no extra setup is needed.
 
 ### Resource considerations
 
-GitHub Actions standard runners have 7 GB RAM and 2 CPUs. With `max_browsers: 2` (the default), you can run 3-4 concurrent Playwright probes comfortably. If you have more browser probes, set `max_browsers: 1` in your CI config to serialize them:
+GitHub Actions standard runners have 7 GB RAM and 2 CPUs. With `max_browsers: 2` (the default), you can run 3-4 concurrent Playwright probes comfortably. If you have more browser checks, set `max_browsers: 1` in your CI config to serialize them:
 
 ```yaml
 # ci-config/technician.yml
 playwright:
-  max_browsers: 1  # serialize browser probes on CI runners
+  max_browsers: 1  # serialize browser checks on CI runners
 ```
 
 See [Playwright scaling](playwright-scaling.md) for detailed resource analysis.
@@ -244,25 +244,25 @@ pipeline {
 
 ## Validate without Playwright
 
-If your CI environment can't run Chromium (no graphical dependencies, limited RAM), you can still validate all non-browser probes. Create a probe config that excludes the `playwright/` directory:
+If your CI environment can't run Chromium (no graphical dependencies, limited RAM), you can still validate all non-browser checks. Create a check config that excludes the `playwright/` directory:
 
 ```bash
-# Copy only non-browser probes
-mkdir -p ci-config/probes
-cp config/probes/http.yml config/probes/tcp.yml config/probes/dns.yml ci-config/probes/
+# Copy only non-browser checks
+mkdir -p ci-config/checks
+cp config/checks/http.yml config/checks/tcp.yml config/checks/dns.yml ci-config/checks/
 cp config/technician.yml ci-config/
 
 ./technician validate --config ci-config/technician.yml --budget config/budgets.yml
 ```
 
-Or keep a dedicated CI config directory checked in with the right subset of probes.
+Or keep a dedicated CI config directory checked in with the right subset of checks.
 
 ## Environment variables
 
 Probe configs support `${ENV_VAR}` expansion, useful for CI secrets:
 
 ```yaml
-# probes/http.yml
+# checks/http.yml
 - name: staging API
   url: ${STAGING_URL}/health
   headers:

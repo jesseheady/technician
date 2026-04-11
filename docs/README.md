@@ -8,7 +8,7 @@
 | [Local development](mock-production.md) | Run Technician locally with full metrics/dashboards while probing mock local endpoints. |
 | [Roadmap](roadmap.md) | Near-term MVP (SSL/TLS, maintenance mode, WebSocket, structured logging, status page redesign), scope principles, and future enhancements. |
 | [Proposals](proposals/) | Design and rollout plans. |
-| [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying probe runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
+| [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying check runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when probes run on Workers or Lambda (provider location codes, metrics labels). |
 | [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) | Config for central Prometheus (private VPC) and Grafana as source of record; local/Docker vs central reporting; edge push. |
 | [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds, collection, network throttling (4G/3G/slow-3G), and device emulation. |

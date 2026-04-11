@@ -5,7 +5,7 @@ Run Technician locally with **full feature output** (metrics, traces, dashboards
 ## Goals
 
 - Technician, Prometheus, and Grafana run locally (or in Docker).
-- All probe types that support it target local mock services so results are deterministic and safe.
+- All check types that support it target local mock services so results are deterministic and safe.
 - Metrics and traces are produced as in production; you can open Grafana and see real dashboards.
 
 ## Overview
@@ -43,7 +43,7 @@ Create a config set used only for local development runs.
 The repo includes a ready-made local config under `examples/local/`:
 
 - `technician.yml` – single site `local`, metrics and local artifacts.
-- `probes/http.yml` – one HTTP probe to `http://localhost:8080/`.
+- `checks/http.yml` – one HTTP probe to `http://localhost:8080/`.
 - `budgets.yml` – relaxed thresholds so `validate` passes.
 
 Copy to your config directory and run:
@@ -57,10 +57,10 @@ Start a mock HTTP server on port 8080 first (see [Mock HTTP target](#1-mock-http
 
 **Option B – Override with env vars**
 
-Keep using `config/technician.yml` and `config/probes/`, but add env var expansion and a mock URL:
+Keep using `config/technician.yml` and `config/checks/`, but add env var expansion and a mock URL:
 
 ```yaml
-# In config/probes/http.yml (or a copy)
+# In config/checks/http.yml (or a copy)
 - name: Mock Website
   url: ${MOCK_HTTP_URL}
   expected_status: 200
@@ -96,12 +96,12 @@ go run . worker --config config/technician.yml
    ```
    In another terminal, run only Prometheus + Grafana (e.g. temporarily edit `docker-compose.yml` to remove the `technician` service and set Prometheus to scrape `host.docker.internal:9590` or your host IP).
 
-   **All-in-Docker**: Run the mock HTTP server as another service in `docker-compose.yml` (e.g. image `python:3-slim` with a one-line server), and point probe URLs at that service name (e.g. `http://mock-http:8080/`). Mount local config and probes into the Technician container.
+   **All-in-Docker**: Run the mock HTTP server as another service in `docker-compose.yml` (e.g. image `python:3-slim` with a one-line server), and point probe URLs at that service name (e.g. `http://mock-http:8080/`). Mount local config and checks into the Technician container.
 
 3. **Verify**
    - [http://localhost:9590/metrics](http://localhost:9590/metrics) – should show `technician_*` metrics updating.
-   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_probe_up`.
-   - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock probes.
+   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_check_up`.
+   - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock checks.
 
 ## 4. Validate against local config
 
@@ -118,7 +118,7 @@ Expect exit 0 when thresholds are relaxed and the mock server is up.
 
 For SMTP probes without hitting real mail servers:
 
-- Run a local SMTP server that accepts connections (e.g. [inbucket](https://www.inbucket.org/), or a minimal `smtpd` in Python). Point `probes/smtp.yml` at `localhost:25` (or the chosen port).
+- Run a local SMTP server that accepts connections (e.g. [inbucket](https://www.inbucket.org/), or a minimal `smtpd` in Python). Point `checks/smtp.yml` at `localhost:25` (or the chosen port).
 - Or leave SMTP probes out of the local config so only HTTP runs.
 
 ## 6. Summary

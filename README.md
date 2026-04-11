@@ -1,6 +1,6 @@
 # Technician
 
-A single Go binary that probes your infrastructure over the network. Thirteen probe types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
+A single Go binary that probes your infrastructure over the network. Thirteen check types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
 
 ## What it does
 
@@ -8,7 +8,7 @@ A single Go binary that probes your infrastructure over the network. Thirteen pr
 - **Prometheus metrics** — 20 gauges covering uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations. Exposed on `/metrics`.
 - **Blackbox-compatible `/probe` endpoint** — Accepts `?target=&module=` queries so Prometheus can scrape ad-hoc probe targets via relabeling, the same contract as [prometheus/blackbox_exporter](https://github.com/prometheus/blackbox_exporter).
 - **OTLP traces** — One span per probe run with timing attributes and HAR entries as span events.
-- **Performance budgets** — Define thresholds (duration, TTFB, LCP, INP, CLS, etc.) in YAML. The `validate` command runs all probes, evaluates budgets, and exits 0/1 for CI. Reporters: text, JSON, GitHub Actions annotations.
+- **Performance budgets** — Define thresholds (duration, TTFB, LCP, INP, CLS, etc.) in YAML. The `validate` command runs all checks, evaluates budgets, and exits 0/1 for CI. Reporters: text, JSON, GitHub Actions annotations.
 - **Grafana dashboards** — Five pre-built dashboards (uptime overview, performance vitals, HTTP timing, HAR analysis, budget violations) with Prometheus provisioning configs.
 
 ## Architecture
@@ -16,7 +16,7 @@ A single Go binary that probes your infrastructure over the network. Thirteen pr
 ```mermaid
 graph LR
     yml[technician.yml] --> sched
-    probes[probes/*.yml] --> sched
+    probes[checks/*.yml] --> sched
 
     subgraph worker [Technician Worker]
         sched[Scheduler<br/>cron + stagger]
@@ -58,18 +58,18 @@ docker compose up
 | Command | Purpose |
 |---------|---------|
 | `technician worker` | Long-running worker: scheduled probes + metrics server |
-| `technician probe --name <name>` | Run a single probe (debugging) |
+| `technician check --name <name>` | Run a single probe (debugging) |
 | `technician serve` | Metrics server only (no scheduling) |
-| `technician validate` | Run all probes, check budgets, exit 0/1 (CI) |
+| `technician validate` | Run all checks, check budgets, exit 0/1 (CI) |
 
 Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` env), `--verbose` / `-v`.
 
 ## Configuration
 
 - **Main config** — `technician.yml`: service name, sites (code, city, country, location_hash, infra_provider), metrics listen address, artifact storage, Playwright mode.
-- **Probes** — `probes/http.yml`, `probes/tcp.yml`, `probes/udp.yml`, `probes/dns.yml`, `probes/icmp.yml`, `probes/grpc.yml`, `probes/ntp.yml`, `probes/tls.yml`, `probes/smtp.yml`, `probes/traceroute.yml`, `probes/bgp.yml`, `probes/domain_expiry.yml`, `probes/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), timeout, and retry policy.
-- **Budgets** — Optional `budgets.yml` with per-probe thresholds for `validate`.
-- **Stability** — All probes support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `probe_down`. See [alerting](docs/alerting.md) for details.
+- **Probes** — `checks/http.yml`, `checks/tcp.yml`, `checks/udp.yml`, `checks/dns.yml`, `checks/icmp.yml`, `checks/grpc.yml`, `checks/ntp.yml`, `checks/tls.yml`, `checks/smtp.yml`, `checks/traceroute.yml`, `checks/bgp.yml`, `checks/domain_expiry.yml`, `checks/playwright/playwright.yml`. Each file is a list of probe definitions with name, target, schedule (cron), timeout, and retry policy.
+- **Budgets** — Optional `budgets.yml` with per-check thresholds for `validate`.
+- **Stability** — All probes support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `check_down`. See [alerting](docs/alerting.md) for details.
 - All YAML files support `${ENV_VAR}` expansion.
 
 See [examples/](examples/) for reference configs. Copy to `config/` and customise for your targets.
@@ -104,7 +104,7 @@ Technician is built around Prometheus pull-based scraping because:
 
 - [Getting started](docs/getting-started.md) — Prerequisites, Mac init script, running the worker and full stack.
 - [Architecture: Central Prometheus and Grafana](docs/architecture/central-prometheus-grafana.md) — VPC deployment, scrape config, edge push strategies.
-- [Proposal: Cloudflare Workers](docs/proposals/cloudflare-workers.md) — Edge probe runners on Workers and Lambda.
+- [Proposal: Cloudflare Workers](docs/proposals/cloudflare-workers.md) — Edge check runners on Workers and Lambda.
 - [Proposal: Site identifiers at the edge](docs/proposals/site-identifiers-edge.md) — How to identify probe location in serverless environments.
 - [Testing and E2E](docs/testing-and-e2e.md) — Test guide.
 - [Core Web Vitals](docs/core-web-vitals.md) — LCP, INP, CLS thresholds and measurement.

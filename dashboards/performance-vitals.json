@@ -37,7 +37,7 @@
         "refresh": 2
       },
       {
-        "name": "probe",
+        "name": "check",
         "type": "query",
         "datasource": {
           "type": "prometheus",

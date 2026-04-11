@@ -25,13 +25,13 @@ func TestComputeStaggerDeterministic(t *testing.T) {
 	}
 }
 
-func TestComputeStaggerDifferentProbes(t *testing.T) {
+func TestComputeStaggerDifferentChecks(t *testing.T) {
 	site := &config.Site{Code: "us-east-1"}
 
 	d1 := ComputeStagger("probe1", site)
 	d2 := ComputeStagger("probe2", site)
 
-	// Different probes should (generally) have different stagger
+	// Different checks should (generally) have different stagger
 	// This could theoretically fail due to hash collision but is extremely unlikely
 	if d1 == d2 {
 		t.Log("Warning: two different probes got same stagger (possible hash collision)")
@@ -41,7 +41,7 @@ func TestComputeStaggerDifferentProbes(t *testing.T) {
 func TestComputeStaggerBound(t *testing.T) {
 	site := &config.Site{Code: "test"}
 
-	for _, name := range []string{"a", "b", "c", "long-probe-name", "x"} {
+	for _, name := range []string{"a", "b", "c", "long-check-name", "x"} {
 		d := ComputeStagger(name, site)
 		if d < 0 || d >= 10*time.Second {
 			t.Errorf("stagger for %q out of bounds: %v", name, d)

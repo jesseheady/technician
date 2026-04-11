@@ -1,15 +1,15 @@
 # Central Prometheus and Grafana
 
-**Goal:** Run probe workers locally, in Docker, or at the edge, and have **deployed** workers send metrics to a **central Prometheus** on your private AWS VPC. Your **central Grafana** (also in the VPC or otherwise secured) is the source of record for those probes. Local Prometheus + Grafana (e.g. from `docker compose up`) remain for proving probes and running tests.
+**Goal:** Run probe workers locally, in Docker, or at the edge, and have **deployed** workers send metrics to a **central Prometheus** on your private AWS VPC. Your **central Grafana** (also in the VPC or otherwise secured) is the source of record for those checks. Local Prometheus + Grafana (e.g. from `docker compose up`) remain for proving checks and running tests.
 
 ## Roles
 
 | Environment | Purpose | Metrics flow |
 |-------------|--------|--------------|
-| **Local / Docker** | Prove probes, run tests, develop. Optional: push to central for ad‑hoc viewing. | Local stack only, or optional push to central (see below). |
-| **Central Prometheus (VPC)** | Single place where all **deployed** probe metrics are stored. | Scrapes Technician instances that are reachable; optionally receives push from edge or local. |
-| **Central Grafana** | Source of record for dashboards and alerts for deployed probes. | Datasource = central Prometheus. |
-| **Edge (Workers / Lambda)** | Run probes from edge; no long‑lived `/metrics` to scrape. | Push to central (Pushgateway or remote‑write) when a probe runs, or via an aggregator that Prometheus scrapes. |
+| **Local / Docker** | Prove checks, run tests, develop. Optional: push to central for ad‑hoc viewing. | Local stack only, or optional push to central (see below). |
+| **Central Prometheus (VPC)** | Single place where all **deployed** check metrics are stored. | Scrapes Technician instances that are reachable; optionally receives push from edge or local. |
+| **Central Grafana** | Source of record for dashboards and alerts for deployed checks. | Datasource = central Prometheus. |
+| **Edge (Workers / Lambda)** | Run probes from edge; no long‑lived `/metrics` to scrape. | Push to central (Pushgateway or remote‑write) when a check runs, or via an aggregator that Prometheus scrapes. |
 
 ## Getting metrics to central Prometheus
 
@@ -36,11 +36,11 @@ scrape_configs:
           - technician-us-west-2.internal:9590
         labels:
           environment: production
-      # Option B: DNS A records (e.g. technician-probes.private.local → multiple IPs)
+      # Option B: DNS A records (e.g. technician-checks.private.local → multiple IPs)
       # - targets:
-      #     - technician-probes.private.local:9590
+      #     - technician-checks.private.local:9590
       #   dns_sd_configs:
-      #     - names: ['technician-probes.private.local']
+      #     - names: ['technician-checks.private.local']
       #       type: A
       #       port: 9590
 ```
@@ -51,10 +51,10 @@ Each Technician instance should be started with the appropriate `SITE_CODE` (e.g
 
 Your laptop or local Docker stack is not reachable from the VPC. Options:
 
-- **Keep it local only** – Use the local Prometheus + Grafana from `docker compose up` to prove probes and run tests. No push to central.
+- **Keep it local only** – Use the local Prometheus + Grafana from `docker compose up` to prove checks and run tests. No push to central.
 - **Push to central (optional)** – If you want to see local or Docker runs in central Grafana occasionally:
   - Run a **Prometheus Pushgateway** (or a remote‑write receiver) in the VPC, reachable via VPN or a secure tunnel.
-  - After each probe run (or on a timer), push metrics from the Technician host to the Pushgateway. Prometheus then scrapes the Pushgateway.
+  - After each check run (or on a timer), push metrics from the Technician host to the Pushgateway. Prometheus then scrapes the Pushgateway.
   - Alternatively, use **Grafana Agent** or **Alloy** with a remote‑write receiver in the VPC; Technician or a small sidecar pushes in Prometheus remote‑write format.
 
 Technician does not push by default; you’d add a small push step (script or sidecar) or use an agent that scrapes local Technician and forwards. Documenting the exact push mechanism is out of scope here; the important point is that central Prometheus (or a Pushgateway it scrapes) can be the single sink.
@@ -71,7 +71,7 @@ In both cases, edge metrics should use the same **site identifier** convention (
 ## Central Grafana
 
 - **Datasource:** Configure Grafana with a Prometheus datasource pointing at your **central Prometheus** (e.g. `http://prometheus.vpc.internal:9090` or the internal URL you use).
-- **Dashboards:** Use the same Technician dashboards (uptime, HTTP timing, budgets, etc.); they already use `region` and `probe` variables, so they work with local, VPC, and (if you push) edge sites.
+- **Dashboards:** Use the same Technician dashboards (uptime, HTTP timing, budgets, etc.); they already use `region` and `check` variables, so they work with local, VPC, and (if you push) edge sites.
 - **Alerts:** Define alert rules in central Prometheus (or Grafana) so that deployed probes drive notifications. Your existing `prometheus/rules.yml` is a good base; deploy it with central Prometheus and adjust for your VPC targets.
 
 ## Example: minimal central Prometheus config (VPC)
@@ -103,7 +103,7 @@ Replace hostnames with your real VPC DNS or IPs. Use IAM, security groups, and p
 
 ## Summary
 
-- **Local/Docker:** Proves probes and tests; metrics stay in the local stack unless you add an optional push to central.
+- **Local/Docker:** Proves checks and tests; metrics stay in the local stack unless you add an optional push to central.
 - **Central Prometheus (VPC):** Scrapes all reachable Technician instances in your AWS footprint; optionally scrapes a Pushgateway or aggregator for edge/pushed metrics.
 - **Central Grafana:** Single source of record for deployed probes; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and infra_provider.
 - **Edge:** Push to a VPC-hosted Pushgateway or remote-write endpoint, or use an in-VPC aggregator that Prometheus scrapes, so edge results appear in central Grafana with consistent site labels.
@@ -118,10 +118,10 @@ Your current repo is: **Technician** (exposes `/metrics` on 9590), **Prometheus*
 
 ### What stays the same
 
-- **Technician binary and config** – Same Dockerfile, same `technician.yml` and `probes/` layout. Technician still listens on `:9590` and serves `/metrics`, `/health`, `/probe`.
-- **Probe definitions** – Same YAML (all 13 probe types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
+- **Technician binary and config** – Same Dockerfile, same `technician.yml` and `checks/` layout. Technician still listens on `:9590` and serves `/metrics`, `/health`, `/probe`.
+- **Probe definitions** – Same YAML (all 13 check types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
 - **Prometheus rules** – Same `prometheus/rules.yml` (ProbeFailing, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
-- **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`region`, `probe`) already work with whatever sites you run.
+- **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`region`, `check`) already work with whatever sites you run.
 
 ### What changes in the VPC
 
@@ -146,13 +146,13 @@ Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one
    - Image: your Technician image.
    - Command: `worker --config /etc/technician/technician.yml` (same as Dockerfile CMD).
    - Env: `SITE_CODE=us-east-1` (or the region/identifier for that instance).
-   - Mount or bake in `technician.yml` and `probes/` (same structure as `config/`).
+   - Mount or bake in `technician.yml` and `checks/` (same structure as `config/`).
    - Listen: `0.0.0.0:9590` (default) so Prometheus in the VPC can reach it.
 3. **Networking** – Security group for Technician: allow **inbound TCP 9590** from the Prometheus server(s) (or from a load balancer / service discovery you use). No public port needed if Prometheus is in the same VPC or peered.
 4. **Discovery** – Give each Technician instance a stable name (e.g. private DNS `technician-us-east-1.private` or ECS service discovery). Put those hostnames (and port 9590) in Prometheus `scrape_configs` as in the "Example: minimal central Prometheus config" above.
 5. **Prometheus** – Run in the VPC with that scrape config and `rule_files: [rules.yml]`. Storage and retention as you normally would for Prometheus.
-6. **Grafana** – Point its Prometheus datasource at central Prometheus. Import or provision the same dashboards from `dashboards/`. No change to dashboard logic; they already filter by `region` and `probe`.
+6. **Grafana** – Point its Prometheus datasource at central Prometheus. Import or provision the same dashboards from `dashboards/`. No change to dashboard logic; they already filter by `region` and `check`.
 
 ### Summary
 
-In the VPC you keep the **same** Technician app, config format, probes, rules, and dashboards. The only operational differences are: **where** Technician runs (VPC hosts), **how** Prometheus finds it (VPC hostnames/IPs in `scrape_configs`), and **one** central Grafana using that Prometheus. The current setup is already "VPC-ready"; deployment is mostly wiring discovery and `SITE_CODE` per instance.
+In the VPC you keep the **same** Technician app, config format, checks, rules, and dashboards. The only operational differences are: **where** Technician runs (VPC hosts), **how** Prometheus finds it (VPC hostnames/IPs in `scrape_configs`), and **one** central Grafana using that Prometheus. The current setup is already "VPC-ready"; deployment is mostly wiring discovery and `SITE_CODE` per instance.
