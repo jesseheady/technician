@@ -16,7 +16,7 @@ import (
 )
 
 // BlackboxHandler implements a /probe endpoint compatible with
-// Prometheus blackbox_exporter's probe interface.
+// Prometheus blackbox_exporter's check interface.
 type BlackboxHandler struct {
 	checkers map[string]check.Checker
 }
@@ -196,7 +196,7 @@ func buildCheckConfig(target, module string) *config.CheckConfig {
 	}
 }
 
-// DebugHandler returns probe config for a module as JSON (useful for debugging).
+// DebugHandler returns check config for a module as JSON (useful for debugging).
 func DebugHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		target := r.URL.Query().Get("target")

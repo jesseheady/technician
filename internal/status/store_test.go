@@ -164,7 +164,7 @@ func TestBudgetChecks(t *testing.T) {
 		t.Fatalf("expected 1 violation, got %d", snap.Summary.BudgetViolations)
 	}
 
-	// Budget checks should be attached to the probe
+	// Budget checks should be attached to the check
 	if len(snap.Checks[0].BudgetChecks) != 2 {
 		t.Fatalf("expected 2 budget checks on check, got %d", len(snap.Checks[0].BudgetChecks))
 	}
@@ -289,7 +289,7 @@ func TestPersistenceRoundTrip(t *testing.T) {
 	snap := s2.Snapshot()
 
 	if len(snap.Checks) != 2 {
-		t.Fatalf("expected 2 probes after load, got %d", len(snap.Checks))
+		t.Fatalf("expected 2 checks after load, got %d", len(snap.Checks))
 	}
 	if snap.Summary.BudgetTotal != 2 {
 		t.Fatalf("expected 2 budget checks after load, got %d", snap.Summary.BudgetTotal)

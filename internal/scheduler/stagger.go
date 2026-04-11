@@ -7,7 +7,7 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-// ComputeStagger returns a deterministic stagger delay based on probe name and site.
+// ComputeStagger returns a deterministic stagger delay based on check name and site.
 // This ensures checks from different sites don't all fire at exactly the same time,
 // while remaining stable across restarts.
 func ComputeStagger(checkName string, site *config.Site) time.Duration {

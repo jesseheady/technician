@@ -124,7 +124,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 					}
 					if c.Violated {
 						slog.Warn("Budget violation",
-							"probe", c.Check,
+							"check", c.Check,
 							"metric", c.Metric,
 							"actual", c.Actual,
 							"threshold", c.Threshold,

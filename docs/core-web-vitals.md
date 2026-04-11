@@ -1,6 +1,6 @@
 # Core Web Vitals (browser checks)
 
-Technician’s Playwright probes collect the **Core Web Vitals** for synthetic monitoring. As of March 2024, the three official metrics are:
+Technician’s Playwright checks collect the **Core Web Vitals** for synthetic monitoring. As of March 2024, the three official metrics are:
 
 | Metric | Meaning | Good threshold |
 |--------|--------|----------------|

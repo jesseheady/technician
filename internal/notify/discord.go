@@ -46,9 +46,9 @@ type discordEmbedFooter struct {
 }
 
 const (
-	colorRed    = 0xFF0000 // critical: probe down, cert expiry critical
+	colorRed    = 0xFF0000 // critical: check down, cert expiry critical
 	colorAmber  = 0xF5A623 // warning: budget violation, cert expiry warning
-	colorGreen  = 0x00FF00 // recovery: probe up
+	colorGreen  = 0x00FF00 // recovery: check up
 )
 
 func (d *DiscordSender) Send(ctx context.Context, event Event) error {
@@ -59,10 +59,10 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 
 	switch event.Type {
 	case EventCheckDown:
-		embed.Title = fmt.Sprintf("Probe Down: %s", event.Check)
+		embed.Title = fmt.Sprintf("Check Down: %s", event.Check)
 		embed.Color = colorRed
 		var desc strings.Builder
-		desc.WriteString(fmt.Sprintf("Probe **%s**", event.Check))
+		desc.WriteString(fmt.Sprintf("Check **%s**", event.Check))
 		if event.CheckType != "" {
 			desc.WriteString(fmt.Sprintf(" (%s)", event.CheckType))
 		}
@@ -80,15 +80,15 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 		}
 
 	case EventCheckUp:
-		embed.Title = fmt.Sprintf("Probe Recovered: %s", event.Check)
+		embed.Title = fmt.Sprintf("Check Recovered: %s", event.Check)
 		embed.Color = colorGreen
-		embed.Description = fmt.Sprintf("Probe **%s** is back up.", event.Check)
+		embed.Description = fmt.Sprintf("Check **%s** is back up.", event.Check)
 
 	case EventBudgetViolation:
 		embed.Title = fmt.Sprintf("Budget Violation: %s", event.Check)
 		embed.Color = colorAmber
 		metric := event.Details["metric"]
-		embed.Description = fmt.Sprintf("Probe **%s** exceeds **%s** budget threshold.", event.Check, metric)
+		embed.Description = fmt.Sprintf("Check **%s** exceeds **%s** budget threshold.", event.Check, metric)
 
 	case EventCertExpiring:
 		severityLabel := strings.ToUpper(string(event.Severity))

@@ -103,7 +103,7 @@ func TestEvaluateWithViolations(t *testing.T) {
 
 func TestEvaluateWildcard(t *testing.T) {
 	result := &check.Result{
-		Name:     "any-probe",
+		Name:     "any-check",
 		Type:     config.CheckTypeHTTP,
 		Success:  true,
 		Duration: 10 * time.Second,
@@ -127,7 +127,7 @@ func TestEvaluateWildcard(t *testing.T) {
 
 func TestEvaluateNamedCheckOnly(t *testing.T) {
 	result := &check.Result{
-		Name:     "other-probe",
+		Name:     "other-check",
 		Type:     config.CheckTypeHTTP,
 		Success:  true,
 		Duration: 10 * time.Second,
@@ -135,13 +135,13 @@ func TestEvaluateNamedCheckOnly(t *testing.T) {
 
 	budgets := []Budget{
 		{
-			Check:      "specific-probe",
+			Check:      "specific-check",
 			Thresholds: map[string]float64{"duration": 5000},
 		},
 	}
 
 	violations := Evaluate(result, budgets)
 	if len(violations) != 0 {
-		t.Errorf("expected 0 violations for non-matching probe, got %d", len(violations))
+		t.Errorf("expected 0 violations for non-matching check, got %d", len(violations))
 	}
 }

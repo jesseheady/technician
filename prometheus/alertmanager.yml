@@ -24,7 +24,7 @@ route:
       # mute_time_intervals: ['maintenance']
 
     # ── Infrastructure ──────────────────────────────────────────
-    # Probe failures, BGP hijacks, invalid certs, dropped domains,
+    # Check failures, BGP hijacks, invalid certs, dropped domains,
     # Prometheus WAL corruption.
     - matchers:
         - alertname =~ "CheckFailing|HighErrorRate|HighErrorRateWarn|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered|PrometheusWALCorruptions|PrometheusStorageCritical"
@@ -150,14 +150,14 @@ receivers:
 
 inhibit_rules:
   # ── Severity suppression ──────────────────────────────────────
-  # Critical alerts suppress warning alerts for the same probe.
+  # Critical alerts suppress warning alerts for the same check.
   - source_matchers:
       - severity = critical
     target_matchers:
       - severity = warning
     equal: ['name']
 
-  # Aggregate error rate warning suppresses individual probe failure warnings.
+  # Aggregate error rate warning suppresses individual check failure warnings.
   - source_matchers:
       - alertname = HighErrorRateWarn
     target_matchers:
