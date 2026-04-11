@@ -22,9 +22,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up, region)",
+        "definition": "label_values(technician_check_healthy, region)",
         "query": {
-          "query": "label_values(technician_probe_up, region)",
+          "query": "label_values(technician_check_healthy, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up{region=~\"$region\"}, type)",
+        "definition": "label_values(technician_check_healthy{region=~\"$region\"}, type)",
         "query": {
-          "query": "label_values(technician_probe_up{region=~\"$region\"}, type)",
+          "query": "label_values(technician_check_healthy{region=~\"$region\"}, type)",
           "refId": "A"
         },
         "includeAll": true,
@@ -64,9 +64,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up{region=~\"$region\", type=~\"$type\"}, name)",
+        "definition": "label_values(technician_check_healthy{region=~\"$region\", type=~\"$type\"}, name)",
         "query": {
-          "query": "label_values(technician_probe_up{region=~\"$region\", type=~\"$type\"}, name)",
+          "query": "label_values(technician_check_healthy{region=~\"$region\", type=~\"$type\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -114,7 +114,7 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 0",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 0",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -173,7 +173,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}[$__range])) * 100",
+          "expr": "avg(avg_over_time(technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}[$__range])) * 100",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -218,7 +218,7 @@
       "description": "Probes where response time exceeds the degraded_after threshold. Only shows currently degraded probes.",
       "targets": [
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 1",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 1",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -274,19 +274,19 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "format": "table",
           "instant": true,
           "refId": "C"
@@ -554,7 +554,7 @@
       },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -610,7 +610,7 @@
       "description": "Tracks which probes are in degraded state (response time exceeds degraded_after threshold)",
       "targets": [
         {
-          "expr": "technician_probe_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -667,7 +667,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -695,7 +695,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -732,7 +732,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }

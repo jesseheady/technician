@@ -20,14 +20,14 @@ groups:
     rules:
       - record: technician:failure_ratio
         expr: |
-          count by (name, type) (technician_probe_up == 0)
-          / count by (name, type) (technician_probe_up)
+          count by (name, type) (technician_check_healthy == 0)
+          / count by (name, type) (technician_check_healthy)
 
       - record: technician:daily_availability
         expr: |
           avg_over_time((
-            sum by (name, type) (technician_probe_up)
-            / count by (name, type) (technician_probe_up)
+            sum by (name, type) (technician_check_healthy)
+            / count by (name, type) (technician_check_healthy)
             > bool 0.5
           )[1d:])
 
@@ -35,10 +35,10 @@ groups:
         expr: quantile(0.95, technician_browser_lcp_ms) by (name)
 
   # ── Probe health ─────────────────────────────────────────────────
-  - name: technician_probe_health
+  - name: technician_check_health
     rules:
-      - alert: ProbeFailing
-        expr: technician_probe_up == 0
+      - alert: CheckFailing
+        expr: technician_check_healthy == 0
         for: 3m
         labels:
           severity: warning
@@ -48,8 +48,8 @@ groups:
 
       - alert: HighErrorRateWarn
         expr: |
-          sum by (name) (technician_probe_up == 0)
-          / count by (name) (technician_probe_up) > 0.25
+          sum by (name) (technician_check_healthy == 0)
+          / count by (name) (technician_check_healthy) > 0.25
         for: 5m
         labels:
           severity: warning
@@ -59,8 +59,8 @@ groups:
 
       - alert: HighErrorRate
         expr: |
-          sum by (name) (technician_probe_up == 0)
-          / count by (name) (technician_probe_up) > 0.5
+          sum by (name) (technician_check_healthy == 0)
+          / count by (name) (technician_check_healthy) > 0.5
         for: 10m
         labels:
           severity: critical
@@ -68,8 +68,8 @@ groups:
           summary: "High error rate for {{ $labels.name }}"
           description: "More than 50% of probes for {{ $labels.name }} are failing."
 
-      - alert: ProbeInfraError
-        expr: technician_probe_infra_error == 1
+      - alert: CheckInfraError
+        expr: technician_check_infra_error == 1
         for: 5m
         labels:
           severity: warning

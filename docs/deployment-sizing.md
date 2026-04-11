@@ -156,7 +156,7 @@ Separate concerns for reliability and geographic coverage:
 
 - **Workers**: One per region/vantage point. Each runs independently with its own `SITE_CODE`. If a worker goes down, other regions keep probing. Workers are stateless — no data loss on restart (metrics are scraped by Prometheus before they're lost).
 - **Prometheus + Grafana**: Central, on a single host or managed service. Should not run on the same box as a worker — if the worker's host dies, you lose your monitoring history.
-- **Alertmanager**: Alongside Prometheus. Fires notifications when `ProbeFailing` or `BudgetViolation` rules trigger.
+- **Alertmanager**: Alongside Prometheus. Fires notifications when `CheckFailing` or `BudgetViolation` rules trigger.
 
 **Why workers should be separate from the central stack:**
 
@@ -222,7 +222,7 @@ ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/t
 | Blackbox-exporter compat at `/probe` | Yes |
 | Grafana dashboards | No — requires Prometheus + Grafana |
 | Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per check |
-| Alert rules (ProbeFailing, BudgetViolation) | No — requires Prometheus |
+| Alert rules (CheckFailing, BudgetViolation) | No — requires Prometheus |
 
 This is a valid production deployment for teams that just need uptime monitoring with webhook alerts. The status page and `/api/status` endpoint work independently. Add Prometheus + Grafana later when you want historical trends and dashboards — the worker is already exporting metrics.
 
@@ -401,7 +401,7 @@ Technician supports two complementary alerting layers:
 
 | Approach | How |
 |----------|-----|
-| **Prometheus alert rules** | Deploy `prometheus/rules.yml` to AMP or self-hosted Prometheus. Rules like `ProbeFailing` and `BudgetViolation` fire as native Prometheus alerts. |
+| **Prometheus alert rules** | Deploy `prometheus/rules.yml` to AMP or self-hosted Prometheus. Rules like `CheckFailing` and `BudgetViolation` fire as native Prometheus alerts. |
 | **Grafana alerting** | Define alert rules in AMG/Grafana that query AMP. Route to SNS, PagerDuty, Slack, etc. via Grafana contact points. |
 | **Alertmanager** | Self-hosted Alertmanager receives alerts from Prometheus rules. Routes to Slack, PagerDuty, email, webhooks. |
 

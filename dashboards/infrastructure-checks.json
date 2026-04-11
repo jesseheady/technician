@@ -22,9 +22,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up, region)",
+        "definition": "label_values(technician_check_healthy, region)",
         "query": {
-          "query": "label_values(technician_probe_up, region)",
+          "query": "label_values(technician_check_healthy, region)",
           "refId": "A"
         },
         "includeAll": true,
@@ -43,9 +43,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_up{type=~\"$type\", region=~\"$region\"}, name)",
+        "definition": "label_values(technician_check_healthy{type=~\"$type\", region=~\"$region\"}, name)",
         "query": {
-          "query": "label_values(technician_probe_up{type=~\"$type\", region=~\"$region\"}, name)",
+          "query": "label_values(technician_check_healthy{type=~\"$type\", region=~\"$region\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -64,9 +64,9 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(technician_probe_infra_error, type)",
+        "definition": "label_values(technician_check_infra_error, type)",
         "query": {
-          "query": "label_values(technician_probe_infra_error, type)",
+          "query": "label_values(technician_check_infra_error, type)",
           "refId": "A"
         },
         "includeAll": true,
@@ -101,7 +101,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 0",
+          "expr": "technician_check_healthy{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 0",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -154,7 +154,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_infra_error{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 1",
+          "expr": "technician_check_infra_error{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 1",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -202,7 +202,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{type=~\"$type\", region=~\"$region\"}",
+          "expr": "technician_check_duration_seconds{type=~\"$type\", region=~\"$region\"}",
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
         }
@@ -403,7 +403,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_up{type=\"grpc\", name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_check_healthy{type=\"grpc\", name=~\"$probe\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -435,7 +435,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_probe_duration_seconds{type=\"grpc\", region=~\"$region\"}",
+          "expr": "technician_check_duration_seconds{type=\"grpc\", region=~\"$region\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
