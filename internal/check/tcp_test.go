@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-func TestTCPProberSuccess(t *testing.T) {
+func TestTCPCheckerSuccess(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start listener: %v", err)
@@ -27,12 +27,12 @@ func TestTCPProberSuccess(t *testing.T) {
 	}()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-tcp-success",
-		Type:    config.ProbeTypeTCP,
+		Type:    config.CheckTypeTCP,
 		Timeout: 5 * time.Second,
-		TCP: &config.TCPProbeConfig{
+		TCP: &config.TCPCheckConfig{
 			Host: "127.0.0.1",
 			Port: addr.Port,
 		},
@@ -52,13 +52,13 @@ func TestTCPProberSuccess(t *testing.T) {
 	}
 }
 
-func TestTCPProberConnectionRefused(t *testing.T) {
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+func TestTCPCheckerConnectionRefused(t *testing.T) {
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-tcp-refused",
-		Type:    config.ProbeTypeTCP,
+		Type:    config.CheckTypeTCP,
 		Timeout: 2 * time.Second,
-		TCP: &config.TCPProbeConfig{
+		TCP: &config.TCPCheckConfig{
 			Host: "127.0.0.1",
 			Port: 1,
 		},
@@ -74,7 +74,7 @@ func TestTCPProberConnectionRefused(t *testing.T) {
 	}
 }
 
-func TestTCPProberSendExpect(t *testing.T) {
+func TestTCPCheckerSendExpect(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start listener: %v", err)
@@ -100,12 +100,12 @@ func TestTCPProberSendExpect(t *testing.T) {
 	}()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-tcp-send-expect",
-		Type:    config.ProbeTypeTCP,
+		Type:    config.CheckTypeTCP,
 		Timeout: 5 * time.Second,
-		TCP: &config.TCPProbeConfig{
+		TCP: &config.TCPCheckConfig{
 			Host:       "127.0.0.1",
 			Port:       addr.Port,
 			Send:       "PING\n",
@@ -120,7 +120,7 @@ func TestTCPProberSendExpect(t *testing.T) {
 	}
 }
 
-func TestTCPProberExpectFail(t *testing.T) {
+func TestTCPCheckerExpectFail(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start listener: %v", err)
@@ -141,12 +141,12 @@ func TestTCPProberExpectFail(t *testing.T) {
 	}()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-tcp-expect-fail",
-		Type:    config.ProbeTypeTCP,
+		Type:    config.CheckTypeTCP,
 		Timeout: 5 * time.Second,
-		TCP: &config.TCPProbeConfig{
+		TCP: &config.TCPCheckConfig{
 			Host:       "127.0.0.1",
 			Port:       addr.Port,
 			ExpectRecv: "CORRECT",
@@ -163,11 +163,11 @@ func TestTCPProberExpectFail(t *testing.T) {
 	}
 }
 
-func TestTCPProberMissingConfig(t *testing.T) {
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+func TestTCPCheckerMissingConfig(t *testing.T) {
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name: "test-tcp-nil",
-		Type: config.ProbeTypeTCP,
+		Type: config.CheckTypeTCP,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -175,12 +175,12 @@ func TestTCPProberMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil TCP config")
 	}
-	if result.Error != "missing TCP probe configuration" {
+	if result.Error != "missing TCP check configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestTCPProberIPv4(t *testing.T) {
+func TestTCPCheckerIPv4(t *testing.T) {
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start tcp4 listener: %v", err)
@@ -198,12 +198,12 @@ func TestTCPProberIPv4(t *testing.T) {
 	}()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTCPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewTCPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-tcp-ipv4",
-		Type:    config.ProbeTypeTCP,
+		Type:    config.CheckTypeTCP,
 		Timeout: 5 * time.Second,
-		TCP: &config.TCPProbeConfig{
+		TCP: &config.TCPCheckConfig{
 			Host:      "127.0.0.1",
 			Port:      addr.Port,
 			IPVersion: "4",

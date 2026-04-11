@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
-type mockProber struct {
-	results []*probe.Result
+type mockChecker struct {
+	results []*check.Result
 	calls   int
 }
 
-func (m *mockProber) Type() config.ProbeType { return config.ProbeTypeHTTP }
+func (m *mockChecker) Type() config.CheckType { return config.CheckTypeHTTP }
 
-func (m *mockProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *probe.Result {
+func (m *mockChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *check.Result {
 	idx := m.calls
 	m.calls++
 	if idx < len(m.results) {
@@ -26,12 +26,12 @@ func (m *mockProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 }
 
 func TestRunWithRetryNoRetryOnSuccess(t *testing.T) {
-	m := &mockProber{
-		results: []*probe.Result{
+	m := &mockChecker{
+		results: []*check.Result{
 			{Success: true},
 		},
 	}
-	cfg := &config.ProbeConfig{
+	cfg := &config.CheckConfig{
 		Name: "test-success",
 		Retry: &config.RetryPolicy{
 			Count: 2,
@@ -50,12 +50,12 @@ func TestRunWithRetryNoRetryOnSuccess(t *testing.T) {
 }
 
 func TestRunWithRetryNoConfig(t *testing.T) {
-	m := &mockProber{
-		results: []*probe.Result{
+	m := &mockChecker{
+		results: []*check.Result{
 			{Success: false, Error: "connection refused"},
 		},
 	}
-	cfg := &config.ProbeConfig{
+	cfg := &config.CheckConfig{
 		Name:  "test-no-retry",
 		Retry: nil,
 	}
@@ -71,13 +71,13 @@ func TestRunWithRetryNoConfig(t *testing.T) {
 }
 
 func TestRunWithRetryEventualSuccess(t *testing.T) {
-	m := &mockProber{
-		results: []*probe.Result{
+	m := &mockChecker{
+		results: []*check.Result{
 			{Success: false, Error: "connection refused"},
 			{Success: true},
 		},
 	}
-	cfg := &config.ProbeConfig{
+	cfg := &config.CheckConfig{
 		Name: "test-eventual-success",
 		Retry: &config.RetryPolicy{
 			Count: 2,
@@ -96,14 +96,14 @@ func TestRunWithRetryEventualSuccess(t *testing.T) {
 }
 
 func TestRunWithRetryAllFail(t *testing.T) {
-	m := &mockProber{
-		results: []*probe.Result{
+	m := &mockChecker{
+		results: []*check.Result{
 			{Success: false, Error: "fail 1"},
 			{Success: false, Error: "fail 2"},
 			{Success: false, Error: "fail 3"},
 		},
 	}
-	cfg := &config.ProbeConfig{
+	cfg := &config.CheckConfig{
 		Name: "test-all-fail",
 		Retry: &config.RetryPolicy{
 			Count: 2,
@@ -122,14 +122,14 @@ func TestRunWithRetryAllFail(t *testing.T) {
 }
 
 func TestRunWithRetryExponentialBackoff(t *testing.T) {
-	m := &mockProber{
-		results: []*probe.Result{
+	m := &mockChecker{
+		results: []*check.Result{
 			{Success: false, Error: "fail 1"},
 			{Success: false, Error: "fail 2"},
 			{Success: true},
 		},
 	}
-	cfg := &config.ProbeConfig{
+	cfg := &config.CheckConfig{
 		Name: "test-exponential",
 		Retry: &config.RetryPolicy{
 			Count:   3,

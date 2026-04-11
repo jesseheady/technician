@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -9,13 +9,13 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-func TestDNSProberARecord(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerARecord(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-a-record",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "google.com",
 			Server:     "8.8.8.8:53",
 			RecordType: "A",
@@ -35,13 +35,13 @@ func TestDNSProberARecord(t *testing.T) {
 	}
 }
 
-func TestDNSProberAAAARecord(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerAAAARecord(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-aaaa-record",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "google.com",
 			Server:     "8.8.8.8:53",
 			RecordType: "AAAA",
@@ -60,13 +60,13 @@ func TestDNSProberAAAARecord(t *testing.T) {
 	}
 }
 
-func TestDNSProberTXTRecord(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerTXTRecord(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-txt-record",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "google.com",
 			Server:     "8.8.8.8:53",
 			RecordType: "TXT",
@@ -83,13 +83,13 @@ func TestDNSProberTXTRecord(t *testing.T) {
 	}
 }
 
-func TestDNSProberExpectedMatch(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerExpectedMatch(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-expected-match",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "dns.google",
 			Server:     "8.8.8.8:53",
 			RecordType: "A",
@@ -104,13 +104,13 @@ func TestDNSProberExpectedMatch(t *testing.T) {
 	}
 }
 
-func TestDNSProberExpectedMismatch(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerExpectedMismatch(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-expected-mismatch",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "dns.google",
 			Server:     "8.8.8.8:53",
 			RecordType: "A",
@@ -128,13 +128,13 @@ func TestDNSProberExpectedMismatch(t *testing.T) {
 	}
 }
 
-func TestDNSProberInvalidDomain(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerInvalidDomain(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-invalid-domain",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "thisdomain.doesnotexist.invalid",
 			Server:     "8.8.8.8:53",
 			RecordType: "A",
@@ -148,13 +148,13 @@ func TestDNSProberInvalidDomain(t *testing.T) {
 	}
 }
 
-func TestDNSProberUnsupportedType(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerUnsupportedType(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-unsupported-type",
-		Type:    config.ProbeTypeDNS,
+		Type:    config.CheckTypeDNS,
 		Timeout: 10 * time.Second,
-		DNS: &config.DNSProbeConfig{
+		DNS: &config.DNSCheckConfig{
 			Domain:     "google.com",
 			Server:     "8.8.8.8:53",
 			RecordType: "INVALID",
@@ -171,11 +171,11 @@ func TestDNSProberUnsupportedType(t *testing.T) {
 	}
 }
 
-func TestDNSProberMissingConfig(t *testing.T) {
-	prober := NewDNSProber()
-	cfg := &config.ProbeConfig{
+func TestDNSCheckerMissingConfig(t *testing.T) {
+	prober := NewDNSChecker()
+	cfg := &config.CheckConfig{
 		Name: "test-nil-dns",
-		Type: config.ProbeTypeDNS,
+		Type: config.CheckTypeDNS,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -183,7 +183,7 @@ func TestDNSProberMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil DNS config")
 	}
-	if result.Error != "missing DNS probe configuration" {
+	if result.Error != "missing DNS check configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }

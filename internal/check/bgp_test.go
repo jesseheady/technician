@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -9,18 +9,18 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-func TestBGPProberType(t *testing.T) {
-	prober := NewBGPProber()
-	if prober.Type() != config.ProbeTypeBGP {
-		t.Errorf("expected type %q, got %q", config.ProbeTypeBGP, prober.Type())
+func TestBGPCheckerType(t *testing.T) {
+	prober := NewBGPChecker()
+	if prober.Type() != config.CheckTypeBGP {
+		t.Errorf("expected type %q, got %q", config.CheckTypeBGP, prober.Type())
 	}
 }
 
-func TestBGPProberMissingConfig(t *testing.T) {
-	prober := NewBGPProber()
-	cfg := &config.ProbeConfig{
+func TestBGPCheckerMissingConfig(t *testing.T) {
+	prober := NewBGPChecker()
+	cfg := &config.CheckConfig{
 		Name: "test-bgp-nil",
-		Type: config.ProbeTypeBGP,
+		Type: config.CheckTypeBGP,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -28,21 +28,21 @@ func TestBGPProberMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil BGP config")
 	}
-	if result.Error != "missing BGP probe configuration" {
+	if result.Error != "missing BGP check configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestBGPProberCancelledContext(t *testing.T) {
+func TestBGPCheckerCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	prober := NewBGPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewBGPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-bgp-cancelled",
-		Type:    config.ProbeTypeBGP,
+		Type:    config.CheckTypeBGP,
 		Timeout: 5 * time.Second,
-		BGP: &config.BGPProbeConfig{
+		BGP: &config.BGPCheckConfig{
 			Prefix:         "203.0.113.0/24",
 			ExpectedOrigin: 64496,
 		},
