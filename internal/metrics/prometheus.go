@@ -32,7 +32,7 @@ var (
 
 	checkDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_check_duration_seconds",
-		Help: "End-to-end probe execution time in seconds",
+		Help: "End-to-end check execution time in seconds",
 	}, []string{"type", "name", "region", "city", "country"})
 
 	httpResponseStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -219,10 +219,10 @@ var (
 	}, []string{"name", "region", "city", "country"})
 
 	// Infrastructure error indicator — recorded even when InfraError=true
-	// so that silently-failing probes become visible in dashboards and alerts.
+	// so that silently-failing checks become visible in dashboards and alerts.
 	checkInfraError = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_check_infra_error",
-		Help: "1 if the probe's own infrastructure failed (not the target), 0 otherwise",
+		Help: "1 if the check's own infrastructure failed (not the target), 0 otherwise",
 	}, []string{"type", "name", "region", "city", "country"})
 
 	// Degraded indicator
@@ -285,8 +285,8 @@ func RecordResult(result *check.Result) {
 	typeStr := string(result.Type)
 
 	if result.InfraError {
-		// Record that this probe's infrastructure failed so dashboards and
-		// alerts can surface silently-broken probes. We still skip the
+		// Record that this check's infrastructure failed so dashboards and
+		// alerts can surface silently-broken checks. We still skip the
 		// target-level metrics (check_up, duration, etc.) because they
 		// would be misleading — the target was never actually tested.
 		checkInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(1)
@@ -302,7 +302,7 @@ func RecordResult(result *check.Result) {
 	if _, ok := seenCheckNames[result.Name]; !ok {
 		if len(seenCheckNames) >= maxCheckCardinality {
 			if !cardinalityLimit {
-				slog.Warn("Probe cardinality limit reached, new check names will not be recorded as metrics",
+				slog.Warn("Check cardinality limit reached, new check names will not be recorded as metrics",
 					"limit", maxCheckCardinality)
 				cardinalityLimit = true
 			}

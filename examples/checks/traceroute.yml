@@ -4,7 +4,7 @@
 # degraded_after guidance:
 #   Cloud VPS:             10s
 #   Residential / Docker:  15s
-# Traceroute spawns an mtr subprocess that sends multiple probe packets across
+# Traceroute spawns an mtr subprocess that sends multiple check packets across
 # many hops. 5-10s is normal even from fast networks. Only flag as degraded if
 # the trace is taking significantly longer than usual.
 

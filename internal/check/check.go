@@ -21,7 +21,7 @@ type Result struct {
 	Group      string
 	Target     string // canonical hostname/domain for status page grouping
 	Success    bool
-	InfraError bool // true when the probe infrastructure itself failed (not the target)
+	InfraError bool // true when the check infrastructure itself failed (not the target)
 	Duration   time.Duration
 	Error      string
 	Timestamp  time.Time

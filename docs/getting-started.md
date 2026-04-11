@@ -11,7 +11,7 @@ Optional (for full feature set):
 
 - **Docker & Docker Compose** – To run Prometheus and Grafana alongside Technician.
 - **Node.js 18+** – Required for Playwright (browser) checks. Install via [nodejs.org](https://nodejs.org/) or `nvm`.
-- **mtr** – For traceroute checks. On macOS: `brew install mtr`. Note: mtr typically requires root (raw sockets) on macOS and Linux, so traceroute probes may fail unless you run as root. For local dev you can remove or leave traceroute probes out of your config.
+- **mtr** – For traceroute checks. On macOS: `brew install mtr`. Note: mtr typically requires root (raw sockets) on macOS and Linux, so traceroute checks may fail unless you run as root. For local dev you can remove or leave traceroute checks out of your config.
 
 ## One-time setup (Mac)
 
@@ -49,8 +49,8 @@ Or with the example configs directly (placeholder targets):
 go run . worker --config examples/technician.yml
 ```
 
-- Status page: [http://localhost:9590/](http://localhost:9590/) — real-time probe status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
-- Status API: [http://localhost:9590/api/status](http://localhost:9590/api/status) — JSON snapshot of all probe state
+- Status page: [http://localhost:9590/](http://localhost:9590/) — real-time check status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
+- Status API: [http://localhost:9590/api/status](http://localhost:9590/api/status) — JSON snapshot of all check state
 - Metrics: [http://localhost:9590/metrics](http://localhost:9590/metrics)
 - Health: [http://localhost:9590/health](http://localhost:9590/health)
 - Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
@@ -68,13 +68,13 @@ docker compose up
 - **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Slack, Discord, PagerDuty, etc. Configure receivers in `prometheus/alertmanager.yml`.
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
-Config and probes are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`region`, `city`, `country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
+Config and checks are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`region`, `city`, `country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
 
-## Probe configuration
+## Check configuration
 
-Probes are defined in YAML files under the checks directory (see `examples/checks/` for reference). Each check type has its own file:
+Checks are defined in YAML files under the checks directory (see `examples/checks/` for reference). Each check type has its own file:
 
-| File | Probe type | What it checks |
+| File | Check type | What it checks |
 |------|-----------|----------------|
 | `http.yml` | HTTP/HTTPS | Status codes, response bodies, headers, redirects |
 | `tcp.yml` | TCP | Port reachability, TLS handshake, banner checks |
@@ -92,16 +92,16 @@ Probes are defined in YAML files under the checks directory (see `examples/check
 
 All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
 
-**Retry policies**: Every probe should have a retry policy to absorb transient failures. The example configs include recommended defaults:
+**Retry policies**: Every check should have a retry policy to absorb transient failures. The example configs include recommended defaults:
 
 ```yaml
-# Fast probes (HTTP, TCP, DNS, ICMP, UDP, gRPC) — short delay
+# Fast checks (HTTP, TCP, DNS, ICMP, UDP, gRPC) — short delay
 retry:
   count: 1
   backoff: none
   delay: 2s
 
-# Slow probes (TLS, BGP, traceroute, domain expiry, Playwright) — longer delay
+# Slow checks (TLS, BGP, traceroute, domain expiry, Playwright) — longer delay
 retry:
   count: 1
   backoff: none
@@ -118,7 +118,7 @@ Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential
 
 **Schedule recommendations**: Not all check types need the same frequency. Recommended intervals by type:
 
-| Probe type | Recommended schedule | Why |
+| Check type | Recommended schedule | Why |
 |------------|---------------------|-----|
 | HTTP, TCP, DNS, ICMP, gRPC, UDP | `*/60 * * * * *` (60s) | Core uptime — fast, lightweight checks |
 | NTP | `0 */10 * * * *` (10 min) | Clock drift changes slowly |
@@ -132,7 +132,7 @@ Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential
 
 Recommended `degraded_after` by check type and deployment:
 
-| Probe type | Cloud VPS (same region) | Cloud VPS (cross-region) | Residential / Docker Desktop |
+| Check type | Cloud VPS (same region) | Cloud VPS (cross-region) | Residential / Docker Desktop |
 |------------|------------------------|--------------------------|------------------------------|
 | ICMP | 50ms | 100ms | 200ms |
 | DNS | 100ms | 200ms | 500ms |
@@ -160,7 +160,7 @@ Why the variation:
 
 If a check is permanently degraded, the threshold is too low for your environment — raise it until degraded status reflects an actual change in behavior, not the baseline.
 
-TLS and domain expiry probes don't typically use `degraded_after` because they check certificate/registration state rather than latency. BGP probes query the RIPE RIS API, which has variable response times (100ms–4s) that aren't indicative of your network health — `degraded_after` is generally not useful for BGP.
+TLS and domain expiry checks don't typically use `degraded_after` because they check certificate/registration state rather than latency. BGP checks query the RIPE RIS API, which has variable response times (100ms–4s) that aren't indicative of your network health — `degraded_after` is generally not useful for BGP.
 
 **Groups**: Add a `group` field to organize checks on the status page into collapsible sections:
 
@@ -186,13 +186,13 @@ TLS and domain expiry probes don't typically use `degraded_after` because they c
 
 Examples: `*/60 * * * * *` (every 60 seconds), `0 */5 * * * *` (every 5 minutes at second 0), `0 0 * * * *` (every hour).
 
-**Persistence**: Probe history and budget check state are persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures state survives container rebuilds.
+**Persistence**: Check history and budget check state are persisted to a JSON file at `$TECHNICIAN_DATA_DIR/status.json` (default `/var/lib/technician/status.json`). In Docker, the `technician_data` named volume ensures state survives container rebuilds.
 
 ## Recipes
 
 ### API health check with security headers
 
-HTTP checks support body and header assertions, which together cover the "test my API status and body content" use case. This example validates the status code, response body, Content-Type, and common security headers in a single probe:
+HTTP checks support body and header assertions, which together cover the "test my API status and body content" use case. This example validates the status code, response body, Content-Type, and common security headers in a single check:
 
 ```yaml
 - name: api-full-check
@@ -248,15 +248,15 @@ HTTP checks support body and header assertions, which together cover the "test m
 
 If any assertion fails, the check is marked as failed and the failure message identifies which assertion didn't pass.
 
-## Run a single probe (debug)
+## Run a single check (debug)
 
 ```bash
-go run . probe --name "example.com" --config config/technician.yml
+go run . check --name "example.com" --config config/technician.yml
 ```
 
-Probe name must match a `name` in your check definitions under `config/checks/`.
+Check name must match a `name` in your check definitions under `config/checks/`.
 
-## Validate (probes + budgets)
+## Validate (checks + budgets)
 
 Runs all checks once and checks them against performance budgets. Exits 0 if all pass, 1 if any budget is violated:
 
@@ -273,7 +273,7 @@ Output formats: `--output text` (default), `--output json`, `--output gha` (GitH
 3. Copy examples to config: `cp -r examples/ config/` and customise.
 4. Run: `./technician worker --config config/technician.yml`.
 
-On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivalent). For Playwright probes you need Node.js and the Playwright Chromium browser (see Dockerfile or run `npx playwright install chromium` in a Node environment).
+On Linux you may need `mtr` for traceroute checks (`apt install mtr` or equivalent). For Playwright checks you need Node.js and the Playwright Chromium browser (see Dockerfile or run `npx playwright install chromium` in a Node environment).
 
 ## Next steps
 
@@ -281,6 +281,6 @@ On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivale
 - [CI](ci.md) – GitHub Actions workflow, generic CI pipelines, budget validation
 - [Testing and end-to-end validation](testing-and-e2e.md)
 - [Local development configuration](mock-production.md)
-- [Playwright scaling](playwright-scaling.md) – browser probe resource analysis, concurrency controls, dedicated runners
+- [Playwright scaling](playwright-scaling.md) – browser check resource analysis, concurrency controls, dedicated runners
 - [AGENTS.md](../AGENTS.md) – architecture and conventions
 - [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) – sending deployed and edge check metrics to a central Prometheus in your VPC and using central Grafana as source of record

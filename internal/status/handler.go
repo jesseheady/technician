@@ -19,14 +19,14 @@ type DomainGroup struct {
 	Checks []CheckState
 }
 
-// CategoryInfo represents a category of probe types for tab navigation.
+// CategoryInfo represents a category of check types for tab navigation.
 type CategoryInfo struct {
 	Name   string
 	Status string
 	Count  int
 }
 
-// categoryForCheckType maps a probe type to its display category.
+// categoryForCheckType maps a check type to its display category.
 func categoryForCheckType(t config.CheckType) string {
 	switch t {
 	case config.CheckTypeICMP, config.CheckTypeTCP, config.CheckTypeUDP, config.CheckTypeDNS, config.CheckTypeTraceroute:
@@ -499,10 +499,10 @@ a:hover{color:var(--text)}
 .domain-wrap[open]>summary::before{transform:rotate(90deg)}
 .domain-name{font-weight:500;color:var(--text)}
 .domain-info{font-size:11px;font-family:var(--mono);color:var(--text-mute)}
-.domain-probes{border-top:1px solid var(--border)}
-.domain-probes .check{padding:12px 20px 12px 36px}
-.domain-probes .check:last-child{border-radius:0}
-.domain-wrap:last-child .domain-probes .check:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.domain-checks{border-top:1px solid var(--border)}
+.domain-checks .check{padding:12px 20px 12px 36px}
+.domain-checks .check:last-child{border-radius:0}
+.domain-wrap:last-child .domain-checks .check:last-child{border-radius:0 0 var(--radius) var(--radius)}
 
 /* controls */
 .toggle-btn{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:6px 10px;cursor:pointer;transition:all .15s;user-select:none}

@@ -43,18 +43,18 @@ CGO_ENABLED=0 go build -o technician .
 info "Build OK: ./technician"
 
 if command -v mtr &>/dev/null; then
-  info "mtr found (traceroute probes supported)"
+  info "mtr found (traceroute checks supported)"
 else
-  warn "mtr not found. Traceroute probes will fail. Install with: brew install mtr"
+  warn "mtr not found. Traceroute checks will fail. Install with: brew install mtr"
 fi
 
 if command -v node &>/dev/null; then
   info "Node: $(node -v)"
-  info "Installing Playwright + Chromium for browser probes..."
+  info "Installing Playwright + Chromium for browser checks..."
   (cd internal/playwright/scripts && npm ci && npx playwright install chromium) 2>&1 | tail -1
   info "Playwright ready"
 else
-  warn "Node not found. Playwright probes need Node.js (or run via Docker)."
+  warn "Node not found. Playwright checks need Node.js (or run via Docker)."
 fi
 
 if command -v docker &>/dev/null && command -v docker compose &>/dev/null; then

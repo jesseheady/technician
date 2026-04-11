@@ -4,7 +4,7 @@ Resource analysis, concurrency controls, and architecture for scaling browser ch
 
 ## Current resource profile
 
-Numbers measured with 3 Playwright probes (desktop, mobile 4G, mobile 3G) at 5-minute intervals on a Docker Compose stack.
+Numbers measured with 3 Playwright checks (desktop, mobile 4G, mobile 3G) at 5-minute intervals on a Docker Compose stack.
 
 ### Per-instance costs
 
@@ -14,7 +14,7 @@ Numbers measured with 3 Playwright probes (desktop, mobile 4G, mobile 3G) at 5-m
 | Chromium per instance | 150-300 MB (depends on page complexity) |
 | HAR per run | 1-10 MB (disk) |
 | Video per run | 1-10 MB (disk, when enabled) |
-| Cold start (first probe) | ~2-3 s |
+| Cold start (first check) | ~2-3 s |
 | Warm check execution | 3-8 s |
 | Web Vitals collection | up to 3 s per metric |
 
@@ -28,15 +28,15 @@ Numbers measured with 3 Playwright probes (desktop, mobile 4G, mobile 3G) at 5-m
 | Node.js + system deps | ~700 MB | - |
 | Go binary | 15 MB | 15 MB |
 
-The image size is fixed regardless of probe count -- Chromium is installed once.
+The image size is fixed regardless of check count -- Chromium is installed once.
 
-## Scaling by probe count
+## Scaling by check count
 
-Each Playwright probe invocation launches a fresh Chromium instance. There is no browser pooling -- `run.js` calls `chromium.launch()` every time, and the Go process spawns a new `node` subprocess per run.
+Each Playwright check invocation launches a fresh Chromium instance. There is no browser pooling -- `run.js` calls `chromium.launch()` every time, and the Go process spawns a new `node` subprocess per run.
 
-> **Init process required.** Because each check spawns Node.js → Chromium child processes, the container must run an init system (e.g. `tini`) as PID 1 to reap exited children. Without it, terminated Chromium processes accumulate as zombies, consuming kernel memory that grows linearly with probe runs. In Docker Compose, add `init: true` to the service. In Kubernetes, set `shareProcessNamespace: true` or use a `tini` entrypoint. In ECS, enable `initProcessEnabled` in the container definition.
+> **Init process required.** Because each check spawns Node.js → Chromium child processes, the container must run an init system (e.g. `tini`) as PID 1 to reap exited children. Without it, terminated Chromium processes accumulate as zombies, consuming kernel memory that grows linearly with check runs. In Docker Compose, add `init: true` to the service. In Kubernetes, set `shareProcessNamespace: true` or use a `tini` entrypoint. In ECS, enable `initProcessEnabled` in the container definition.
 
-The `max_browsers` setting in `technician.yml` caps concurrent Chromium instances using a channel-based semaphore. Additional probes queue until a slot opens or their timeout expires.
+The `max_browsers` setting in `technician.yml` caps concurrent Chromium instances using a channel-based semaphore. Additional checks queue until a slot opens or their timeout expires.
 
 ```yaml
 playwright:
@@ -48,10 +48,10 @@ playwright:
 
 | Scenario | Peak concurrent browsers | RAM ceiling | Disk (artifacts/day) |
 |----------|-------------------------|-------------|---------------------|
-| 3 probes @ 5 min (current) | 1 | ~350 MB | ~2 GB |
-| 10 probes @ 5 min | 1-2 | ~600 MB | ~7 GB |
-| 10 probes @ 1 min | 2-4 | ~1.2 GB | ~35 GB |
-| 20 probes @ 1 min | 4-8 | ~2.4 GB | ~70 GB |
+| 3 checks @ 5 min (current) | 1 | ~350 MB | ~2 GB |
+| 10 checks @ 5 min | 1-2 | ~600 MB | ~7 GB |
+| 10 checks @ 1 min | 2-4 | ~1.2 GB | ~35 GB |
+| 20 checks @ 1 min | 4-8 | ~2.4 GB | ~70 GB |
 | CI validate (all at once) | N simultaneous | ~300 MB x N | negligible |
 
 ### The three cost drivers
@@ -64,7 +64,7 @@ playwright:
 
 ### What doesn't change
 
-- **Docker image size** stays ~1.62 GB regardless of probe count
+- **Docker image size** stays ~1.62 GB regardless of check count
 - **Go process RSS** stays ~18 MB -- it just shells out to Node
 - **Network** is negligible unless testing bandwidth-heavy pages with video recording
 
@@ -73,9 +73,9 @@ playwright:
 The `max_browsers` config field controls how many Chromium instances can run simultaneously across all Playwright checks on a single worker. This is enforced by a channel-based semaphore in `PlaywrightProber`.
 
 When all slots are occupied:
-- New probes wait for a slot to open
+- New checks wait for a slot to open
 - If the check's timeout expires while waiting, it returns an infra error: `timed out waiting for browser slot (N/N in use)`
-- The probe is logged as a warning so you can tune `max_browsers` or adjust schedules
+- The check is logged as a warning so you can tune `max_browsers` or adjust schedules
 
 ### Recommended settings
 
@@ -91,8 +91,8 @@ When all slots are occupied:
 
 If you see `timed out waiting for browser slot` in logs:
 1. **Increase `max_browsers`** if the host has RAM headroom
-2. **Spread schedules** -- stagger cron expressions so probes don't all fire at the same second
-3. **Increase probe timeout** -- give more time to wait for a slot
+2. **Spread schedules** -- stagger cron expressions so checks don't all fire at the same second
+3. **Increase check timeout** -- give more time to wait for a slot
 4. **Move browser checks to a dedicated runner** (see below)
 
 ## CI usage
@@ -113,7 +113,7 @@ If you see `timed out waiting for browser slot` in logs:
 The `technician validate` command runs all checks once and evaluates performance budgets. Use it in CI to catch regressions:
 
 ```yaml
-- name: Validate probes + budgets
+- name: Validate checks + budgets
   run: technician validate --config config/technician.yml --budget config/budgets.yml --output gha
 ```
 
@@ -146,7 +146,7 @@ Output formats:
 
 ## Architecture: dedicated Playwright runners
 
-As Playwright probe count grows, you'll want to separate browser checks from lightweight checks (HTTP, TCP, DNS, etc.). Here's the progression:
+As Playwright check count grows, you'll want to separate browser checks from lightweight checks (HTTP, TCP, DNS, etc.). Here's the progression:
 
 ### Stage 1: Single worker (current)
 
@@ -159,7 +159,7 @@ graph TD
 
 ### Stage 2: Dedicated browser worker
 
-Split into two workers at the same site. One runs lightweight checks, the other runs only Playwright probes with more resources.
+Split into two workers at the same site. One runs lightweight checks, the other runs only Playwright checks with more resources.
 
 ```mermaid
 graph TD
@@ -206,12 +206,12 @@ In `managed` mode, the worker sends check configs to the remote server instead o
 **When to move to managed mode:**
 - 10+ Playwright checks per region
 - Multiple workers sharing the same browser pool
-- Browser probes are the bottleneck and you want to scale them independently
+- Browser checks are the bottleneck and you want to scale them independently
 - You want to use Playwright's built-in server (`npx playwright run-server`) or a custom gRPC service
 
 ### Stage 4: Ephemeral browsers (future)
 
-For cloud-native deployments, each browser probe spawns an ephemeral container:
+For cloud-native deployments, each browser check spawns an ephemeral container:
 
 ```mermaid
 graph LR
@@ -222,7 +222,7 @@ This scales to hundreds of concurrent browsers with no long-running infrastructu
 
 ## Recommendations by scale
 
-| Playwright probes | Architecture | `max_browsers` | Host specs |
+| Playwright checks | Architecture | `max_browsers` | Host specs |
 |-------------------|-------------|---------------|------------|
 | 1-5 | Single worker (Stage 1) | 2 | 2 vCPU, 1-2 GB |
 | 5-15 | Dedicated browser worker (Stage 2) | 4 | 4 vCPU, 4 GB (browser worker) |
@@ -234,7 +234,7 @@ This scales to hundreds of concurrent browsers with no long-running infrastructu
 Currently each check invocation launches and closes a fresh Chromium instance. A future optimization would maintain a browser pool:
 
 1. Launch N Chromium instances at startup
-2. Each probe gets a fresh `BrowserContext` (isolated cookies, storage) from the pool
+2. Each check gets a fresh `BrowserContext` (isolated cookies, storage) from the pool
 3. Contexts are destroyed after each check; browsers persist
 4. Eliminates the 2-3s cold-start per check
 

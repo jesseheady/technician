@@ -65,7 +65,7 @@ type CheckConfig struct {
 	DomainExpiry *DomainExpirationCheckConfig `yaml:"-"`
 }
 
-// Target returns the canonical hostname or IP that this probe checks.
+// Target returns the canonical hostname or IP that this check checks.
 // Used for domain-level grouping on the status page.
 func (p *CheckConfig) Target() string {
 	var raw string
@@ -544,17 +544,17 @@ func loadHTTPProbes(path string) ([]CheckConfig, error) {
 	for i, p := range checks {
 		for j, a := range p.HTTP.Assertions {
 			if !validAssertionTypes[a.Type] {
-				return nil, fmt.Errorf("probe %q assertion[%d]: invalid type %q", checks[i].Name, j, a.Type)
+				return nil, fmt.Errorf("check %q assertion[%d]: invalid type %q", checks[i].Name, j, a.Type)
 			}
 			if a.Target == "" {
-				return nil, fmt.Errorf("probe %q assertion[%d]: target is required", checks[i].Name, j)
+				return nil, fmt.Errorf("check %q assertion[%d]: target is required", checks[i].Name, j)
 			}
 			if strings.HasPrefix(a.Type, "header_") && a.Header == "" {
-				return nil, fmt.Errorf("probe %q assertion[%d]: header is required for type %q", checks[i].Name, j, a.Type)
+				return nil, fmt.Errorf("check %q assertion[%d]: header is required for type %q", checks[i].Name, j, a.Type)
 			}
 			if a.Type == "regex" || a.Type == "header_regex" {
 				if _, err := regexp.Compile(a.Target); err != nil {
-					return nil, fmt.Errorf("probe %q assertion[%d]: invalid regex %q: %w", checks[i].Name, j, a.Target, err)
+					return nil, fmt.Errorf("check %q assertion[%d]: invalid regex %q: %w", checks[i].Name, j, a.Target, err)
 				}
 			}
 		}
@@ -644,7 +644,7 @@ func loadPlaywrightProbes(checksDir string) ([]CheckConfig, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		// Also try probes/playwright.yml at parent level
+		// Also try checks/playwright.yml at parent level
 		data, err = os.ReadFile(filepath.Join(checksDir, "playwright.yml"))
 		if err != nil {
 			return nil, err
@@ -660,7 +660,7 @@ func loadPlaywrightProbes(checksDir string) ([]CheckConfig, error) {
 
 	checks := make([]CheckConfig, len(raw))
 	for i, r := range raw {
-		// Resolve script path relative to probes directory
+		// Resolve script path relative to checks directory
 		script := r.Script
 		if !filepath.IsAbs(script) {
 			script = filepath.Join(checksDir, script)

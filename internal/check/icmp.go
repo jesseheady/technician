@@ -188,7 +188,7 @@ func (p *ICMPChecker) sendPing(
 		Body: &icmp.Echo{
 			ID:   id,
 			Seq:  seq,
-			Data: []byte("technician-probe"),
+			Data: []byte("technician-check"),
 		},
 	}
 
@@ -265,7 +265,7 @@ func (p *ICMPChecker) sendPing(
 		}
 
 		// Fallback: match by sequence and payload for unprivileged sockets.
-		if echo.Seq == seq && payloadMatches(echo.Data, []byte("technician-probe")) {
+		if echo.Seq == seq && payloadMatches(echo.Data, []byte("technician-check")) {
 			return time.Since(pingStart), nil
 		}
 	}

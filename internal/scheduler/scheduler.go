@@ -86,7 +86,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		_, err := s.cron.AddFunc(schedule, func() {
 			if checkDelay > 0 {
 				// Use a timer instead of blocking the cron goroutine directly.
-				// The sleep is intentional: it spreads probe starts within
+				// The sleep is intentional: it spreads check starts within
 				// the cron tick window to avoid thundering-herd effects.
 				time.Sleep(checkDelay)
 			}
@@ -108,7 +108,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			}
 		})
 		if err != nil {
-			slog.Error("Failed to schedule probe", "name", pc.Name, "schedule", schedule, "error", err)
+			slog.Error("Failed to schedule check", "name", pc.Name, "schedule", schedule, "error", err)
 			continue
 		}
 
@@ -132,7 +132,7 @@ func (s *Scheduler) Results() <-chan *check.Result {
 	return s.results
 }
 
-// runWithRetry executes a probe with optional retry policy.
+// runWithRetry executes a check with optional retry policy.
 func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, site *config.Site) *check.Result {
 	result := checker.Run(ctx, cfg, site)
 	if result.Success || cfg.Retry == nil || cfg.Retry.Count <= 0 {

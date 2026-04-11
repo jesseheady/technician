@@ -6,10 +6,10 @@
 # must exceed the threshold, combined with a `for` duration that
 # requires the condition to hold across multiple evaluation cycles.
 #
-# Critical alerts additionally require >50% of probes (regions) to
+# Critical alerts additionally require >50% of checks (regions) to
 # exceed the threshold (aggregate), so a single flapping region
 # cannot page on-call. In single-region setups this degrades
-# gracefully to per-probe behavior.
+# gracefully to per-check behavior.
 #
 # Alerts on inherently stable metrics (cert expiry, domain expiry,
 # packet loss percentage, NTP offset) use raw values — smoothing
@@ -34,7 +34,7 @@ groups:
       - record: technician:browser_lcp_p95
         expr: quantile(0.95, technician_browser_lcp_ms) by (name)
 
-  # ── Probe health ─────────────────────────────────────────────────
+  # ── Check health ─────────────────────────────────────────────────
   - name: technician_check_health
     rules:
       - alert: CheckFailing
@@ -44,7 +44,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.name }} failing from {{ $labels.region }}"
-          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing from {{ $labels.region }} for 3 minutes."
+          description: "Check {{ $labels.name }} ({{ $labels.type }}) has been failing from {{ $labels.region }} for 3 minutes."
 
       - alert: HighErrorRateWarn
         expr: |
@@ -55,7 +55,7 @@ groups:
           severity: warning
         annotations:
           summary: "Elevated error rate for {{ $labels.name }}"
-          description: "More than 25% of probes for {{ $labels.name }} are failing."
+          description: "More than 25% of checks for {{ $labels.name }} are failing."
 
       - alert: HighErrorRate
         expr: |
@@ -66,7 +66,7 @@ groups:
           severity: critical
         annotations:
           summary: "High error rate for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} are failing."
+          description: "More than 50% of checks for {{ $labels.name }} are failing."
 
       - alert: CheckInfraError
         expr: technician_check_infra_error == 1
@@ -75,7 +75,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.name }} has infrastructure errors"
-          description: "Probe {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The probe is not testing its target — check logs for details (missing dependencies, network access, permissions)."
+          description: "Check {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The check is not testing its target — check logs for details (missing dependencies, network access, permissions)."
 
   # ── Web Vitals ───────────────────────────────────────────────────
   - name: technician_web_vitals
@@ -99,7 +99,7 @@ groups:
           severity: critical
         annotations:
           summary: "LCP critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have LCP above 4000ms (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have LCP above 4000ms (15m avg, Google 'poor' threshold)."
 
       - alert: HighINP
         expr: avg_over_time(technician_browser_inp_ms[15m]) > 200
@@ -120,7 +120,7 @@ groups:
           severity: critical
         annotations:
           summary: "INP critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have INP above 500ms (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have INP above 500ms (15m avg, Google 'poor' threshold)."
 
       - alert: HighCLS
         expr: avg_over_time(technician_browser_cls[15m]) > 0.1
@@ -141,7 +141,7 @@ groups:
           severity: critical
         annotations:
           summary: "CLS critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have CLS above 0.25 (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have CLS above 0.25 (15m avg, Google 'poor' threshold)."
 
   # ── HTTP timing ──────────────────────────────────────────────────
   - name: technician_http_timing
@@ -165,7 +165,7 @@ groups:
           severity: critical
         annotations:
           summary: "TTFB critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have TTFB above 5s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have TTFB above 5s (15m avg)."
 
       - alert: HighDNS
         expr: avg_over_time(technician_http_dns_seconds[15m]) > 0.25
@@ -186,7 +186,7 @@ groups:
           severity: critical
         annotations:
           summary: "DNS critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have DNS latency above 1s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have DNS latency above 1s (15m avg)."
 
       - alert: HighTLS
         expr: avg_over_time(technician_http_tls_seconds[15m]) > 0.5
@@ -207,7 +207,7 @@ groups:
           severity: critical
         annotations:
           summary: "TLS critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have TLS handshake above 1.5s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have TLS handshake above 1.5s (15m avg)."
 
   # ── Resources ────────────────────────────────────────────────────
   - name: technician_resources
@@ -237,7 +237,7 @@ groups:
           severity: warning
         annotations:
           summary: "Budget violation for {{ $labels.name }}"
-          description: "Metric {{ $labels.metric }} for probe {{ $labels.name }} exceeds budget."
+          description: "Metric {{ $labels.metric }} for check {{ $labels.name }} exceeds budget."
 
   # ── TLS certificates ────────────────────────────────────────────
   - name: technician_tls
@@ -342,7 +342,7 @@ groups:
           severity: critical
         annotations:
           summary: "TCP connect critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have TCP connect above 5s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have TCP connect above 5s (15m avg)."
 
       - alert: HighTCPTLS
         expr: avg_over_time(technician_tcp_tls_seconds[15m]) > 1
@@ -363,9 +363,9 @@ groups:
           severity: critical
         annotations:
           summary: "TCP TLS critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have TCP TLS handshake above 3s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have TCP TLS handshake above 3s (15m avg)."
 
-  # ── DNS (probe) ─────────────────────────────────────────────────
+  # ── DNS (check) ─────────────────────────────────────────────────
   - name: technician_dns
     rules:
       - alert: HighDNSQuery
@@ -387,7 +387,7 @@ groups:
           severity: critical
         annotations:
           summary: "DNS query critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have DNS query time above 2s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have DNS query time above 2s (15m avg)."
 
   # ── ICMP ─────────────────────────────────────────────────────────
   - name: technician_icmp
@@ -429,7 +429,7 @@ groups:
           severity: critical
         annotations:
           summary: "ICMP RTT critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have ICMP RTT above 1s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have ICMP RTT above 1s (15m avg)."
 
   # ── NTP ──────────────────────────────────────────────────────────
   - name: technician_ntp
@@ -474,7 +474,7 @@ groups:
           severity: critical
         annotations:
           summary: "UDP RTT critical for {{ $labels.name }}"
-          description: "More than 50% of probes for {{ $labels.name }} have UDP RTT above 2s (15m avg)."
+          description: "More than 50% of checks for {{ $labels.name }} have UDP RTT above 2s (15m avg)."
 
   # ── Prometheus self-monitoring ───────────────────────────────────
   # Requires the "prometheus" scrape job in prometheus.yml.

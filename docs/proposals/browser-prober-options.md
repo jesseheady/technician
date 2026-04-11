@@ -1,6 +1,6 @@
-# Proposal: Browser prober implementation options
+# Proposal: Browser checker implementation options
 
-Evaluate alternatives for Technician's browser probe runtime. The current implementation spawns a Node.js subprocess running Playwright. This proposal compares four paths forward.
+Evaluate alternatives for Technician's browser check runtime. The current implementation spawns a Node.js subprocess running Playwright. This proposal compares four paths forward.
 
 ## Current architecture
 
@@ -15,16 +15,16 @@ Go orchestrator
 1. Launches Chromium via Playwright
 2. Creates browser context with HAR recording, device emulation, optional video
 3. Applies network throttling via CDP session (`Network.emulateNetworkConditions`)
-4. Loads and executes a user-provided JS probe script (`require(scriptPath)`)
+4. Loads and executes a user-provided JS check script (`require(scriptPath)`)
 5. Collects Web Vitals (TTFB, FCP, LCP, CLS, INP) via `web-vitals` library import
 6. Parses HAR, outputs structured JSON to stdout
-7. Go prober deserializes JSON into `probe.Result`
+7. Go checker deserializes JSON into `check.Result`
 
 **Current costs:**
 - Docker image: +~180 MB for Node.js base, +npm install step, +`npx playwright install` (~600 MB Chromium)
-- Per-probe: ~40 MB RSS for Node.js process + ~150–300 MB for Chromium
+- Per-check: ~40 MB RSS for Node.js process + ~150–300 MB for Chromium
 - Cold start: ~2–3s (Node.js boot + Chromium launch)
-- Probe scripts must be JavaScript files
+- Check scripts must be JavaScript files
 
 ## Options
 
@@ -37,7 +37,7 @@ No changes. Continue spawning `node run.js` with JSON config.
 - Playwright has the most mature browser automation API (auto-waiting, selectors, network interception)
 - HAR recording is built-in (`recordHar` context option)
 - Video recording is built-in (`recordVideo` context option)
-- User probe scripts are JS files — easy to write, widely understood
+- User check scripts are JS files — easy to write, widely understood
 - `web-vitals` library import works natively in the browser context
 - Multi-browser support available (Firefox, WebKit) if needed later
 
@@ -48,11 +48,11 @@ No changes. Continue spawning `node run.js` with JSON config.
 - npm dependency management (package.json, node_modules, version pinning)
 - `npx playwright install` downloads browsers separately from the Go build
 
-**Best for:** Teams that need user-authored JS probe scripts or want to minimize implementation risk. Playwright has the broadest browser API of the options listed.
+**Best for:** Teams that need user-authored JS check scripts or want to minimize implementation risk. Playwright has the broadest browser API of the options listed.
 
 ### Option B: chromedp (pure Go, CDP direct)
 
-Replace Node.js Playwright with chromedp. Browser probes become Go code that speaks CDP directly to Chromium.
+Replace Node.js Playwright with chromedp. Browser checks become Go code that speaks CDP directly to Chromium.
 
 ```
 Go orchestrator
@@ -63,7 +63,7 @@ Go orchestrator
 **Pros:**
 - Pure Go — no Node.js, no subprocess, no JSON bridge
 - Docker image drops ~180 MB (no Node.js base layer)
-- Probes run as goroutines, not subprocesses
+- Checks run as goroutines, not subprocesses
 - Mature: 12.8k stars, actively maintained, 6.9k dependents
 - Full CDP access: network throttling, device emulation, JS evaluation all native
 - Single binary deployment
@@ -72,7 +72,7 @@ Go orchestrator
 - Lower-level API than Playwright — no auto-waiting, manual selector strategies
 - HAR capture requires manual assembly from CDP `Network` domain events (`RequestWillBeSent`, `ResponseReceived`, `LoadingFinished`)
 - No built-in video recording (would need `Page.startScreencast` + ffmpeg, or screenshots-to-video)
-- Probe scripts become Go code, not user-authored JS files (less accessible to non-Go developers)
+- Check scripts become Go code, not user-authored JS files (less accessible to non-Go developers)
 - Known issues: WaitReady race conditions, fixed-size event buffer can deadlock under high concurrency, single event loop blocks slow handlers
 - Web Vitals collection requires `chromedp.Evaluate()` with injected JS (same approach, just different API)
 
@@ -87,9 +87,9 @@ Go orchestrator
 | JS evaluation (Web Vitals) | `chromedp.Evaluate` | Easy |
 | HAR recording | Manual CDP event listeners → HAR struct | Medium (200–300 LOC) |
 | Video recording | `Page.startScreencast` → ffmpeg or skip | Hard (or drop feature) |
-| User JS probe scripts | Must rewrite as Go functions | Breaking change |
+| User JS check scripts | Must rewrite as Go functions | Breaking change |
 
-**Best for:** Teams that want a single Go binary, don't need user-authored JS probe scripts, and can accept building HAR capture manually.
+**Best for:** Teams that want a single Go binary, don't need user-authored JS check scripts, and can accept building HAR capture manually.
 
 ### Option C: rod (pure Go, CDP with higher-level API)
 
@@ -104,7 +104,7 @@ Go orchestrator
 **Pros:**
 - Pure Go — same benefits as chromedp (no Node.js, single binary)
 - Higher-level API than chromedp: automatic element waiting, cleaner method chaining
-- Built-in browser pool (`rod.NewBrowserPool`) for concurrent probes
+- Built-in browser pool (`rod.NewBrowserPool`) for concurrent checks
 - `rod/lib/launcher` handles Chromium download and versioning automatically
 - HAR capture documented as a supported feature
 - Better concurrency architecture than chromedp (decode-on-demand, no single event loop)
@@ -113,7 +113,7 @@ Go orchestrator
 **Cons:**
 - Latest release July 2024 — 8+ months old (worth monitoring maintenance pace)
 - Bot detection issues reported (#1208) — may affect checks that hit bot-protected sites
-- Same "probe scripts must be Go" limitation as chromedp
+- Same "check scripts must be Go" limitation as chromedp
 - No built-in video recording
 - Smaller ecosystem than chromedp (fewer third-party examples, Stack Overflow answers)
 - Pre-v1.0
@@ -129,7 +129,7 @@ Go orchestrator
 | JS evaluation (Web Vitals) | `page.MustEval` | Easy |
 | HAR recording | Built-in HAR support | Easy |
 | Video recording | Not built-in | Hard (or drop feature) |
-| User JS probe scripts | Must rewrite as Go functions | Breaking change |
+| User JS check scripts | Must rewrite as Go functions | Breaking change |
 
 **Best for:** Teams that want pure Go with a friendlier API than chromedp, need browser pooling, and value rod's concurrency model for running many checks.
 
@@ -170,7 +170,7 @@ Go orchestrator
 | **Web Vitals (JS eval)** | Native | `Evaluate()` | `MustEval()` | `Evaluate()` |
 | **HAR recording** | Built-in | Manual (~250 LOC) | Documented | Built-in |
 | **Video recording** | Built-in | Manual (hard) | Manual (hard) | Built-in |
-| **User JS probe scripts** | Yes | No (Go only) | No (Go only) | No (Go only) |
+| **User JS check scripts** | Yes | No (Go only) | No (Go only) | No (Go only) |
 | **Browser pooling** | Manual | Manual | Built-in | Manual |
 | **Auto-waiting** | Yes | No | Yes | Yes |
 | **Maintenance risk** | Low (Microsoft) | Low (active) | Medium (release pace) | High (seeking maintainers) |
@@ -178,20 +178,20 @@ Go orchestrator
 
 ## Recommendation
 
-**Short term: Stay with Option A (Node.js Playwright).** It works, covers all features, and the JS probe script model gives users the most control over what the browser does. The Node.js overhead (~40 MB RSS, ~180 MB image) is manageable at current scale.
+**Short term: Stay with Option A (Node.js Playwright).** It works, covers all features, and the JS check script model gives users the most control over what the browser does. The Node.js overhead (~40 MB RSS, ~180 MB image) is manageable at current scale.
 
-**Medium term: Evaluate Option C (rod) as a parallel prober.** Add a `rod`-based `BrowserProber` alongside the existing `PlaywrightProber`. This lets us:
+**Medium term: Evaluate Option C (rod) as a parallel checker.** Add a `rod`-based `BrowserChecker` alongside the existing `PlaywrightChecker`. This lets us:
 - Compare resource usage and reliability side-by-side
 - Validate HAR capture, Web Vitals collection, and network throttling in production
-- Offer a "slim" Docker image without Node.js for deployments that only need Go-defined probes
-- Keep JS probe support via the existing Playwright path for users who need it
+- Offer a "slim" Docker image without Node.js for deployments that only need Go-defined checks
+- Keep JS check support via the existing Playwright path for users who need it
 
 **Not recommended: Option D (playwright-go).** It doesn't solve the core problem (Node.js dependency) and adds maintenance risk.
 
 ## If we proceed with rod (Option C)
 
-### Phase 1: Core prober
-- New `internal/check/browser.go` with `BrowserProber` struct
+### Phase 1: Core checker
+- New `internal/check/browser.go` with `BrowserChecker` struct
 - `rod.New().MustConnect()` lifecycle with context timeout
 - Navigate to URL, wait for load
 - CDP network throttling via `proto.NetworkEmulateNetworkConditions`
@@ -203,9 +203,9 @@ Go orchestrator
 - Build HAR 1.2 JSON from request/response pairs
 - Wire into existing `HARData` struct and metrics
 
-### Phase 3: Probe definition model
+### Phase 3: Check definition model
 - Define browser checks in Go as functions matching `func(page *rod.Page, ctx ProbeContext) error`
-- Built-in probes: page load + vitals, multi-step navigation, form submission
+- Built-in checks: page load + vitals, multi-step navigation, form submission
 - YAML config references built-in check names (not script file paths)
 
 ### Phase 4: Slim Docker image
@@ -214,7 +214,7 @@ Go orchestrator
 - Feature flag: `--browser-engine=rod` vs `--browser-engine=playwright`
 
 ### What we'd lose (vs Playwright)
-- User-authored JS probe scripts (must define checks in Go or accept a limited DSL)
+- User-authored JS check scripts (must define checks in Go or accept a limited DSL)
 - Built-in video recording (would need to implement or drop)
 - Multi-browser support (rod is Chromium-only)
 - Playwright's selector engine (`:text()`, `:has()`, etc.)
@@ -224,5 +224,5 @@ Go orchestrator
 - ~40 MB less RSS per check run
 - No subprocess spawning overhead
 - Single language codebase
-- Browser pool for concurrent probes
+- Browser pool for concurrent checks
 - Faster cold starts (no Node.js boot)

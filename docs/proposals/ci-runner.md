@@ -31,14 +31,14 @@ technician check \
 
 | Flag | Purpose | Default |
 |------|---------|---------|
-| `--config` | Probe definitions (same YAML format as worker mode) | Required |
+| `--config` | Check definitions (same YAML format as worker mode) | Required |
 | `--budgets` | Budget thresholds file | Optional (no budget gate without it) |
 | `--base-url` | Override `base_url` in all checks (for preview/staging URLs) | None (uses config value) |
 | `--artifacts` | Directory for screenshots, HAR files, videos | `./technician-artifacts/` |
 | `--format` | Output format: `json`, `junit` (for CI test reporters), `markdown` (for PR comments) | `json` |
-| `--fail-on` | What triggers exit code 1: `budget`, `probe-failure`, `any` | `any` |
+| `--fail-on` | What triggers exit code 1: `budget`, `check-failure`, `any` | `any` |
 | `--screenshot` | Capture screenshot after each check | `true` |
-| `--video` | Record video of Playwright probes | `false` |
+| `--video` | Record video of Playwright checks | `false` |
 | `--compare` | Directory of baseline screenshots for visual regression | None |
 | `--threshold` | Pixel diff threshold for visual comparison (0.0–1.0) | `0.01` |
 
@@ -46,7 +46,7 @@ technician check \
 
 | Code | Meaning |
 |------|---------|
-| 0 | All probes passed, all budgets met |
+| 0 | All checks passed, all budgets met |
 | 1 | One or more budget violations or check failures |
 | 2 | Infrastructure error (config parse failure, browser launch failure, etc.) |
 
@@ -159,7 +159,7 @@ performance:
 
 ```bash
 docker run --rm \
-  -v $(pwd)/probes:/etc/technician/probes:ro \
+  -v $(pwd)/checks:/etc/technician/checks:ro \
   -v $(pwd)/budgets.yml:/etc/technician/budgets.yml:ro \
   -v $(pwd)/test-results:/artifacts \
   technician:latest \
@@ -236,7 +236,7 @@ Output:
 ```markdown
 ## Performance Check Results
 
-| Probe | LCP | CLS | INP | Budget | Screenshot |
+| Check | LCP | CLS | INP | Budget | Screenshot |
 |-------|-----|-----|-----|--------|------------|
 | homepage (desktop) | 1800ms | 0.02 | 45ms | PASS | [view](test-results/homepage-desktop.png) |
 | homepage (mobile 3g) | 6500ms | 0.05 | 120ms | **FAIL** (LCP) | [view](test-results/homepage-mobile-3g.png) |
@@ -255,7 +255,7 @@ Output:
 ### Phase 2: Output formats
 - JUnit XML for CI test reporters
 - Markdown for PR comments
-- Screenshot capture after each Playwright probe (already supported via video path)
+- Screenshot capture after each Playwright check (already supported via video path)
 
 ### Phase 3: Visual regression
 - Pure Go pixel diff (no ImageMagick dependency)
@@ -272,10 +272,10 @@ Output:
 
 | Component | Exists today | New for CI mode |
 |-----------|-------------|-----------------|
-| Probe runners (HTTP, Playwright) | Yes | Reuse as-is |
+| Check runners (HTTP, Playwright) | Yes | Reuse as-is |
 | Budget evaluator | Yes | Reuse as-is |
 | Budget YAML format | Yes | Reuse as-is |
-| Probe YAML format | Yes | Reuse (ignore `schedule` field) |
+| Check YAML format | Yes | Reuse (ignore `schedule` field) |
 | Network throttling | Yes | Reuse as-is |
 | Device emulation | Yes | Reuse as-is |
 | Web Vitals collection | Yes | Reuse as-is |

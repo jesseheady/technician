@@ -34,7 +34,7 @@ func TestComputeStaggerDifferentChecks(t *testing.T) {
 	// Different checks should (generally) have different stagger
 	// This could theoretically fail due to hash collision but is extremely unlikely
 	if d1 == d2 {
-		t.Log("Warning: two different probes got same stagger (possible hash collision)")
+		t.Log("Warning: two different checks got same stagger (possible hash collision)")
 	}
 }
 
