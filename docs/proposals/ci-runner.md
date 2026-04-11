@@ -4,7 +4,7 @@ Use Technician as a CI pipeline step to enforce performance budgets, validate DO
 
 ## Motivation
 
-Synthetic monitoring catches production regressions after deploy. CI runner mode catches them before merge. Same probe definitions, same budget thresholds, same Playwright scripts — run in the pipeline against a preview/staging URL.
+Synthetic monitoring catches production regressions after deploy. CI runner mode catches them before merge. Same check definitions, same budget thresholds, same Playwright scripts — run in the pipeline against a preview/staging URL.
 
 Use cases:
 - **Performance gate**: fail the pipeline if LCP exceeds budget on a staging deploy
@@ -20,7 +20,7 @@ Use cases:
 
 ```bash
 technician check \
-  --config probes/ci.yml \
+  --config checks/ci.yml \
   --budgets budgets.yml \
   --base-url "https://preview-${CI_COMMIT_SHA}.example.com" \
   --artifacts ./test-results/ \
@@ -33,11 +33,11 @@ technician check \
 |------|---------|---------|
 | `--config` | Probe definitions (same YAML format as worker mode) | Required |
 | `--budgets` | Budget thresholds file | Optional (no budget gate without it) |
-| `--base-url` | Override `base_url` in all probes (for preview/staging URLs) | None (uses config value) |
+| `--base-url` | Override `base_url` in all checks (for preview/staging URLs) | None (uses config value) |
 | `--artifacts` | Directory for screenshots, HAR files, videos | `./technician-artifacts/` |
 | `--format` | Output format: `json`, `junit` (for CI test reporters), `markdown` (for PR comments) | `json` |
 | `--fail-on` | What triggers exit code 1: `budget`, `probe-failure`, `any` | `any` |
-| `--screenshot` | Capture screenshot after each probe | `true` |
+| `--screenshot` | Capture screenshot after each check | `true` |
 | `--video` | Record video of Playwright probes | `false` |
 | `--compare` | Directory of baseline screenshots for visual regression | None |
 | `--threshold` | Pixel diff threshold for visual comparison (0.0–1.0) | `0.01` |
@@ -47,7 +47,7 @@ technician check \
 | Code | Meaning |
 |------|---------|
 | 0 | All probes passed, all budgets met |
-| 1 | One or more budget violations or probe failures |
+| 1 | One or more budget violations or check failures |
 | 2 | Infrastructure error (config parse failure, browser launch failure, etc.) |
 
 ### Example output (JSON)
@@ -112,7 +112,7 @@ technician check \
 - name: Performance check
   run: |
     technician check \
-      --config probes/ci.yml \
+      --config checks/ci.yml \
       --budgets budgets.yml \
       --base-url "${{ env.PREVIEW_URL }}" \
       --artifacts ./test-results/ \
@@ -142,7 +142,7 @@ performance:
   image: technician:latest
   script:
     - technician check
-        --config probes/ci.yml
+        --config checks/ci.yml
         --budgets budgets.yml
         --base-url "$CI_ENVIRONMENT_URL"
         --artifacts ./test-results/
@@ -164,21 +164,21 @@ docker run --rm \
   -v $(pwd)/test-results:/artifacts \
   technician:latest \
   technician check \
-    --config /etc/technician/probes/ci.yml \
+    --config /etc/technician/checks/ci.yml \
     --budgets /etc/technician/budgets.yml \
     --base-url "https://staging.example.com" \
     --artifacts /artifacts/
 ```
 
-## CI-specific probe config
+## CI-specific check config
 
-A CI probe config is the same format as worker mode, but typically:
+A CI check config is the same format as worker mode, but typically:
 - Targets a preview/staging URL (overridden by `--base-url`)
-- Runs each probe exactly once (no schedule field needed)
+- Runs each check exactly once (no schedule field needed)
 - May include DOM assertions in Playwright scripts
 
 ```yaml
-# probes/ci.yml
+# checks/ci.yml
 - name: "homepage (desktop)"
   group: CI
   script: playwright/homepage_check.js
@@ -203,9 +203,9 @@ A CI probe config is the same format as worker mode, but typically:
 
 1. Baseline screenshots are committed to the repo (e.g., `baselines/homepage-desktop.png`)
 2. CI runs `technician check --compare baselines/`
-3. For each probe, a screenshot is taken after the probe script completes
+3. For each check, a screenshot is taken after the check script completes
 4. Pixel-level diff against the baseline using Go image comparison (no external tools)
-5. If diff exceeds `--threshold`, the probe is marked as failed
+5. If diff exceeds `--threshold`, the check is marked as failed
 6. Diff image saved to artifacts (highlights changed regions)
 
 ### Baseline management
@@ -213,7 +213,7 @@ A CI probe config is the same format as worker mode, but typically:
 ```bash
 # Generate new baselines
 technician check \
-  --config probes/ci.yml \
+  --config checks/ci.yml \
   --base-url "https://staging.example.com" \
   --artifacts baselines/
 
@@ -246,11 +246,11 @@ Output:
 
 ### Phase 1: `technician check` subcommand
 - Parse `--config`, `--budgets`, `--base-url`, `--artifacts` flags
-- Run all probes sequentially (no scheduler, no cron)
+- Run all checks sequentially (no scheduler, no cron)
 - Evaluate budgets against results
 - Output JSON to stdout, save artifacts to disk
 - Exit 0/1 based on `--fail-on`
-- Reuses existing probe runners (HTTP, Playwright) and budget evaluator
+- Reuses existing check runners (HTTP, Playwright) and budget evaluator
 
 ### Phase 2: Output formats
 - JUnit XML for CI test reporters
@@ -286,4 +286,4 @@ Output:
 | Visual regression | No | New (~300 LOC) |
 | GitHub Action wrapper | No | New (separate repo) |
 
-Most of the CI runner is wiring — the probe and budget logic is already built. The `check` subcommand is primarily a different execution model (run-once vs. scheduled) with structured output.
+Most of the CI runner is wiring — the check and budget logic is already built. The `check` subcommand is primarily a different execution model (run-once vs. scheduled) with structured output.

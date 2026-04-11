@@ -53,8 +53,8 @@ func TestBlackboxHandlerHTTP(t *testing.T) {
 	}
 }
 
-func TestBuildProbeConfigHTTP(t *testing.T) {
-	cfg := buildProbeConfig("https://example.com", "http_2xx")
+func TestBuildCheckConfigHTTP(t *testing.T) {
+	cfg := buildCheckConfig("https://example.com", "http_2xx")
 	if cfg.HTTP == nil {
 		t.Fatal("expected HTTP config")
 	}
@@ -63,8 +63,8 @@ func TestBuildProbeConfigHTTP(t *testing.T) {
 	}
 }
 
-func TestBuildProbeConfigSMTP(t *testing.T) {
-	cfg := buildProbeConfig("mail.example.com", "smtp")
+func TestBuildCheckConfigSMTP(t *testing.T) {
+	cfg := buildCheckConfig("mail.example.com", "smtp")
 	if cfg.SMTP == nil {
 		t.Fatal("expected SMTP config")
 	}

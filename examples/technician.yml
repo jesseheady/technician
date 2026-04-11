@@ -38,14 +38,14 @@ playwright:
 # For richer alerting (silencing, grouping, escalation, alert history),
 # use Grafana alerting instead (see docs/alerting.md).
 #
-# Events:    probe_down, probe_up, budget_violation, cert_expiring
+# Events:    check_down, check_up, budget_violation, cert_expiring
 # Severities: warning, critical (omit to receive all)
 #
 # webhooks:
 #   # Slack channel for all warnings + critical (informational)
 #   - url: https://hooks.slack.com/services/T.../B.../xxx
 #     type: slack
-#     events: [probe_down, probe_up, cert_expiring, budget_violation]
+#     events: [check_down, check_up, cert_expiring, budget_violation]
 #     cooldown: 5m
 #
 #   # Discord for warnings only (cert expiry heads-up, budget alerts)
@@ -58,6 +58,6 @@ playwright:
 #   # PagerDuty / opsgenie for critical only (pages on-call)
 #   - url: https://your-endpoint.example.com/alerts
 #     type: generic
-#     events: [probe_down, cert_expiring]
+#     events: [check_down, cert_expiring]
 #     severities: [critical]
 #     cooldown: 10m

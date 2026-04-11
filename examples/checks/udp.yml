@@ -1,0 +1,38 @@
+# UDP check examples.
+#
+# send or send_hex is required — UDP is connectionless, so there is nothing
+# to check without sending a datagram.
+#
+# expect_response defaults to true.  Set it to false for fire-and-forget
+# protocols (syslog, StatsD) where no reply is expected.
+#
+# degraded_after guidance:
+#   Cloud VPS (same region):   100ms
+#   Cloud VPS (cross-region):  200ms
+#   Residential / Docker:      500ms
+# UDP latency is similar to DNS — fast in cloud, slower through residential ISPs.
+
+# - name: DNS over UDP
+#   host: 8.8.8.8
+#   port: 53
+#   send_hex: "002a01000001000000000000076578616d706c6503636f6d0000010001"
+#   expect_response: true
+#   schedule: "*/30 * * * * *"
+#   timeout: 5s
+#   degraded_after: 500ms
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# - name: StatsD fire-and-forget
+#   host: statsd.internal
+#   port: 8125
+#   send: "test.metric:1|c"
+#   expect_response: false
+#   schedule: "*/30 * * * * *"
+#   timeout: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s

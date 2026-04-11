@@ -1,0 +1,41 @@
+# Example TCP checks.
+# Tests that the target accepts TCP connections on the given port.
+#
+# degraded_after guidance:
+#   Cloud VPS (same region):   500ms (plain) / 1s (TLS)
+#   Cloud VPS (cross-region):    1s (plain) / 2s (TLS)
+#   Residential / Docker:        2s (plain) / 3s (TLS)
+# TCP includes connection setup; TLS adds a handshake on top. Thresholds should
+# be higher than raw ICMP/DNS for the same target.
+
+- name: Redis
+  group: Infrastructure
+  host: redis.example.com
+  port: 6379
+  timeout: 5s
+  schedule: "0 */2 * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# TLS connection with IPv4:
+# - name: HTTPS Port
+#   host: example.com
+#   port: 443
+#   tls: true
+#   ip_version: "4"
+#   timeout: 5s
+#   schedule: "0 */2 * * * *"
+#   degraded_after: 3s
+
+# Send/expect pattern (e.g. protocol banner check):
+# - name: SMTP Banner
+#   host: smtp.example.com
+#   port: 25
+#   send: "EHLO monitor\r\n"
+#   expect_recv: "250"
+#   timeout: 10s
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s

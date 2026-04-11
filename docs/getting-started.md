@@ -10,8 +10,8 @@ Get Technician running on your machine for local development and testing.
 Optional (for full feature set):
 
 - **Docker & Docker Compose** – To run Prometheus and Grafana alongside Technician.
-- **Node.js 18+** – Required for Playwright (browser) probes. Install via [nodejs.org](https://nodejs.org/) or `nvm`.
-- **mtr** – For traceroute probes. On macOS: `brew install mtr`. Note: mtr typically requires root (raw sockets) on macOS and Linux, so traceroute probes may fail unless you run as root. For local dev you can remove or leave traceroute probes out of your config.
+- **Node.js 18+** – Required for Playwright (browser) checks. Install via [nodejs.org](https://nodejs.org/) or `nvm`.
+- **mtr** – For traceroute checks. On macOS: `brew install mtr`. Note: mtr typically requires root (raw sockets) on macOS and Linux, so traceroute probes may fail unless you run as root. For local dev you can remove or leave traceroute probes out of your config.
 
 ## One-time setup (Mac)
 
@@ -34,7 +34,7 @@ To get started, copy the examples to `config/` and customise:
 
 ```bash
 cp -r examples/ config/
-# Edit config/probes/http.yml, config/technician.yml, etc.
+# Edit config/checks/http.yml, config/technician.yml, etc.
 ```
 
 ## Run the worker (minimal)
@@ -72,7 +72,7 @@ Config and probes are mounted from `config/`. To use the examples directly, chan
 
 ## Probe configuration
 
-Probes are defined in YAML files under the probes directory (see `examples/probes/` for reference). Each probe type has its own file:
+Probes are defined in YAML files under the checks directory (see `examples/checks/` for reference). Each check type has its own file:
 
 | File | Probe type | What it checks |
 |------|-----------|----------------|
@@ -90,7 +90,7 @@ Probes are defined in YAML files under the probes directory (see `examples/probe
 | `domain_expiry.yml` | Domain expiry | RDAP-based registration expiry, warn/critical thresholds |
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
-All probe types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
+All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
 
 **Retry policies**: Every probe should have a retry policy to absorb transient failures. The example configs include recommended defaults:
 
@@ -114,9 +114,9 @@ retry:
   delay: 3s
 ```
 
-Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential` (delay × 2^attempt). For most probes, `none` with a single retry is sufficient. Use `exponential` with `count: 2` for critical endpoints where you want more aggressive retry behavior.
+Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential` (delay × 2^attempt). For most checks, `none` with a single retry is sufficient. Use `exponential` with `count: 2` for critical endpoints where you want more aggressive retry behavior.
 
-**Schedule recommendations**: Not all probe types need the same frequency. Recommended intervals by type:
+**Schedule recommendations**: Not all check types need the same frequency. Recommended intervals by type:
 
 | Probe type | Recommended schedule | Why |
 |------------|---------------------|-----|
@@ -128,9 +128,9 @@ Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential
 | TLS, Domain expiry | `0 0 */6 * * *` (6 hr) | Certificates and registrations change on day/week timescales |
 | Playwright | `0 */5 * * * *` (5 min) | Browser launches are heavy; balance with visibility needs |
 
-**Degraded thresholds**: The `degraded_after` field marks a probe as degraded (yellow) when its duration exceeds the threshold — even though the probe itself succeeded. Thresholds should be tuned to your deployment context, since network latency varies significantly between environments.
+**Degraded thresholds**: The `degraded_after` field marks a check as degraded (yellow) when its duration exceeds the threshold — even though the check itself succeeded. Thresholds should be tuned to your deployment context, since network latency varies significantly between environments.
 
-Recommended `degraded_after` by probe type and deployment:
+Recommended `degraded_after` by check type and deployment:
 
 | Probe type | Cloud VPS (same region) | Cloud VPS (cross-region) | Residential / Docker Desktop |
 |------------|------------------------|--------------------------|------------------------------|
@@ -150,7 +150,7 @@ Recommended `degraded_after` by probe type and deployment:
 
 Why the variation:
 
-- **ICMP/DNS/UDP** are the most sensitive to environment. A cloud VPS in the same region as 8.8.8.8 gets 1–5ms pings; a Mac on residential WiFi gets 100–160ms. Setting 100ms as the threshold in a residential environment means the probe is permanently degraded — which is noise, not signal.
+- **ICMP/DNS/UDP** are the most sensitive to environment. A cloud VPS in the same region as 8.8.8.8 gets 1–5ms pings; a Mac on residential WiFi gets 100–160ms. Setting 100ms as the threshold in a residential environment means the check is permanently degraded — which is noise, not signal.
 - **NTP** depends on the server. Dedicated servers like `time.google.com` and `time.cloudflare.com` are anycast and fast (20–40ms). `pool.ntp.org` round-robins to volunteer servers that may be geographically distant, with p90 latencies 5–10x higher than dedicated servers.
 - **TCP/gRPC** include connection setup (and TLS handshake if enabled), so thresholds should be higher than raw ICMP/DNS.
 - **HTTP** varies by what's behind the URL. A static site on a CDN responds in 50–100ms; a dynamic API may take 500ms–2s legitimately.
@@ -158,11 +158,11 @@ Why the variation:
 - **Traceroute** spawns an mtr subprocess with multiple hops and round-trips; 5–10s is normal even from fast networks.
 - **Playwright** launches a full browser, loads a page, and collects Web Vitals. Baseline is 3–5s for a simple page; complex flows take longer.
 
-If a probe is permanently degraded, the threshold is too low for your environment — raise it until degraded status reflects an actual change in behavior, not the baseline.
+If a check is permanently degraded, the threshold is too low for your environment — raise it until degraded status reflects an actual change in behavior, not the baseline.
 
 TLS and domain expiry probes don't typically use `degraded_after` because they check certificate/registration state rather than latency. BGP probes query the RIPE RIS API, which has variable response times (100ms–4s) that aren't indicative of your network health — `degraded_after` is generally not useful for BGP.
 
-**Groups**: Add a `group` field to organize probes on the status page into collapsible sections:
+**Groups**: Add a `group` field to organize checks on the status page into collapsible sections:
 
 ```yaml
 - name: example.com
@@ -192,7 +192,7 @@ Examples: `*/60 * * * * *` (every 60 seconds), `0 */5 * * * *` (every 5 minutes 
 
 ### API health check with security headers
 
-HTTP probes support body and header assertions, which together cover the "test my API status and body content" use case. This example validates the status code, response body, Content-Type, and common security headers in a single probe:
+HTTP checks support body and header assertions, which together cover the "test my API status and body content" use case. This example validates the status code, response body, Content-Type, and common security headers in a single probe:
 
 ```yaml
 - name: api-full-check
@@ -246,7 +246,7 @@ HTTP probes support body and header assertions, which together cover the "test m
 | `header_not_contains` | Header | Named header does NOT include the target string |
 | `header_regex` | Header | Named header matches the target regex |
 
-If any assertion fails, the probe is marked as failed and the failure message identifies which assertion didn't pass.
+If any assertion fails, the check is marked as failed and the failure message identifies which assertion didn't pass.
 
 ## Run a single probe (debug)
 
@@ -254,11 +254,11 @@ If any assertion fails, the probe is marked as failed and the failure message id
 go run . probe --name "example.com" --config config/technician.yml
 ```
 
-Probe name must match a `name` in your probe definitions under `config/probes/`.
+Probe name must match a `name` in your check definitions under `config/checks/`.
 
 ## Validate (probes + budgets)
 
-Runs all probes once and checks them against performance budgets. Exits 0 if all pass, 1 if any budget is violated:
+Runs all checks once and checks them against performance budgets. Exits 0 if all pass, 1 if any budget is violated:
 
 ```bash
 go run . validate --config config/technician.yml --budget config/budgets.yml
@@ -283,4 +283,4 @@ On Linux you may need `mtr` for traceroute probes (`apt install mtr` or equivale
 - [Local development configuration](mock-production.md)
 - [Playwright scaling](playwright-scaling.md) – browser probe resource analysis, concurrency controls, dedicated runners
 - [AGENTS.md](../AGENTS.md) – architecture and conventions
-- [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) – sending deployed and edge probe metrics to a central Prometheus in your VPC and using central Grafana as source of record
+- [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) – sending deployed and edge check metrics to a central Prometheus in your VPC and using central Grafana as source of record

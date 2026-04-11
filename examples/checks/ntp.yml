@@ -1,0 +1,58 @@
+# Example NTP checks.
+# Queries an NTP server over UDP and reports clock offset, stratum, and RTT.
+#
+# degraded_after guidance:
+#   Dedicated servers (time.google.com, time.cloudflare.com):
+#     Cloud VPS:              50-100ms
+#     Residential / Docker:      200ms
+#   Pool servers (pool.ntp.org):
+#     Cloud VPS:             100-200ms
+#     Residential / Docker:      500ms
+# Dedicated NTP servers are anycast and fast (20-40ms). pool.ntp.org round-robins
+# to volunteer servers that may be geographically distant, with p90 latencies
+# 5-10x higher than dedicated servers. Consider a regional zone
+# (e.g. us.pool.ntp.org, europe.pool.ntp.org) for more consistent results.
+
+- name: Pool NTP
+  group: Infrastructure
+  server: pool.ntp.org
+  timeout: 5s
+  schedule: "0 */10 * * * *"
+  degraded_after: 500ms
+  retry:
+    count: 2
+    backoff: none
+    delay: 2s
+
+# Google's public NTP with degraded threshold:
+# - name: Google NTP
+#   server: time.google.com
+#   timeout: 5s
+#   degraded_after: 200ms
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Cloudflare NTP:
+# - name: Cloudflare NTP
+#   server: time.cloudflare.com
+#   timeout: 5s
+#   degraded_after: 200ms
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Custom port (default is 123):
+# - name: Internal NTP
+#   server: ntp.internal.example.com
+#   port: 1123
+#   timeout: 5s
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s

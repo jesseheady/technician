@@ -1,0 +1,30 @@
+# Example SMTP checks.
+# Tests that the SMTP server accepts connections on the given port.
+#
+# degraded_after guidance:
+#   Cloud VPS:              2-3s
+#   Residential / Docker:     5s
+# SMTP servers are often slow to respond to EHLO, especially with greylisting
+# or rate limiting. Set thresholds higher than HTTP/TCP for the same host.
+
+- name: Gmail SMTP
+  group: Infrastructure
+  host: smtp.gmail.com
+  port: 587
+  schedule: "0 */15 * * * *"
+  degraded_after: 5s
+  retry:
+    count: 1
+    backoff: none
+    delay: 3s
+
+# - name: Company Mail
+#   group: Infrastructure
+#   host: smtp.example.com
+#   port: 25
+#   schedule: "0 */15 * * * *"
+#   degraded_after: 5s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 3s

@@ -12,25 +12,25 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/jesseheady/technician/internal/config"
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
 // BlackboxHandler implements a /probe endpoint compatible with
 // Prometheus blackbox_exporter's probe interface.
 type BlackboxHandler struct {
-	probers map[string]probe.Prober
+	checkers map[string]check.Checker
 }
 
 func NewBlackboxHandler() *BlackboxHandler {
 	return &BlackboxHandler{
-		probers: map[string]probe.Prober{
-			"http_2xx": probe.NewHTTPProber(),
-			"smtp":     probe.NewSMTPProber(),
-			"tcp":      probe.NewTCPProber(),
-			"dns":      probe.NewDNSProber(),
-			"icmp":     probe.NewICMPProber(),
-			"grpc":     probe.NewGRPCProber(),
-			"udp":      probe.NewUDPProber(),
+		checkers: map[string]check.Checker{
+			"http_2xx": check.NewHTTPChecker(),
+			"smtp":     check.NewSMTPChecker(),
+			"tcp":      check.NewTCPChecker(),
+			"dns":      check.NewDNSChecker(),
+			"icmp":     check.NewICMPChecker(),
+			"grpc":     check.NewGRPCChecker(),
+			"udp":      check.NewUDPChecker(),
 		},
 	}
 }
@@ -46,40 +46,40 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		module = "http_2xx"
 	}
 
-	prober, ok := h.probers[module]
+	checker, ok := h.checkers[module]
 	if !ok {
 		http.Error(w, fmt.Sprintf("unknown module: %s", module), http.StatusBadRequest)
 		return
 	}
 
-	probeCfg := buildProbeConfig(target, module)
+	checkCfg := buildCheckConfig(target, module)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
 	start := time.Now()
-	result := prober.Run(ctx, probeCfg, nil)
+	result := checker.Run(ctx, checkCfg, nil)
 	duration := time.Since(start)
 
 	registry := prometheus.NewRegistry()
 
-	probeSuccess := prometheus.NewGauge(prometheus.GaugeOpts{
+	checkSuccess := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_success",
 		Help: "1 if the target responded successfully, 0 otherwise",
 	})
-	probeDuration := prometheus.NewGauge(prometheus.GaugeOpts{
+	checkDuration := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_duration_seconds",
-		Help: "Total probe duration in seconds",
+		Help: "Total check duration in seconds",
 	})
 
-	registry.MustRegister(probeSuccess, probeDuration)
+	registry.MustRegister(checkSuccess, checkDuration)
 
 	if result.Success {
-		probeSuccess.Set(1)
+		checkSuccess.Set(1)
 	} else {
-		probeSuccess.Set(0)
+		checkSuccess.Set(0)
 	}
-	probeDuration.Set(duration.Seconds())
+	checkDuration.Set(duration.Seconds())
 
 	if result.StatusCode > 0 {
 		httpStatus := prometheus.NewGauge(prometheus.GaugeOpts{
@@ -110,7 +110,7 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	promhttp.HandlerFor(registry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
 
-	slog.Debug("Blackbox probe completed",
+	slog.Debug("Blackbox check completed",
 		"target", target,
 		"module", module,
 		"success", result.Success,
@@ -118,76 +118,76 @@ func (h *BlackboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func buildProbeConfig(target, module string) *config.ProbeConfig {
+func buildCheckConfig(target, module string) *config.CheckConfig {
 	timeout := 30 * time.Second
 	switch module {
 	case "smtp":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeSMTP,
+			Type:    config.CheckTypeSMTP,
 			Timeout: timeout,
-			SMTP: &config.SMTPProbeConfig{
+			SMTP: &config.SMTPCheckConfig{
 				Host: target,
 				Port: 25,
 			},
 		}
 	case "tcp":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeTCP,
+			Type:    config.CheckTypeTCP,
 			Timeout: timeout,
-			TCP: &config.TCPProbeConfig{
+			TCP: &config.TCPCheckConfig{
 				Host: target,
 				Port: 443,
 			},
 		}
 	case "dns":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeDNS,
+			Type:    config.CheckTypeDNS,
 			Timeout: timeout,
-			DNS: &config.DNSProbeConfig{
+			DNS: &config.DNSCheckConfig{
 				Domain:     target,
 				Server:     "8.8.8.8:53",
 				RecordType: "A",
 			},
 		}
 	case "icmp":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeICMP,
+			Type:    config.CheckTypeICMP,
 			Timeout: timeout,
-			ICMP: &config.ICMPProbeConfig{
+			ICMP: &config.ICMPCheckConfig{
 				Host:  target,
 				Count: 3,
 			},
 		}
 	case "grpc":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeGRPC,
+			Type:    config.CheckTypeGRPC,
 			Timeout: timeout,
-			GRPC: &config.GRPCProbeConfig{
+			GRPC: &config.GRPCCheckConfig{
 				Host: target,
 			},
 		}
 	case "udp":
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeUDP,
+			Type:    config.CheckTypeUDP,
 			Timeout: timeout,
-			UDP: &config.UDPProbeConfig{
+			UDP: &config.UDPCheckConfig{
 				Host: target,
 				Port: 53,
 				Send: "\x00",
 			},
 		}
 	default:
-		return &config.ProbeConfig{
+		return &config.CheckConfig{
 			Name:    target,
-			Type:    config.ProbeTypeHTTP,
+			Type:    config.CheckTypeHTTP,
 			Timeout: timeout,
-			HTTP: &config.HTTPProbeConfig{
+			HTTP: &config.HTTPCheckConfig{
 				URL:            target,
 				Method:         "GET",
 				ExpectedStatus: 200,
@@ -205,7 +205,7 @@ func DebugHandler() http.HandlerFunc {
 			module = "http_2xx"
 		}
 
-		cfg := buildProbeConfig(target, module)
+		cfg := buildCheckConfig(target, module)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(cfg)
 	}

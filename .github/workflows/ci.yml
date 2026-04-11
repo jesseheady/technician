@@ -81,7 +81,7 @@ jobs:
         run: go vet ./...
 
   validate:
-    name: Validate probes + budgets
+    name: Validate checks + budgets
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -95,11 +95,11 @@ jobs:
       - name: Make binary executable
         run: chmod +x technician
 
-      - name: Validate (non-browser probes)
+      - name: Validate (non-browser checks)
         run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha
 
   validate-playwright:
-    name: Validate Playwright probes
+    name: Validate Playwright checks
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -127,7 +127,7 @@ jobs:
       - name: Make binary executable
         run: chmod +x technician
 
-      - name: Validate Playwright probes
+      - name: Validate Playwright checks
         run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha
         env:
           NODE_PATH: internal/playwright/scripts/node_modules

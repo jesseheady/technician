@@ -19,7 +19,7 @@ go test -v -race ./...
 Run tests for a single package:
 
 ```bash
-go test ./internal/probe/...
+go test ./internal/check/...
 go test ./internal/budget/...
 go test ./internal/config/...
 ```
@@ -54,8 +54,8 @@ golint ./...
 
 | Package            | Focus |
 |--------------------|--------|
-| `internal/probe`   | HTTP (httptest), TCP, DNS, Playwright (concurrency limiter), behavior |
-| `internal/config`  | YAML loading, env expansion, defaults, probe config for all 11 types |
+| `internal/check`   | HTTP (httptest), TCP, DNS, Playwright (concurrency limiter), behavior |
+| `internal/config`  | YAML loading, env expansion, defaults, check config for all 11 types |
 | `internal/budget`  | Threshold evaluation, wildcards |
 | `internal/metrics` | HAR parsing, recording |
 | `internal/scheduler` | Stagger, cron, retry logic |
@@ -70,7 +70,7 @@ Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP probes;
 
 ### 1. Validate command (probes + budgets)
 
-Runs all configured probes once and evaluates budgets. Use this in CI and for local e2e:
+Runs all configured checks once and evaluates budgets. Use this in CI and for local e2e:
 
 ```bash
 go run . validate --config config/technician.yml --budget config/budgets.yml
@@ -111,7 +111,7 @@ Hit the `/probe` endpoint (same semantics as Prometheus blackbox_exporter):
 curl -s "http://localhost:9590/probe?target=https://example.com&module=http_2xx"
 ```
 
-Expect Prometheus exposition format with `technician_probe_up` and timing metrics.
+Expect Prometheus exposition format with `technician_check_up` and timing metrics.
 
 ### 5. Docker Compose stack
 
@@ -151,6 +151,6 @@ See [CI documentation](ci.md) for details on GitHub Actions, generic CI pipeline
 
 ## Adding e2e coverage
 
-- Add or extend probe definitions in `examples/probes/` (or a dedicated `e2e/` config dir) that hit known-good or mock endpoints.
+- Add or extend check definitions in `examples/checks/` (or a dedicated `e2e/` config dir) that hit known-good or mock endpoints.
 - Add a minimal `budgets.yml` for e2e so `validate` has clear pass/fail (e.g. relaxed thresholds for mock targets).
 - Document any required environment (e.g. `CANARY_URL`) in this doc or in the workflow file.

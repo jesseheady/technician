@@ -1,15 +1,15 @@
 # Example performance budgets.
-# Probe names must match entries in your probes/ directory.
+# Check names must match entries in your checks/ directory.
 # Copy to config/budgets.yml and customise thresholds for your targets.
 
-# Global defaults (applied to any probe not listed below)
-- probe: "*"
+# Global defaults (applied to any check not listed below)
+- check: "*"
   thresholds:
     duration: 10000   # 10s total request time
   alert_on: exceed
 
-# HTTP probe budgets
-- probe: example.com
+# HTTP check budgets
+- check: example.com
   thresholds:
     duration: 3000
     ttfb: 800
@@ -17,8 +17,8 @@
     tls: 150
   alert_on: exceed
 
-# Browser (Playwright) probe budgets
-- probe: "example.com (desktop)"
+# Browser (Playwright) check budgets
+- check: "example.com (desktop)"
   thresholds:
     duration: 30000
     lcp: 2500         # Largest Contentful Paint
@@ -27,7 +27,7 @@
     dom_complete: 5000
   alert_on: exceed
 
-- probe: "example.com (mobile 4g)"
+- check: "example.com (mobile 4g)"
   thresholds:
     duration: 30000
     lcp: 4000
@@ -36,7 +36,7 @@
     dom_complete: 8000
   alert_on: exceed
 
-- probe: "example.com (mobile 3g)"
+- check: "example.com (mobile 3g)"
   thresholds:
     duration: 45000
     lcp: 6000

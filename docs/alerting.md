@@ -17,7 +17,7 @@ Grafana is the recommended alerting backend for production. It provides:
 1. Open Grafana at [http://localhost:3000](http://localhost:3000) (default `admin`/`admin`).
 2. Go to **Alerting > Contact points** and add your integration (Discord, Slack, etc.).
 3. Go to **Alerting > Alert rules** and create rules using Technician's Prometheus metrics:
-   - `technician_probe_up == 0` — probe is down
+   - `technician_check_up == 0` — probe is down
    - `technician_budget_violation == 1` — budget threshold exceeded
    - `technician_http_ttfb_seconds > 2` — high TTFB
    - `technician_browser_lcp_ms > 2500` — high LCP
@@ -50,7 +50,7 @@ webhooks:
   # Slack channel — all events, all severities
   - url: https://hooks.slack.com/services/T.../B.../xxx
     type: slack
-    events: [probe_down, probe_up, cert_expiring, budget_violation]
+    events: [check_down, check_up, cert_expiring, budget_violation]
     cooldown: 5m
 
   # Discord — warnings only (cert expiry heads-up, budget alerts)
@@ -63,7 +63,7 @@ webhooks:
   # PagerDuty / OpsGenie — critical only (pages on-call)
   - url: https://your-endpoint.example.com/alerts
     type: generic
-    events: [probe_down, cert_expiring]
+    events: [check_down, cert_expiring]
     severities: [critical]
     cooldown: 10m
 ```
@@ -80,16 +80,16 @@ webhooks:
 
 | Event | Default severity | Fires when |
 |-------|-----------------|------------|
-| `probe_down` | `critical` | A probe fails 3 consecutive checks (see [debouncing](#debouncing) below). |
-| `probe_up` | — | A probe transitions from down to up (recovery). |
+| `check_down` | `critical` | A probe fails 3 consecutive checks (see [debouncing](#debouncing) below). |
+| `check_up` | — | A probe transitions from down to up (recovery). |
 | `budget_violation` | `warning` | A budget metric becomes newly violated. |
 | `cert_expiring` | `warning` or `critical` | A TLS certificate enters the warn or critical expiry window. Severity escalates from warning to critical as the deadline approaches. |
 
 ### Debouncing
 
-Native webhooks use a **consecutive-failure threshold** to prevent transient blips from triggering alerts. A `probe_down` notification requires **3 consecutive failures** before it fires. A single success resets the counter. Recovery (`probe_up`) fires immediately when a probe that was notified as down succeeds again.
+Native webhooks use a **consecutive-failure threshold** to prevent transient blips from triggering alerts. A `check_down` notification requires **3 consecutive failures** before it fires. A single success resets the counter. Recovery (`check_up`) fires immediately when a check that was notified as down succeeds again.
 
-This works in conjunction with probe-level retries. With the recommended retry policy (`count: 1`), a probe retries once before reporting failure. Combined with the 3-failure threshold, a probe must fail 6 total attempts (3 cycles × 2 attempts each) before triggering an alert — providing strong protection against transient network issues.
+This works in conjunction with probe-level retries. With the recommended retry policy (`count: 1`), a check retries once before reporting failure. Combined with the 3-failure threshold, a check must fail 6 total attempts (3 cycles × 2 attempts each) before triggering an alert — providing strong protection against transient network issues.
 
 Infrastructure errors (DNS resolution failures, connection refused, etc.) are classified as `InfraError` and excluded from state transitions entirely — they don't increment the failure counter or trigger notifications.
 
@@ -102,19 +102,19 @@ Events carry a severity level that enables routing to different channels:
 
 Configure multiple webhook entries with different `severities` filters to fork notifications. For example, one Slack channel receives all alerts while PagerDuty only receives critical.
 
-The `cert_expiring` event uses state tracking: it fires once when entering the warning window, then again if it escalates to critical. It does not re-fire on every probe cycle. If the cert is renewed (days remaining goes above the warn threshold), the state resets so future expiry will trigger again.
+The `cert_expiring` event uses state tracking: it fires once when entering the warning window, then again if it escalates to critical. It does not re-fire on every check cycle. If the cert is renewed (days remaining goes above the warn threshold), the state resets so future expiry will trigger again.
 
 ### Payload formats
 
 - **Discord**: Native embed format with color-coded status (red for critical, amber for warning, green for recovery), probe details, error info, and cert expiry fields.
 - **Slack**: Incoming webhook format with colored attachments and `[WARNING]`/`[CRITICAL]` severity prefix.
-- **Generic**: JSON object with `type`, `severity`, `probe`, `probe_type`, `message`, `details`, and `timestamp` fields.
+- **Generic**: JSON object with `type`, `severity`, `check`, `probe_type`, `message`, `details`, and `timestamp` fields.
 
 ### Limitations vs Grafana
 
 Native webhooks are intentionally simple. They do not provide:
 
-- Alert grouping or deduplication beyond the per-probe cooldown.
+- Alert grouping or deduplication beyond the per-check cooldown.
 - Silencing or maintenance windows.
 - Escalation policies.
 - Alert history or state timeline.
@@ -143,7 +143,7 @@ Alert rules are defined in `prometheus/rules.yml`. Rules are organized into warn
 
 Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP) use `avg_over_time(...[15m])` — a 15-minute rolling average that smooths transient spikes. A single bad check cannot fire an alert; the average must exceed the threshold and the `for` duration must elapse across multiple evaluation cycles.
 
-Critical-severity performance alerts additionally require **>50% of probes** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-probe behavior.
+Critical-severity performance alerts additionally require **>50% of probes** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-check behavior.
 
 Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage, NTP offset) use raw values — smoothing would mask real state changes.
 
@@ -163,9 +163,9 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | SMTP / Traceroute / gRPC | ProbeFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
-SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_probe_up`, `technician_probe_duration_seconds`). They receive full probe health coverage (ProbeFailing, HighErrorRate, ProbeInfraError) but do not have probe-specific threshold alerts.
+SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_check_up`, `technician_probe_duration_seconds`). They receive full check health coverage (ProbeFailing, HighErrorRate, ProbeInfraError) but do not have probe-specific threshold alerts.
 
-Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, aggregate error rate warnings suppress individual probe failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
+Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
 A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline.
 

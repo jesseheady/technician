@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
-func makeResult(name string, typ config.ProbeType, success bool) *probe.Result {
-	return &probe.Result{
+func makeResult(name string, typ config.CheckType, success bool) *check.Result {
+	return &check.Result{
 		Name:      name,
 		Type:      typ,
 		Success:   success,
@@ -26,15 +26,15 @@ func makeResult(name string, typ config.ProbeType, success bool) *probe.Result {
 func TestPushAndSnapshot(t *testing.T) {
 	s := NewStore("test-service", nil, "")
 
-	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
-	s.Push(makeResult("b", config.ProbeTypeHTTP, false))
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
+	s.Push(makeResult("b", config.CheckTypeHTTP, false))
 
 	snap := s.Snapshot()
 	if snap.Service != "test-service" {
 		t.Fatalf("expected service 'test-service', got %q", snap.Service)
 	}
-	if len(snap.Probes) != 2 {
-		t.Fatalf("expected 2 probes, got %d", len(snap.Probes))
+	if len(snap.Checks) != 2 {
+		t.Fatalf("expected 2 checks, got %d", len(snap.Checks))
 	}
 	if snap.Summary.Up != 1 {
 		t.Fatalf("expected 1 up, got %d", snap.Summary.Up)
@@ -62,8 +62,8 @@ func TestOverallStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewStore("test", nil, "")
 			for i, r := range tt.results {
-				s.Push(&probe.Result{
-					Name: string(rune('a' + i)), Type: config.ProbeTypeHTTP,
+				s.Push(&check.Result{
+					Name: string(rune('a' + i)), Type: config.CheckTypeHTTP,
 					Success: r.success, Timestamp: time.Now(),
 				})
 			}
@@ -86,23 +86,23 @@ func TestPendingStatusBeforeResults(t *testing.T) {
 func TestRingBufferCap(t *testing.T) {
 	s := NewStore("test", nil, "")
 	for i := 0; i < maxHistory+20; i++ {
-		s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+		s.Push(makeResult("a", config.CheckTypeHTTP, true))
 	}
 	snap := s.Snapshot()
-	if len(snap.Probes[0].History) != maxHistory {
-		t.Fatalf("expected %d entries, got %d", maxHistory, len(snap.Probes[0].History))
+	if len(snap.Checks[0].History) != maxHistory {
+		t.Fatalf("expected %d entries, got %d", maxHistory, len(snap.Checks[0].History))
 	}
 }
 
 func TestInfraErrorStatus(t *testing.T) {
 	s := NewStore("test", nil, "")
-	r := makeResult("a", config.ProbeTypeHTTP, false)
+	r := makeResult("a", config.CheckTypeHTTP, false)
 	r.InfraError = true
 	s.Push(r)
 
 	snap := s.Snapshot()
-	if snap.Probes[0].Status != "error" {
-		t.Fatalf("expected 'error', got %q", snap.Probes[0].Status)
+	if snap.Checks[0].Status != "error" {
+		t.Fatalf("expected 'error', got %q", snap.Checks[0].Status)
 	}
 	if snap.Summary.Error != 1 {
 		t.Fatalf("expected 1 error, got %d", snap.Summary.Error)
@@ -135,23 +135,23 @@ func TestDownSinceTracking(t *testing.T) {
 	s := NewStore("test", nil, "")
 
 	// First failure sets downSince
-	s.Push(makeResult("a", config.ProbeTypeHTTP, false))
+	s.Push(makeResult("a", config.CheckTypeHTTP, false))
 	snap := s.Snapshot()
-	if snap.Probes[0].DownSince == "" {
+	if snap.Checks[0].DownSince == "" {
 		t.Fatal("expected DownSince to be set")
 	}
 
 	// Recovery clears downSince
-	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
 	snap = s.Snapshot()
-	if snap.Probes[0].DownSince != "" {
+	if snap.Checks[0].DownSince != "" {
 		t.Fatal("expected DownSince to be cleared after recovery")
 	}
 }
 
 func TestBudgetChecks(t *testing.T) {
 	s := NewStore("test", nil, "")
-	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
 
 	s.RecordBudgetCheck("a", "duration", false)
 	s.RecordBudgetCheck("a", "ttfb", true)
@@ -165,14 +165,14 @@ func TestBudgetChecks(t *testing.T) {
 	}
 
 	// Budget checks should be attached to the probe
-	if len(snap.Probes[0].BudgetChecks) != 2 {
-		t.Fatalf("expected 2 budget checks on probe, got %d", len(snap.Probes[0].BudgetChecks))
+	if len(snap.Checks[0].BudgetChecks) != 2 {
+		t.Fatalf("expected 2 budget checks on check, got %d", len(snap.Checks[0].BudgetChecks))
 	}
 }
 
 func TestBudgetEscalation(t *testing.T) {
 	s := NewStore("test", nil, "")
-	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
 
 	// First violation → warn
 	crossed := s.RecordBudgetCheck("a", "dns", true)
@@ -180,7 +180,7 @@ func TestBudgetEscalation(t *testing.T) {
 		t.Error("should not cross threshold on first violation")
 	}
 	snap := s.Snapshot()
-	bc := findBudget(snap.Probes[0].BudgetChecks, "dns")
+	bc := findBudget(snap.Checks[0].BudgetChecks, "dns")
 	if bc.Severity != "warn" {
 		t.Errorf("expected warn, got %s", bc.Severity)
 	}
@@ -188,7 +188,7 @@ func TestBudgetEscalation(t *testing.T) {
 	// Second violation → still warn
 	s.RecordBudgetCheck("a", "dns", true)
 	snap = s.Snapshot()
-	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	bc = findBudget(snap.Checks[0].BudgetChecks, "dns")
 	if bc.Severity != "warn" {
 		t.Errorf("expected warn, got %s", bc.Severity)
 	}
@@ -199,7 +199,7 @@ func TestBudgetEscalation(t *testing.T) {
 		t.Error("should cross threshold on third consecutive violation")
 	}
 	snap = s.Snapshot()
-	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	bc = findBudget(snap.Checks[0].BudgetChecks, "dns")
 	if bc.Severity != "fail" {
 		t.Errorf("expected fail, got %s", bc.Severity)
 	}
@@ -213,7 +213,7 @@ func TestBudgetEscalation(t *testing.T) {
 	// Single pass resets to pass
 	s.RecordBudgetCheck("a", "dns", false)
 	snap = s.Snapshot()
-	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	bc = findBudget(snap.Checks[0].BudgetChecks, "dns")
 	if bc.Severity != "pass" {
 		t.Errorf("expected pass after reset, got %s", bc.Severity)
 	}
@@ -221,7 +221,7 @@ func TestBudgetEscalation(t *testing.T) {
 	// Next violation starts fresh at warn
 	s.RecordBudgetCheck("a", "dns", true)
 	snap = s.Snapshot()
-	bc = findBudget(snap.Probes[0].BudgetChecks, "dns")
+	bc = findBudget(snap.Checks[0].BudgetChecks, "dns")
 	if bc.Severity != "warn" {
 		t.Errorf("expected warn after reset+violation, got %s", bc.Severity)
 	}
@@ -238,11 +238,11 @@ func findBudget(checks []BudgetCheck, metric string) BudgetCheck {
 
 func TestGrouping(t *testing.T) {
 	s := NewStore("test", nil, "")
-	r1 := makeResult("a", config.ProbeTypeHTTP, true)
+	r1 := makeResult("a", config.CheckTypeHTTP, true)
 	r1.Group = "Web"
 	s.Push(r1)
 
-	r2 := makeResult("b", config.ProbeTypeHTTP, true)
+	r2 := makeResult("b", config.CheckTypeHTTP, true)
 	r2.Group = "Infra"
 	s.Push(r2)
 
@@ -278,8 +278,8 @@ func TestPersistenceRoundTrip(t *testing.T) {
 
 	// Create store, push data, save
 	s1 := NewStore("test", nil, path)
-	s1.Push(makeResult("a", config.ProbeTypeHTTP, true))
-	s1.Push(makeResult("b", config.ProbeTypeSMTP, false))
+	s1.Push(makeResult("a", config.CheckTypeHTTP, true))
+	s1.Push(makeResult("b", config.CheckTypeSMTP, false))
 	s1.RecordBudgetCheck("a", "duration", false)
 	s1.RecordBudgetCheck("a", "ttfb", true)
 	s1.Save()
@@ -288,8 +288,8 @@ func TestPersistenceRoundTrip(t *testing.T) {
 	s2 := NewStore("test", nil, path)
 	snap := s2.Snapshot()
 
-	if len(snap.Probes) != 2 {
-		t.Fatalf("expected 2 probes after load, got %d", len(snap.Probes))
+	if len(snap.Checks) != 2 {
+		t.Fatalf("expected 2 probes after load, got %d", len(snap.Checks))
 	}
 	if snap.Summary.BudgetTotal != 2 {
 		t.Fatalf("expected 2 budget checks after load, got %d", snap.Summary.BudgetTotal)
@@ -304,18 +304,18 @@ func TestPersistencePreservesOrder(t *testing.T) {
 	path := filepath.Join(dir, "status.json")
 
 	s1 := NewStore("test", nil, path)
-	s1.Push(makeResult("first", config.ProbeTypeHTTP, true))
-	s1.Push(makeResult("second", config.ProbeTypeHTTP, true))
-	s1.Push(makeResult("third", config.ProbeTypeHTTP, true))
+	s1.Push(makeResult("first", config.CheckTypeHTTP, true))
+	s1.Push(makeResult("second", config.CheckTypeHTTP, true))
+	s1.Push(makeResult("third", config.CheckTypeHTTP, true))
 	s1.Save()
 
 	s2 := NewStore("test", nil, path)
 	snap := s2.Snapshot()
 
 	expected := []string{"first", "second", "third"}
-	for i, p := range snap.Probes {
+	for i, p := range snap.Checks {
 		if p.Name != expected[i] {
-			t.Fatalf("probe %d: expected %q, got %q", i, expected[i], p.Name)
+			t.Fatalf("check %d: expected %q, got %q", i, expected[i], p.Name)
 		}
 	}
 }
@@ -327,8 +327,8 @@ func TestPersistenceMissingFile(t *testing.T) {
 	// Should not error — just start empty
 	s := NewStore("test", nil, path)
 	snap := s.Snapshot()
-	if len(snap.Probes) != 0 {
-		t.Fatalf("expected 0 probes, got %d", len(snap.Probes))
+	if len(snap.Checks) != 0 {
+		t.Fatalf("expected 0 checks, got %d", len(snap.Checks))
 	}
 }
 
@@ -340,8 +340,8 @@ func TestPersistenceCorruptFile(t *testing.T) {
 	// Should not panic — just start empty
 	s := NewStore("test", nil, path)
 	snap := s.Snapshot()
-	if len(snap.Probes) != 0 {
-		t.Fatalf("expected 0 probes, got %d", len(snap.Probes))
+	if len(snap.Checks) != 0 {
+		t.Fatalf("expected 0 checks, got %d", len(snap.Checks))
 	}
 }
 
@@ -351,7 +351,7 @@ func TestSaveCreatesDirectory(t *testing.T) {
 
 	s := NewStore("test", nil, "")
 	s.path = path // set path manually to skip load
-	s.Push(makeResult("a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
 	s.Save()
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -364,12 +364,12 @@ func TestPersistenceDownSince(t *testing.T) {
 	path := filepath.Join(dir, "status.json")
 
 	s1 := NewStore("test", nil, path)
-	s1.Push(makeResult("a", config.ProbeTypeHTTP, false))
+	s1.Push(makeResult("a", config.CheckTypeHTTP, false))
 	s1.Save()
 
 	s2 := NewStore("test", nil, path)
 	snap := s2.Snapshot()
-	if snap.Probes[0].DownSince == "" {
+	if snap.Checks[0].DownSince == "" {
 		t.Fatal("expected DownSince to survive persistence")
 	}
 }
@@ -378,7 +378,7 @@ func TestPersistenceDownSince(t *testing.T) {
 
 func TestAPIStatusEndpoint(t *testing.T) {
 	s := NewStore("test-svc", nil, "")
-	s.Push(makeResult("probe-a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("check-a", config.CheckTypeHTTP, true))
 
 	handler := Handler(s)
 	req := httptest.NewRequest("GET", "/api/status", nil)
@@ -399,14 +399,14 @@ func TestAPIStatusEndpoint(t *testing.T) {
 	if snap.Service != "test-svc" {
 		t.Fatalf("expected service 'test-svc', got %q", snap.Service)
 	}
-	if len(snap.Probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(snap.Probes))
+	if len(snap.Checks) != 1 {
+		t.Fatalf("expected 1 check, got %d", len(snap.Checks))
 	}
 }
 
 func TestStatusPageEndpoint(t *testing.T) {
 	s := NewStore("test-svc", nil, "")
-	s.Push(makeResult("probe-a", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("check-a", config.CheckTypeHTTP, true))
 
 	handler := Handler(s)
 	req := httptest.NewRequest("GET", "/", nil)
@@ -485,19 +485,19 @@ func TestComputeLatencyExcludesFailures(t *testing.T) {
 func TestSnapshotIncludesLatency(t *testing.T) {
 	s := NewStore("test", nil, "")
 	for i := 0; i < 10; i++ {
-		r := &probe.Result{
-			Name: "a", Type: config.ProbeTypeHTTP, Success: true,
+		r := &check.Result{
+			Name: "a", Type: config.CheckTypeHTTP, Success: true,
 			Duration:  time.Duration((i+1)*100) * time.Millisecond,
 			Timestamp: time.Now(),
 		}
 		s.Push(r)
 	}
 	snap := s.Snapshot()
-	if snap.Probes[0].Latency == nil {
+	if snap.Checks[0].Latency == nil {
 		t.Fatal("expected latency in snapshot")
 	}
-	if snap.Probes[0].Latency.P50 <= 0 {
-		t.Errorf("expected positive P50, got %.1f", snap.Probes[0].Latency.P50)
+	if snap.Checks[0].Latency.P50 <= 0 {
+		t.Errorf("expected positive P50, got %.1f", snap.Checks[0].Latency.P50)
 	}
 }
 
@@ -543,7 +543,7 @@ func TestBackupAndFallback(t *testing.T) {
 
 	// Create store with data and save
 	s := NewStore("test", nil, path)
-	s.Push(makeResult("web", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("web", config.CheckTypeHTTP, true))
 	s.Save()
 
 	// Create backup
@@ -564,11 +564,11 @@ func TestBackupAndFallback(t *testing.T) {
 	// Load should fall back to backup
 	s2 := NewStore("test", nil, path)
 	snap := s2.Snapshot()
-	if len(snap.Probes) != 1 {
-		t.Fatalf("expected 1 probe from backup, got %d", len(snap.Probes))
+	if len(snap.Checks) != 1 {
+		t.Fatalf("expected 1 check from backup, got %d", len(snap.Checks))
 	}
-	if snap.Probes[0].Name != "web" {
-		t.Errorf("expected probe 'web', got %s", snap.Probes[0].Name)
+	if snap.Checks[0].Name != "web" {
+		t.Errorf("expected check 'web', got %s", snap.Checks[0].Name)
 	}
 }
 
@@ -578,7 +578,7 @@ func TestBackupFallbackMissingMain(t *testing.T) {
 
 	// Create a "backup" file directly (simulating prior day's backup)
 	s := NewStore("test", nil, path)
-	s.Push(makeResult("api", config.ProbeTypeHTTP, true))
+	s.Push(makeResult("api", config.CheckTypeHTTP, true))
 	s.Save()
 
 	// Move main file to a dated backup, remove main
@@ -588,8 +588,8 @@ func TestBackupFallbackMissingMain(t *testing.T) {
 	// Load should find the backup
 	s2 := NewStore("test", nil, path)
 	snap := s2.Snapshot()
-	if len(snap.Probes) != 1 || snap.Probes[0].Name != "api" {
-		t.Fatalf("expected probe 'api' from backup, got %v", snap.Probes)
+	if len(snap.Checks) != 1 || snap.Checks[0].Name != "api" {
+		t.Fatalf("expected check 'api' from backup, got %v", snap.Checks)
 	}
 }
 

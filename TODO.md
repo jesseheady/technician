@@ -5,7 +5,7 @@ Tracking performance improvements identified during review (2026-03-13).
 ## Critical
 
 - [x] Add HTTP server timeouts (ReadTimeout, WriteTimeout, IdleTimeout, MaxHeaderBytes)
-- [x] Reuse HTTP client with connection pooling instead of creating per-probe
+- [x] Reuse HTTP client with connection pooling instead of creating per-check
 - [x] Add gzip response compression middleware
 - [x] Close results channel on scheduler shutdown to prevent goroutine leak
 
@@ -13,7 +13,7 @@ Tracking performance improvements identified during review (2026-03-13).
 
 - [ ] Make S3/artifact uploads async — deferred: uploads not yet wired into result pipeline
 - [x] Status page: use JSON delta updates instead of full HTML re-fetch every 10s
-- [x] Cache DNS resolver instead of creating per-probe
+- [x] Cache DNS resolver instead of creating per-check
 - [x] Move stagger delay — reviewed; sleep is intentional for stagger spread, added clarifying comment
 - [x] Add gRPC connection pooling
 - [x] Add Prometheus label cardinality bounds (maxProbeCardinality=500 guard)
@@ -41,6 +41,6 @@ Tracking performance improvements identified during review (2026-03-13).
 ## Status Page & Dashboards
 
 - [x] Tab-based category navigation (Network, Web, Services, Security) with search and issues-only filter
-- [ ] Prune stale probes from status store on startup (remove entries for probes no longer in config)
+- [ ] Prune stale checks from status store on startup (remove entries for probes no longer in config)
 - [ ] Status page: show flapping/unstable indicator based on ring buffer history (e.g. frequent up/down transitions)
 - [ ] Review Grafana community dashboards for inspiration on dashboard design patterns

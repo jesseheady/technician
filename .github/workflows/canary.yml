@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: "URL to probe"
+        description: "URL to check"
         required: true
         type: string
 
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Run canary probes
+      - name: Run canary checks
         run: technician validate --config examples/canary/technician.yml --budget examples/budgets.yml --output gha
         env:
           CANARY_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.target_url || github.event.deployment_status.environment_url }}
@@ -27,6 +27,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: probe-results
+          name: check-results
           path: /tmp/technician/artifacts/
           retention-days: 7
