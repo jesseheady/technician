@@ -1,6 +1,6 @@
 {
-  "uid": "technician-infrastructure-probes",
-  "title": "Technician: Infrastructure Probes",
+  "uid": "technician-infrastructure-checks",
+  "title": "Technician: Infrastructure Checks",
   "tags": [
     "technician",
     "synthetic-monitoring"
@@ -94,14 +94,14 @@
     },
     {
       "id": 100,
-      "title": "Failing Infrastructure Probes",
-      "description": "Infrastructure probes currently reporting DOWN. Click a tile to filter this dashboard.",
+      "title": "Failing Infrastructure Checks",
+      "description": "Infrastructure checks currently reporting DOWN. Click a tile to filter this dashboard.",
       "type": "stat",
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 2 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_healthy{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 0",
+          "expr": "technician_check_healthy{type=~\"$type\", name=~\"$check\", region=~\"$region\"} == 0",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -128,12 +128,12 @@
           "color": { "mode": "thresholds" },
           "links": [
             {
-              "title": "Filter to this probe →",
-              "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=${__field.labels.type}&var-region=${__field.labels.region}&${__url_time_range}"
+              "title": "Filter to this check →",
+              "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=${__field.labels.type}&var-region=${__field.labels.region}&${__url_time_range}"
             },
             {
               "title": "Uptime Overview →",
-              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+              "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
             }
           ]
         }
@@ -147,14 +147,14 @@
     },
     {
       "id": 102,
-      "title": "Probe Infrastructure Errors",
-      "description": "Probes whose own infrastructure is broken (e.g. missing Chromium, blocked API access). These probes are NOT testing their targets and produce no uptime data.",
+      "title": "Check Infrastructure Errors",
+      "description": "Checks whose own infrastructure is broken (e.g. missing Chromium, blocked API access). These checks are NOT testing their targets and produce no uptime data.",
       "type": "stat",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 2 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_infra_error{type=~\"$type\", name=~\"$probe\", region=~\"$region\"} == 1",
+          "expr": "technician_check_infra_error{type=~\"$type\", name=~\"$check\", region=~\"$region\"} == 1",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -181,8 +181,8 @@
           "color": { "mode": "thresholds" },
           "links": [
             {
-              "title": "Filter to this probe →",
-              "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=${__field.labels.type}&var-region=${__field.labels.region}&${__url_time_range}"
+              "title": "Filter to this check →",
+              "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=${__field.labels.type}&var-region=${__field.labels.region}&${__url_time_range}"
             }
           ]
         }
@@ -196,7 +196,7 @@
     },
     {
       "id": 101,
-      "title": "Probe Duration (All Infrastructure)",
+      "title": "Check Duration (All Infrastructure)",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
@@ -221,7 +221,7 @@
     },
     {
       "id": 1,
-      "title": "TCP Probes",
+      "title": "TCP Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
       "collapsed": false,
@@ -279,7 +279,7 @@
     },
     {
       "id": 10,
-      "title": "DNS Probes",
+      "title": "DNS Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
       "collapsed": false,
@@ -320,7 +320,7 @@
     },
     {
       "id": 20,
-      "title": "ICMP Probes",
+      "title": "ICMP Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
       "collapsed": false,
@@ -389,7 +389,7 @@
     },
     {
       "id": 30,
-      "title": "gRPC Probes",
+      "title": "gRPC Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
       "collapsed": false,
@@ -403,7 +403,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_healthy{type=\"grpc\", name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_check_healthy{type=\"grpc\", name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -415,8 +415,8 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=grpc&var-region=${__field.labels.region}&${__url_time_range}" },
-            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=grpc&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },
@@ -429,7 +429,7 @@
     },
     {
       "id": 32,
-      "title": "gRPC Probe Duration",
+      "title": "gRPC Check Duration",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 36 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
@@ -454,7 +454,7 @@
     },
     {
       "id": 40,
-      "title": "NTP Probes",
+      "title": "NTP Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
       "collapsed": false,
@@ -527,7 +527,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_ntp_stratum{name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_ntp_stratum{name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -545,7 +545,7 @@
           },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=ntp&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=ntp&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },
@@ -558,7 +558,7 @@
     },
     {
       "id": 50,
-      "title": "TLS Certificate Probes",
+      "title": "TLS Certificate Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
       "collapsed": false,
@@ -606,7 +606,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_tls_cert_valid{name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_tls_cert_valid{name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -618,8 +618,8 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=tls&var-region=${__field.labels.region}&${__url_time_range}" },
-            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=tls&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },
@@ -632,7 +632,7 @@
     },
     {
       "id": 60,
-      "title": "UDP Probes",
+      "title": "UDP Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
       "collapsed": false,
@@ -698,7 +698,7 @@
     },
     {
       "id": 70,
-      "title": "BGP Probes",
+      "title": "BGP Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
       "collapsed": false,
@@ -712,7 +712,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_bgp_prefix_visible{name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_bgp_prefix_visible{name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -724,8 +724,8 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" },
-            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },
@@ -744,7 +744,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_bgp_origin_match{name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_bgp_origin_match{name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -756,7 +756,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=bgp&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },
@@ -795,7 +795,7 @@
     },
     {
       "id": 80,
-      "title": "Domain Expiry Probes",
+      "title": "Domain Expiry Checks",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 90 },
       "collapsed": false,
@@ -843,7 +843,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_domain_registered{name=~\"$probe\", region=~\"$region\"}",
+          "expr": "technician_domain_registered{name=~\"$check\", region=~\"$region\"}",
           "instant": true,
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
@@ -855,8 +855,8 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "color": { "mode": "thresholds" },
           "links": [
-            { "title": "Filter to this probe →", "url": "/d/technician-infrastructure-probes?var-probe=${__field.labels.name}&var-type=domain_expiry&var-region=${__field.labels.region}&${__url_time_range}" },
-            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
+            { "title": "Filter to this check →", "url": "/d/technician-infrastructure-checks?var-check=${__field.labels.name}&var-type=domain_expiry&var-region=${__field.labels.region}&${__url_time_range}" },
+            { "title": "Uptime Overview →", "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}" }
           ]
         }
       },

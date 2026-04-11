@@ -94,13 +94,13 @@
       },
       "options": {
         "mode": "html",
-        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><strong style=\"color:rgb(204,204,220)\">Uptime</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><strong style=\"color:rgb(204,204,220)\">Uptime</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-checks\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
       }
     },
     {
       "id": 1,
-      "title": "Failing Probes",
-      "description": "Probes currently reporting DOWN. Click a tile to drill into details.",
+      "title": "Failing Checks",
+      "description": "Checks currently reporting DOWN. Click a tile to drill into details.",
       "type": "stat",
       "gridPos": {
         "h": 6,
@@ -114,7 +114,7 @@
       },
       "targets": [
         {
-          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 0",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$check\"} == 0",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -145,7 +145,7 @@
           "links": [
             {
               "title": "Drill Down →",
-              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+              "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
             }
           ]
         }
@@ -173,7 +173,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}[$__range])) * 100",
+          "expr": "avg(avg_over_time(technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$check\"}[$__range])) * 100",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -203,7 +203,7 @@
     },
     {
       "id": 5,
-      "title": "Degraded Probes",
+      "title": "Degraded Checks",
       "type": "stat",
       "gridPos": {
         "h": 6,
@@ -215,10 +215,10 @@
         "type": "prometheus",
         "uid": "Prometheus"
       },
-      "description": "Probes where response time exceeds the degraded_after threshold. Only shows currently degraded probes.",
+      "description": "Checks where response time exceeds the degraded_after threshold. Only shows currently degraded checks.",
       "targets": [
         {
-          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"} == 1",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$check\"} == 1",
           "instant": true,
           "legendFormat": "{{name}} ({{type}}) @ {{region}}",
           "refId": "A"
@@ -246,7 +246,7 @@
           "links": [
             {
               "title": "Drill Down →",
-              "url": "/d/technician-uptime-overview?var-probe=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
+              "url": "/d/technician-uptime-overview?var-check=${__field.labels.name}&var-region=${__field.labels.region}&${__url_time_range}"
             }
           ]
         }
@@ -260,7 +260,7 @@
     },
     {
       "id": 3,
-      "title": "All Probes",
+      "title": "All Checks",
       "type": "table",
       "gridPos": {
         "h": 10,
@@ -274,49 +274,49 @@
       },
       "targets": [
         {
-          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "C"
         },
         {
-          "expr": "technician_http_response_status{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_http_response_status{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "D"
         },
         {
-          "expr": "technician_tls_cert_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_tls_cert_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "E"
         },
         {
-          "expr": "technician_bgp_prefix_visible{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_bgp_prefix_visible{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "F"
         },
         {
-          "expr": "technician_bgp_origin_match{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_bgp_origin_match{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "G"
         },
         {
-          "expr": "technician_domain_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_domain_expiry_days{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "H"
@@ -493,7 +493,7 @@
                 "value": [
                   {
                     "title": "Drill Down →",
-                    "url": "/d/technician-uptime-overview?var-probe=${__data.fields.name}&var-region=${__data.fields.region}&${__url_time_range}"
+                    "url": "/d/technician-uptime-overview?var-check=${__data.fields.name}&var-region=${__data.fields.region}&${__url_time_range}"
                   }
                 ]
               }
@@ -530,7 +530,7 @@
               "country": true
             },
             "renameByName": {
-              "name": "Probe",
+              "name": "Check",
               "type": "Type",
               "region": "Site"
             }
@@ -540,7 +540,7 @@
     },
     {
       "id": 4,
-      "title": "Probe Up/Down Over Time",
+      "title": "Check Up/Down Over Time",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -554,7 +554,7 @@
       },
       "targets": [
         {
-          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -607,10 +607,10 @@
         "type": "prometheus",
         "uid": "Prometheus"
       },
-      "description": "Tracks which probes are in degraded state (response time exceeds degraded_after threshold)",
+      "description": "Tracks which checks are in degraded state (response time exceeds degraded_after threshold)",
       "targets": [
         {
-          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_degraded{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -651,11 +651,11 @@
     },
     {
       "id": 100,
-      "title": "$probe",
+      "title": "$check",
       "type": "row",
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
-      "repeat": "probe",
+      "repeat": "check",
       "repeatDirection": "h",
       "panels": []
     },
@@ -667,7 +667,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_healthy{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -695,7 +695,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "instant": true,
           "legendFormat": "{{region}}",
           "refId": "A"
@@ -732,7 +732,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$probe\"}",
+          "expr": "technician_check_duration_seconds{region=~\"$region\", type=~\"$type\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
