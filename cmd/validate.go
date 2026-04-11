@@ -47,7 +47,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading budgets: %w", err)
 	}
 
-	site := cfg.ResolveSite(siteCode)
+	origin := cfg.ResolveOrigin(originID)
 
 	checkers := newCheckers(cfg)
 
@@ -62,12 +62,12 @@ func runValidate(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		result := checker.Run(ctx, pc, site)
+		result := checker.Run(ctx, pc, origin)
 		metrics.RecordResult(result)
 
 		violations := budget.Evaluate(result, budgets)
 		for _, v := range violations {
-			metrics.RecordBudgetViolation(v.Check, v.Metric, true, site)
+			metrics.RecordBudgetViolation(v.Check, v.Metric, true, origin)
 		}
 		allViolations = append(allViolations, violations...)
 	}

@@ -10,17 +10,17 @@ func TestLoad(t *testing.T) {
 	content := `
 service: technician
 hostname: test.example.com
-sites:
-  - code: us-east-1
+origins:
+  - id: us-east-1
     city: N. Virginia
     country: US
-    location_hash: dqcjq
-    infra_provider: aws
-  - code: us-west-2
+    # location_hash removed dqcjq
+    platform: aws
+  - id: us-west-2
     city: Oregon
     country: US
-    location_hash: c20y
-    infra_provider: aws
+    # location_hash removed c20y
+    platform: aws
 metrics:
   prometheus:
     listen: ":9999"
@@ -42,11 +42,11 @@ artifacts:
 	if cfg.Service != "technician" {
 		t.Errorf("expected service=technician, got %s", cfg.Service)
 	}
-	if len(cfg.Sites) != 2 {
-		t.Errorf("expected 2 sites, got %d", len(cfg.Sites))
+	if len(cfg.Origins) != 2 {
+		t.Errorf("expected 2 sites, got %d", len(cfg.Origins))
 	}
-	if cfg.Sites[0].Code != "us-east-1" {
-		t.Errorf("expected first site code=us-east-1, got %s", cfg.Sites[0].Code)
+	if cfg.Origins[0].ID != "us-east-1" {
+		t.Errorf("expected first site code=us-east-1, got %s", cfg.Origins[0].ID)
 	}
 	if cfg.Metrics.Prometheus.Listen != ":9999" {
 		t.Errorf("expected listen=:9999, got %s", cfg.Metrics.Prometheus.Listen)
@@ -129,30 +129,30 @@ func TestExpandEnvVarsUnset(t *testing.T) {
 	}
 }
 
-func TestSiteByCode(t *testing.T) {
+func TestOriginByID(t *testing.T) {
 	cfg := &Config{
-		Sites: []Site{
-			{Code: "us-east-1", City: "N. Virginia"},
-			{Code: "us-west-2", City: "Oregon"},
+		Origins: []Origin{
+			{ID: "us-east-1", City: "N. Virginia"},
+			{ID: "us-west-2", City: "Oregon"},
 		},
 	}
 
-	site := cfg.SiteByCode("us-west-2")
-	if site == nil {
+	origin := cfg.OriginByID("us-west-2")
+	if origin == nil {
 		t.Fatal("expected to find site us-west-2")
 	}
-	if site.City != "Oregon" {
-		t.Errorf("expected city=Oregon, got %s", site.City)
+	if origin.City != "Oregon" {
+		t.Errorf("expected city=Oregon, got %s", origin.City)
 	}
 
-	if cfg.SiteByCode("unknown") != nil {
+	if cfg.OriginByID("unknown") != nil {
 		t.Error("expected nil for unknown site code")
 	}
 }
 
 func TestSiteLabels(t *testing.T) {
-	site := Site{Code: "us-east-1", City: "N. Virginia", Country: "US"}
-	labels := site.Labels()
+	origin := Origin{ID: "us-east-1", City: "N. Virginia", Country: "US"}
+	labels := origin.MetricLabels()
 
 	if labels["region"] != "us-east-1" {
 		t.Errorf("expected region=us-east-1, got %s", labels["region"])

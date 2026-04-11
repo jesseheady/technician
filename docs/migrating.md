@@ -82,8 +82,8 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 ### v0.2.0 → v0.3.0
 
 **Config field renames:**
-- `geohash` → `location_hash` (in site definitions)
-- `provider` → `infra_provider` (in site definitions)
+- `geohash` → `geohash` (in origin definitions)
+- `provider` → `platform` (in origin definitions)
 
 **Metric label renames:**
 - `site_code` → `region`
@@ -96,7 +96,7 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 - Alert `ProbeDown` → `CheckFailing` (also changed `for:` from 5m to 3m)
 
 **Action required:**
-1. Update `technician.yml` site fields (`location_hash`, `infra_provider`).
+1. Update `technician.yml` origin fields (`geohash`, `platform`).
 2. Ensure `prometheus/prometheus.yml` scrape target uses port `9590`.
 3. Ensure `docker-compose.yml` port mapping is `9590:9590`.
 4. Replace `prometheus/rules.yml` with the new version.

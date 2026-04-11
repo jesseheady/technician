@@ -64,7 +64,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading checks: %w", err)
 	}
 
-	site := cfg.ResolveSite(siteCode)
+	origin := cfg.ResolveOrigin(originID)
 
 	checkers := newCheckers(cfg)
 
@@ -89,7 +89,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			slog.Warn("No checker for type", "type", pc.Type, "name", pc.Name)
 			continue
 		}
-		result := checker.Run(ctx, pc, site)
+		result := checker.Run(ctx, pc, origin)
 		results = append(results, result)
 	}
 

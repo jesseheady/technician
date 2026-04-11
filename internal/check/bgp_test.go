@@ -47,9 +47,9 @@ func TestBGPCheckerCancelledContext(t *testing.T) {
 			ExpectedOrigin: 64496,
 		},
 	}
-	site := &config.Site{Code: "test", City: "Test", Country: "XX"}
+	origin := &config.Origin{ID: "test", City: "Test", Country: "XX"}
 
-	result := checker.Run(ctx, cfg, site)
+	result := checker.Run(ctx, cfg, origin)
 
 	if result.Success {
 		t.Error("expected failure for cancelled context")
