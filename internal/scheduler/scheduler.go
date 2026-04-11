@@ -8,95 +8,95 @@ import (
 
 	"github.com/m0nkey/technician/internal/config"
 	"github.com/m0nkey/technician/internal/metrics"
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 	"github.com/robfig/cron/v3"
 )
 
-type ProberRegistry struct {
+type CheckerRegistry struct {
 	mu      sync.RWMutex
-	probers map[config.ProbeType]probe.Prober
+	checkers map[config.CheckType]check.Checker
 }
 
-func NewProberRegistry() *ProberRegistry {
-	return &ProberRegistry{
-		probers: make(map[config.ProbeType]probe.Prober),
+func NewCheckerRegistry() *CheckerRegistry {
+	return &CheckerRegistry{
+		checkers: make(map[config.CheckType]check.Checker),
 	}
 }
 
-func (r *ProberRegistry) Register(p probe.Prober) {
+func (r *CheckerRegistry) Register(p check.Checker) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.probers[p.Type()] = p
+	r.checkers[p.Type()] = p
 }
 
-func (r *ProberRegistry) RegisterMap(probers map[config.ProbeType]probe.Prober) {
+func (r *CheckerRegistry) RegisterMap(checkers map[config.CheckType]check.Checker) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for t, p := range probers {
-		r.probers[t] = p
+	for t, p := range checkers {
+		r.checkers[t] = p
 	}
 }
 
-func (r *ProberRegistry) Get(t config.ProbeType) probe.Prober {
+func (r *CheckerRegistry) Get(t config.CheckType) check.Checker {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.probers[t]
+	return r.checkers[t]
 }
 
 type Scheduler struct {
 	cron     *cron.Cron
 	cfg      *config.Config
-	probes   []config.ProbeConfig
-	registry *ProberRegistry
+	checks   []config.CheckConfig
+	registry *CheckerRegistry
 	site     *config.Site
-	results  chan *probe.Result
+	results  chan *check.Result
 }
 
-func New(cfg *config.Config, probes []config.ProbeConfig, registry *ProberRegistry, siteCode string) *Scheduler {
+func New(cfg *config.Config, checks []config.CheckConfig, registry *CheckerRegistry, siteCode string) *Scheduler {
 	c := cron.New(cron.WithSeconds(), cron.WithLogger(cron.DefaultLogger))
 
 	return &Scheduler{
 		cron:     c,
 		cfg:      cfg,
-		probes:   probes,
+		checks:   checks,
 		registry: registry,
 		site:     cfg.ResolveSite(siteCode),
-		results:  make(chan *probe.Result, 100),
+		results:  make(chan *check.Result, 100),
 	}
 }
 
 func (s *Scheduler) Start(ctx context.Context) error {
-	for i := range s.probes {
-		pc := s.probes[i]
+	for i := range s.checks {
+		pc := s.checks[i]
 
-		prober := s.registry.Get(pc.Type)
-		if prober == nil {
-			slog.Warn("No prober registered for type, skipping", "type", pc.Type, "name", pc.Name)
+		checker := s.registry.Get(pc.Type)
+		if checker == nil {
+			slog.Warn("No checker registered for type, skipping", "type", pc.Type, "name", pc.Name)
 			continue
 		}
 
 		schedule := pc.Schedule
 		staggerDelay := ComputeStagger(pc.Name, s.site)
 		if staggerDelay > 0 {
-			slog.Info("Staggering probe", "name", pc.Name, "delay", staggerDelay)
+			slog.Info("Staggering check", "name", pc.Name, "delay", staggerDelay)
 		}
 
-		probeCfg := pc // capture for closure
-		probeDelay := staggerDelay
+		checkCfg := pc // capture for closure
+		checkDelay := staggerDelay
 		_, err := s.cron.AddFunc(schedule, func() {
-			if probeDelay > 0 {
+			if checkDelay > 0 {
 				// Use a timer instead of blocking the cron goroutine directly.
 				// The sleep is intentional: it spreads probe starts within
 				// the cron tick window to avoid thundering-herd effects.
-				time.Sleep(probeDelay)
+				time.Sleep(checkDelay)
 			}
-			slog.Debug("Running probe", "name", probeCfg.Name, "type", probeCfg.Type)
-			result := runWithRetry(ctx, prober, &probeCfg, s.site)
-			result.Group = probeCfg.Group
-			result.Target = probeCfg.Target()
+			slog.Debug("Running check", "name", checkCfg.Name, "type", checkCfg.Type)
+			result := runWithRetry(ctx, checker, &checkCfg, s.site)
+			result.Group = checkCfg.Group
+			result.Target = checkCfg.Target()
 
 			// Mark as degraded if duration exceeds threshold
-			if probeCfg.DegradedAfter > 0 && result.Success && result.Duration > probeCfg.DegradedAfter {
+			if checkCfg.DegradedAfter > 0 && result.Success && result.Duration > checkCfg.DegradedAfter {
 				result.Degraded = true
 			}
 
@@ -104,7 +104,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			select {
 			case s.results <- result:
 			default:
-				slog.Warn("Result channel full, dropping result", "name", probeCfg.Name)
+				slog.Warn("Result channel full, dropping result", "name", checkCfg.Name)
 			}
 		})
 		if err != nil {
@@ -112,7 +112,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			continue
 		}
 
-		slog.Info("Scheduled probe", "name", pc.Name, "type", pc.Type, "schedule", schedule)
+		slog.Info("Scheduled check", "name", pc.Name, "type", pc.Type, "schedule", schedule)
 	}
 
 	s.cron.Start()
@@ -128,13 +128,13 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) Results() <-chan *probe.Result {
+func (s *Scheduler) Results() <-chan *check.Result {
 	return s.results
 }
 
 // runWithRetry executes a probe with optional retry policy.
-func runWithRetry(ctx context.Context, prober probe.Prober, cfg *config.ProbeConfig, site *config.Site) *probe.Result {
-	result := prober.Run(ctx, cfg, site)
+func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, site *config.Site) *check.Result {
+	result := checker.Run(ctx, cfg, site)
 	if result.Success || cfg.Retry == nil || cfg.Retry.Count <= 0 {
 		return result
 	}
@@ -145,7 +145,7 @@ func runWithRetry(ctx context.Context, prober probe.Prober, cfg *config.ProbeCon
 	}
 
 	for attempt := 1; attempt <= cfg.Retry.Count; attempt++ {
-		slog.Info("Retrying probe", "name", cfg.Name, "attempt", attempt, "delay", delay)
+		slog.Info("Retrying check", "name", cfg.Name, "attempt", attempt, "delay", delay)
 
 		select {
 		case <-ctx.Done():
@@ -153,7 +153,7 @@ func runWithRetry(ctx context.Context, prober probe.Prober, cfg *config.ProbeCon
 		case <-time.After(delay):
 		}
 
-		result = prober.Run(ctx, cfg, site)
+		result = checker.Run(ctx, cfg, site)
 		if result.Success {
 			return result
 		}

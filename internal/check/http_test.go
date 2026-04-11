@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -10,19 +10,19 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-func TestHTTPProberSuccess(t *testing.T) {
+func TestHTTPCheckerSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -49,18 +49,18 @@ func TestHTTPProberSuccess(t *testing.T) {
 	}
 }
 
-func TestHTTPProberUnexpectedStatus(t *testing.T) {
+func TestHTTPCheckerUnexpectedStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-fail",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -77,7 +77,7 @@ func TestHTTPProberUnexpectedStatus(t *testing.T) {
 	}
 }
 
-func TestHTTPProberHeaders(t *testing.T) {
+func TestHTTPCheckerHeaders(t *testing.T) {
 	var receivedAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuth = r.Header.Get("Authorization")
@@ -85,12 +85,12 @@ func TestHTTPProberHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-headers",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -108,19 +108,19 @@ func TestHTTPProberHeaders(t *testing.T) {
 	}
 }
 
-func TestHTTPProberTimingFields(t *testing.T) {
+func TestHTTPCheckerTimingFields(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("hello world"))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-timing",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -138,19 +138,19 @@ func TestHTTPProberTimingFields(t *testing.T) {
 	}
 }
 
-func TestHTTPProberTimeout(t *testing.T) {
+func TestHTTPCheckerTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-timeout",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 100 * time.Millisecond,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -164,19 +164,19 @@ func TestHTTPProberTimeout(t *testing.T) {
 	}
 }
 
-func TestHTTPProberAssertionContains(t *testing.T) {
+func TestHTTPCheckerAssertionContains(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok","version":"1.2.3"}`))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-assert",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -198,19 +198,19 @@ func TestHTTPProberAssertionContains(t *testing.T) {
 	}
 }
 
-func TestHTTPProberAssertionContainsFail(t *testing.T) {
+func TestHTTPCheckerAssertionContainsFail(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"error"}`))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-assert-fail",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -229,19 +229,19 @@ func TestHTTPProberAssertionContainsFail(t *testing.T) {
 	}
 }
 
-func TestHTTPProberAssertionNotContains(t *testing.T) {
+func TestHTTPCheckerAssertionNotContains(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-not-contains",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -257,19 +257,19 @@ func TestHTTPProberAssertionNotContains(t *testing.T) {
 	}
 }
 
-func TestHTTPProberAssertionRegex(t *testing.T) {
+func TestHTTPCheckerAssertionRegex(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"version":"2.5.1"}`))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-regex",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -288,20 +288,20 @@ func TestHTTPProberAssertionRegex(t *testing.T) {
 	}
 }
 
-func TestHTTPProberAssertionStatusOverride(t *testing.T) {
-	// Status code matches but assertion fails — probe should fail
+func TestHTTPCheckerAssertionStatusOverride(t *testing.T) {
+	// Status code matches but assertion fails — check should fail
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("maintenance mode"))
 	}))
 	defer server.Close()
 
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-assert-override",
-		Type:    config.ProbeTypeHTTP,
+		Type:    config.CheckTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPProbeConfig{
+		HTTP: &config.HTTPCheckConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -317,11 +317,11 @@ func TestHTTPProberAssertionStatusOverride(t *testing.T) {
 	}
 }
 
-func TestHTTPProberMissingConfig(t *testing.T) {
-	prober := NewHTTPProber()
-	cfg := &config.ProbeConfig{
+func TestHTTPCheckerMissingConfig(t *testing.T) {
+	prober := NewHTTPChecker()
+	cfg := &config.CheckConfig{
 		Name: "test-nil",
-		Type: config.ProbeTypeHTTP,
+		Type: config.CheckTypeHTTP,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -329,7 +329,7 @@ func TestHTTPProberMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil HTTP config")
 	}
-	if result.Error != "missing HTTP probe configuration" {
+	if result.Error != "missing HTTP check configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }

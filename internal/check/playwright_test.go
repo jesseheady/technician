@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-func TestPlaywrightProberDefaultMaxBrowsers(t *testing.T) {
-	p := NewPlaywrightProber("/nonexistent/run.js", 0)
+func TestPlaywrightCheckerDefaultMaxBrowsers(t *testing.T) {
+	p := NewPlaywrightChecker("/nonexistent/run.js", 0)
 	if p.maxBrowsers != 2 {
 		t.Errorf("expected default max_browsers=2, got %d", p.maxBrowsers)
 	}
@@ -20,8 +20,8 @@ func TestPlaywrightProberDefaultMaxBrowsers(t *testing.T) {
 	}
 }
 
-func TestPlaywrightProberCustomMaxBrowsers(t *testing.T) {
-	p := NewPlaywrightProber("/nonexistent/run.js", 5)
+func TestPlaywrightCheckerCustomMaxBrowsers(t *testing.T) {
+	p := NewPlaywrightChecker("/nonexistent/run.js", 5)
 	if p.maxBrowsers != 5 {
 		t.Errorf("expected max_browsers=5, got %d", p.maxBrowsers)
 	}
@@ -30,9 +30,9 @@ func TestPlaywrightProberCustomMaxBrowsers(t *testing.T) {
 	}
 }
 
-func TestPlaywrightProberNilConfig(t *testing.T) {
-	p := NewPlaywrightProber("/nonexistent/run.js", 2)
-	result := p.Run(context.Background(), &config.ProbeConfig{
+func TestPlaywrightCheckerNilConfig(t *testing.T) {
+	p := NewPlaywrightChecker("/nonexistent/run.js", 2)
+	result := p.Run(context.Background(), &config.CheckConfig{
 		Name: "test-nil-config",
 	}, nil)
 
@@ -44,9 +44,9 @@ func TestPlaywrightProberNilConfig(t *testing.T) {
 	}
 }
 
-func TestPlaywrightProberSemaphoreBlocksOnFull(t *testing.T) {
-	// Create a prober with max 1 browser
-	p := NewPlaywrightProber("/nonexistent/run.js", 1)
+func TestPlaywrightCheckerSemaphoreBlocksOnFull(t *testing.T) {
+	// Create a checkr with max 1 browser
+	p := NewPlaywrightChecker("/nonexistent/run.js", 1)
 
 	// Manually occupy the semaphore slot
 	p.browserSem <- struct{}{}
@@ -55,10 +55,10 @@ func TestPlaywrightProberSemaphoreBlocksOnFull(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	result := p.Run(ctx, &config.ProbeConfig{
+	result := p.Run(ctx, &config.CheckConfig{
 		Name:       "test-blocked",
 		Timeout:    100 * time.Millisecond,
-		Playwright: &config.PlaywrightProbeConfig{Script: "test.js"},
+		Playwright: &config.PlaywrightCheckConfig{Script: "test.js"},
 	}, nil)
 
 	if result.Success {
@@ -72,9 +72,9 @@ func TestPlaywrightProberSemaphoreBlocksOnFull(t *testing.T) {
 	<-p.browserSem
 }
 
-func TestPlaywrightProberSemaphoreLimitsConcurrency(t *testing.T) {
+func TestPlaywrightCheckerSemaphoreLimitsConcurrency(t *testing.T) {
 	maxBrowsers := 2
-	p := NewPlaywrightProber("/nonexistent/run.js", maxBrowsers)
+	p := NewPlaywrightChecker("/nonexistent/run.js", maxBrowsers)
 
 	var (
 		maxConcurrent atomic.Int32

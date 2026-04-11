@@ -16,8 +16,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "technician",
-	Short: "Multi-region infrastructure probe runner",
-	Long:  "Technician is a self-hosted probe runner that checks your infrastructure over the network. Deploy one worker per region, point Prometheus at them — eleven probe types, performance budgets, OTLP traces, and Grafana dashboards included.",
+	Short: "Multi-region infrastructure check runner",
+	Long:  "Technician is a self-hosted check runner that checks your infrastructure over the network. Deploy one worker per region, point Prometheus at them — eleven probe types, performance budgets, OTLP traces, and Grafana dashboards included.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		level := slog.LevelInfo
 		if verbose {

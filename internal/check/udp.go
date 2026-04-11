@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -12,21 +12,21 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-type UDPProber struct{}
+type UDPChecker struct{}
 
-func NewUDPProber() *UDPProber {
-	return &UDPProber{}
+func NewUDPChecker() *UDPChecker {
+	return &UDPChecker{}
 }
 
-func (p *UDPProber) Type() config.ProbeType {
-	return config.ProbeTypeUDP
+func (p *UDPChecker) Type() config.CheckType {
+	return config.CheckTypeUDP
 }
 
-func (p *UDPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeUDP, site)
+func (p *UDPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeUDP, site)
 
 	if cfg.UDP == nil {
-		result.Error = "missing UDP probe configuration"
+		result.Error = "missing UDP check configuration"
 		return result
 	}
 
@@ -98,7 +98,7 @@ func (p *UDPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 		// Fire-and-forget: success if send completed without error.
 		result.Duration = time.Since(start)
 		result.Success = true
-		slog.Debug("UDP probe completed (no response expected)",
+		slog.Debug("UDP check completed (no response expected)",
 			"name", cfg.Name,
 			"host", addr,
 			"duration", result.Duration,
@@ -147,7 +147,7 @@ func (p *UDPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 	result.Duration = time.Since(start)
 	result.Success = true
 
-	slog.Debug("UDP probe completed",
+	slog.Debug("UDP check completed",
 		"name", cfg.Name,
 		"host", addr,
 		"duration", result.Duration,

@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/m0nkey/technician/internal/config"
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 )
 
 // EventType identifies the kind of notification.
 type EventType string
 
 const (
-	EventProbeDown       EventType = "probe_down"
-	EventProbeUp         EventType = "probe_up"
+	EventCheckDown       EventType = "check_down"
+	EventCheckUp         EventType = "check_up"
 	EventBudgetViolation EventType = "budget_violation"
 	EventCertExpiring    EventType = "cert_expiring"
 )
@@ -33,8 +33,8 @@ const (
 type Event struct {
 	Type      EventType
 	Severity  Severity
-	Probe     string
-	ProbeType config.ProbeType
+	Check     string
+	CheckType config.CheckType
 	Message   string
 	Details   map[string]string
 	Timestamp time.Time
@@ -52,7 +52,7 @@ type webhook struct {
 	cooldown   time.Duration
 }
 
-// Manager tracks probe state transitions and dispatches notifications
+// Manager tracks check state transitions and dispatches notifications
 // to configured webhook endpoints.
 type Manager struct {
 	webhooks []webhook
@@ -60,7 +60,7 @@ type Manager struct {
 	sem      chan struct{} // limits concurrent outbound webhook sends
 
 	mu           sync.Mutex
-	probeStates  map[string]bool      // probe key -> last success (for recovery detection)
+	checkStates  map[string]bool      // probe key -> last success (for recovery detection)
 	failCounts   map[string]int       // probe key -> consecutive failure count
 	notifiedDown map[string]bool      // probe key -> true if down notification already sent
 	budgetStates map[string]bool      // "probe:metric" -> last violated
@@ -84,7 +84,7 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 
 	m := &Manager{
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -106,8 +106,8 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 		events := make(map[EventType]bool)
 		if len(wc.Events) == 0 {
 			// Default: all events
-			events[EventProbeDown] = true
-			events[EventProbeUp] = true
+			events[EventCheckDown] = true
+			events[EventCheckUp] = true
 			events[EventBudgetViolation] = true
 			events[EventCertExpiring] = true
 		} else {
@@ -137,10 +137,10 @@ func NewManager(cfgWebhooks []config.WebhookConfig) *Manager {
 }
 
 // HandleResult uses consecutive-failure counting to debounce probe
-// state transitions. A probe_down notification requires consecutiveFailThreshold
-// consecutive failures; probe_up fires immediately on recovery.
+// state transitions. A check_down notification requires consecutiveFailThreshold
+// consecutive failures; check_up fires immediately on recovery.
 // Safe to call on a nil Manager.
-func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
+func (m *Manager) HandleResult(ctx context.Context, result *check.Result) {
 	if m == nil {
 		return
 	}
@@ -154,8 +154,8 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 	defer m.mu.Unlock()
 
 	key := string(result.Type) + ":" + result.Name
-	_, seen := m.probeStates[key]
-	m.probeStates[key] = result.Success
+	_, seen := m.checkStates[key]
+	m.checkStates[key] = result.Success
 
 	if !seen {
 		return // first result — establish baseline, don't notify
@@ -172,9 +172,9 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 		// Only send recovery if we previously notified about this probe being down
 		if wasDown {
 			event = &Event{
-				Type:      EventProbeUp,
-				Probe:     result.Name,
-				ProbeType: result.Type,
+				Type:      EventCheckUp,
+				Check:     result.Name,
+				CheckType: result.Type,
 				Message:   fmt.Sprintf("Probe %s is back up", result.Name),
 				Timestamp: result.Timestamp,
 			}
@@ -183,7 +183,7 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 		m.failCounts[key]++
 		count := m.failCounts[key]
 
-		slog.Debug("Probe failure recorded", "probe", result.Name, "consecutive", count, "threshold", consecutiveFailThreshold)
+		slog.Debug("Probe failure recorded", "check", result.Name, "consecutive", count, "threshold", consecutiveFailThreshold)
 
 		if count == consecutiveFailThreshold && !m.notifiedDown[key] {
 			m.notifiedDown[key] = true
@@ -196,10 +196,10 @@ func (m *Manager) HandleResult(ctx context.Context, result *probe.Result) {
 			}
 			details["consecutive_failures"] = fmt.Sprintf("%d", count)
 			event = &Event{
-				Type:      EventProbeDown,
+				Type:      EventCheckDown,
 				Severity:  SeverityCritical,
-				Probe:     result.Name,
-				ProbeType: result.Type,
+				Check:     result.Name,
+				CheckType: result.Type,
 				Message:   fmt.Sprintf("Probe %s is down (%d consecutive failures)", result.Name, count),
 				Details:   details,
 				Timestamp: result.Timestamp,
@@ -231,7 +231,7 @@ func (m *Manager) HandleBudgetViolation(ctx context.Context, probeName, metric s
 		m.dispatch(ctx, Event{
 			Type:      EventBudgetViolation,
 			Severity:  SeverityWarning,
-			Probe:     probeName,
+			Check:     probeName,
 			Message:   fmt.Sprintf("Budget violation: %s exceeds %s threshold", probeName, metric),
 			Details:   map[string]string{"metric": metric},
 			Timestamp: time.Now(),
@@ -243,8 +243,8 @@ func (m *Manager) HandleBudgetViolation(ctx context.Context, probeName, metric s
 // severity-appropriate notifications. It tracks per-probe cert state so that
 // notifications fire on transitions (ok→warning, warning→critical, etc.)
 // rather than every probe cycle. Safe to call on a nil Manager.
-func (m *Manager) HandleCertResult(ctx context.Context, result *probe.Result) {
-	if m == nil || result.Type != config.ProbeTypeTLS {
+func (m *Manager) HandleCertResult(ctx context.Context, result *check.Result) {
+	if m == nil || result.Type != config.CheckTypeTLS {
 		return
 	}
 	if result.CertDaysRemaining == 0 && !result.CertValid {
@@ -286,8 +286,8 @@ func (m *Manager) HandleCertResult(ctx context.Context, result *probe.Result) {
 	m.dispatch(ctx, Event{
 		Type:      EventCertExpiring,
 		Severity:  severity,
-		Probe:     result.Name,
-		ProbeType: result.Type,
+		Check:     result.Name,
+		CheckType: result.Type,
 		Message:   fmt.Sprintf("TLS certificate for %s expires in %d days", result.Name, result.CertDaysRemaining),
 		Details:   details,
 		Timestamp: result.Timestamp,
@@ -314,9 +314,9 @@ func (m *Manager) dispatch(_ context.Context, event Event) {
 			continue
 		}
 
-		cooldownKey := fmt.Sprintf("%d:%s:%s", i, event.Probe, event.Type)
+		cooldownKey := fmt.Sprintf("%d:%s:%s", i, event.Check, event.Type)
 		if last, ok := m.lastSent[cooldownKey]; ok && now.Sub(last) < wh.cooldown {
-			slog.Debug("Webhook notification suppressed (cooldown)", "probe", event.Probe, "type", event.Type)
+			slog.Debug("Webhook notification suppressed (cooldown)", "check", event.Check, "type", event.Type)
 			continue
 		}
 
@@ -329,10 +329,10 @@ func (m *Manager) dispatch(_ context.Context, event Event) {
 			sendCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			if err := s.Send(sendCtx, event); err != nil {
-				slog.Warn("Webhook send failed, retrying", "type", event.Type, "probe", event.Probe, "error", err)
+				slog.Warn("Webhook send failed, retrying", "type", event.Type, "check", event.Check, "error", err)
 				time.Sleep(2 * time.Second)
 				if retryErr := s.Send(sendCtx, event); retryErr != nil {
-					slog.Warn("Webhook retry failed", "type", event.Type, "probe", event.Probe, "error", retryErr)
+					slog.Warn("Webhook retry failed", "type", event.Type, "check", event.Check, "error", retryErr)
 				}
 			}
 		}(wh.sender)

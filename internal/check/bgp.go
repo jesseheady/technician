@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -21,21 +21,21 @@ type ripeNetworkInfo struct {
 	} `json:"data"`
 }
 
-type BGPProber struct{}
+type BGPChecker struct{}
 
-func NewBGPProber() *BGPProber {
-	return &BGPProber{}
+func NewBGPChecker() *BGPChecker {
+	return &BGPChecker{}
 }
 
-func (p *BGPProber) Type() config.ProbeType {
-	return config.ProbeTypeBGP
+func (p *BGPChecker) Type() config.CheckType {
+	return config.CheckTypeBGP
 }
 
-func (p *BGPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeBGP, site)
+func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeBGP, site)
 
 	if cfg.BGP == nil {
-		result.Error = "missing BGP probe configuration"
+		result.Error = "missing BGP check configuration"
 		return result
 	}
 
@@ -118,7 +118,7 @@ func (p *BGPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 	result.BGPOriginMatch = true
 	result.Success = true
 
-	slog.Debug("BGP probe completed",
+	slog.Debug("BGP check completed",
 		"name", cfg.Name,
 		"prefix", bcfg.Prefix,
 		"origin_asn", originASN,

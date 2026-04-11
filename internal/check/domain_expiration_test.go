@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -9,18 +9,18 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-func TestDomainExpirationProberType(t *testing.T) {
-	prober := NewDomainExpirationProber()
-	if prober.Type() != config.ProbeTypeDomainExpiry {
-		t.Errorf("expected type %q, got %q", config.ProbeTypeDomainExpiry, prober.Type())
+func TestDomainExpirationCheckerType(t *testing.T) {
+	prober := NewDomainExpirationChecker()
+	if prober.Type() != config.CheckTypeDomainExpiry {
+		t.Errorf("expected type %q, got %q", config.CheckTypeDomainExpiry, prober.Type())
 	}
 }
 
-func TestDomainExpirationProberMissingConfig(t *testing.T) {
-	prober := NewDomainExpirationProber()
-	cfg := &config.ProbeConfig{
+func TestDomainExpirationCheckerMissingConfig(t *testing.T) {
+	prober := NewDomainExpirationChecker()
+	cfg := &config.CheckConfig{
 		Name: "test-domain-expiry-nil",
-		Type: config.ProbeTypeDomainExpiry,
+		Type: config.CheckTypeDomainExpiry,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -28,21 +28,21 @@ func TestDomainExpirationProberMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil DomainExpiry config")
 	}
-	if result.Error != "missing domain expiration probe configuration" {
+	if result.Error != "missing domain expiration check configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestDomainExpirationProberCancelledContext(t *testing.T) {
+func TestDomainExpirationCheckerCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	prober := NewDomainExpirationProber()
-	cfg := &config.ProbeConfig{
+	prober := NewDomainExpirationChecker()
+	cfg := &config.CheckConfig{
 		Name:    "test-domain-expiry-cancelled",
-		Type:    config.ProbeTypeDomainExpiry,
+		Type:    config.CheckTypeDomainExpiry,
 		Timeout: 5 * time.Second,
-		DomainExpiry: &config.DomainExpirationProbeConfig{
+		DomainExpiry: &config.DomainExpirationCheckConfig{
 			Domain:       "example.com",
 			WarnDays:     30,
 			CriticalDays: 7,

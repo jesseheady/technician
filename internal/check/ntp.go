@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -41,21 +41,21 @@ func ntpTimeToTime(sec, frac uint32) time.Time {
 	return time.Unix(secs, nanos)
 }
 
-type NTPProber struct{}
+type NTPChecker struct{}
 
-func NewNTPProber() *NTPProber {
-	return &NTPProber{}
+func NewNTPChecker() *NTPChecker {
+	return &NTPChecker{}
 }
 
-func (p *NTPProber) Type() config.ProbeType {
-	return config.ProbeTypeNTP
+func (p *NTPChecker) Type() config.CheckType {
+	return config.CheckTypeNTP
 }
 
-func (p *NTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeNTP, site)
+func (p *NTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeNTP, site)
 
 	if cfg.NTP == nil {
-		result.Error = "missing NTP probe configuration"
+		result.Error = "missing NTP check configuration"
 		return result
 	}
 
@@ -155,7 +155,7 @@ func (p *NTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *conf
 	result.NTPRTT = rtt
 	result.Success = true
 
-	slog.Debug("NTP probe completed",
+	slog.Debug("NTP check completed",
 		"name", cfg.Name,
 		"server", addr,
 		"offset_ms", math.Round(result.NTPOffsetMs*100)/100,

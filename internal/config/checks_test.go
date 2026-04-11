@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestLoadHTTPProbes(t *testing.T) {
+func TestLoadHTTPChecks(t *testing.T) {
 	content := `
 - name: Test Site
   url: https://example.com
@@ -23,14 +23,14 @@ func TestLoadHTTPProbes(t *testing.T) {
   method: HEAD
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "http.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestLoadHTTPProbes(t *testing.T) {
 	if p.Name != "Test Site" {
 		t.Errorf("expected name=Test Site, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeHTTP {
+	if p.Type != CheckTypeHTTP {
 		t.Errorf("expected type=http, got %s", p.Type)
 	}
 	if p.HTTP.URL != "https://example.com" {
@@ -65,37 +65,37 @@ func TestLoadHTTPProbes(t *testing.T) {
 	}
 }
 
-func TestLoadProbesNoDir(t *testing.T) {
-	probes, err := LoadProbes("/nonexistent/path")
+func TestLoadChecksNoDir(t *testing.T) {
+	probes, err := LoadChecks("/nonexistent/path")
 	if err != nil {
-		t.Fatal("expected no error for missing probes dir")
+		t.Fatal("expected no error for missing checks dir")
 	}
 	if len(probes) != 0 {
 		t.Errorf("expected 0 probes, got %d", len(probes))
 	}
 }
 
-func TestFindProbeByName(t *testing.T) {
-	probes := []ProbeConfig{
+func TestFindCheckByName(t *testing.T) {
+	probes := []CheckConfig{
 		{Name: "first"},
 		{Name: "second"},
 		{Name: "third"},
 	}
 
-	p := FindProbeByName(probes, "second")
+	p := FindCheckByName(probes, "second")
 	if p == nil {
-		t.Fatal("expected to find probe 'second'")
+		t.Fatal("expected to find check 'second'")
 	}
 	if p.Name != "second" {
 		t.Errorf("expected name=second, got %s", p.Name)
 	}
 
-	if FindProbeByName(probes, "missing") != nil {
-		t.Error("expected nil for missing probe")
+	if FindCheckByName(probes, "missing") != nil {
+		t.Error("expected nil for missing check")
 	}
 }
 
-func TestLoadHTTPProbesEnvExpansion(t *testing.T) {
+func TestLoadHTTPChecksEnvExpansion(t *testing.T) {
 	os.Setenv("TEST_API_TOKEN", "bearer-xyz")
 	defer os.Unsetenv("TEST_API_TOKEN")
 
@@ -107,14 +107,14 @@ func TestLoadHTTPProbesEnvExpansion(t *testing.T) {
     Authorization: "Bearer ${TEST_API_TOKEN}"
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "http.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestLoadHTTPProbesEnvExpansion(t *testing.T) {
 	}
 }
 
-func TestLoadTCPProbes(t *testing.T) {
+func TestLoadTCPChecks(t *testing.T) {
 	content := `
 - name: Redis
   host: redis.example.com
@@ -138,14 +138,14 @@ func TestLoadTCPProbes(t *testing.T) {
   tls: true
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "tcp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestLoadTCPProbes(t *testing.T) {
 	if p.Name != "Redis" {
 		t.Errorf("expected name=Redis, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeTCP {
+	if p.Type != CheckTypeTCP {
 		t.Errorf("expected type=tcp, got %s", p.Type)
 	}
 	if p.TCP.Host != "redis.example.com" {
@@ -173,11 +173,11 @@ func TestLoadTCPProbes(t *testing.T) {
 
 	p2 := probes[1]
 	if !p2.TCP.TLS {
-		t.Errorf("expected TLS=true for second probe")
+		t.Errorf("expected TLS=true for second check")
 	}
 }
 
-func TestLoadDNSProbes(t *testing.T) {
+func TestLoadDNSChecks(t *testing.T) {
 	content := `
 - name: Google DNS
   domain: google.com
@@ -191,14 +191,14 @@ func TestLoadDNSProbes(t *testing.T) {
   record_type: MX
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "dns.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestLoadDNSProbes(t *testing.T) {
 	if p.Name != "Google DNS" {
 		t.Errorf("expected name=Google DNS, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeDNS {
+	if p.Type != CheckTypeDNS {
 		t.Errorf("expected type=dns, got %s", p.Type)
 	}
 	if p.DNS.Domain != "google.com" {
@@ -236,7 +236,7 @@ func TestLoadDNSProbes(t *testing.T) {
 	}
 }
 
-func TestLoadICMPProbes(t *testing.T) {
+func TestLoadICMPChecks(t *testing.T) {
 	content := `
 - name: Ping Google
   host: 8.8.8.8
@@ -244,27 +244,27 @@ func TestLoadICMPProbes(t *testing.T) {
   ip_version: "4"
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "icmp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
 	if p.Name != "Ping Google" {
 		t.Errorf("expected name=Ping Google, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeICMP {
+	if p.Type != CheckTypeICMP {
 		t.Errorf("expected type=icmp, got %s", p.Type)
 	}
 	if p.ICMP.Host != "8.8.8.8" {
@@ -278,7 +278,7 @@ func TestLoadICMPProbes(t *testing.T) {
 	}
 }
 
-func TestLoadGRPCProbes(t *testing.T) {
+func TestLoadGRPCChecks(t *testing.T) {
 	content := `
 - name: API Health
   host: api.example.com:443
@@ -288,27 +288,27 @@ func TestLoadGRPCProbes(t *testing.T) {
   timeout: 5s
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "grpc.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
 	if p.Name != "API Health" {
 		t.Errorf("expected name=API Health, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeGRPC {
+	if p.Type != CheckTypeGRPC {
 		t.Errorf("expected type=grpc, got %s", p.Type)
 	}
 	if p.GRPC.Host != "api.example.com:443" {
@@ -325,7 +325,7 @@ func TestLoadGRPCProbes(t *testing.T) {
 	}
 }
 
-func TestLoadHTTPProbesWithRetryAndDegraded(t *testing.T) {
+func TestLoadHTTPChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Retried API
   url: https://api.example.com
@@ -342,20 +342,20 @@ func TestLoadHTTPProbesWithRetryAndDegraded(t *testing.T) {
       target: application/json
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "http.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
@@ -391,7 +391,7 @@ func TestLoadHTTPProbesWithRetryAndDegraded(t *testing.T) {
 	}
 }
 
-func TestLoadSMTPProbesWithRetryAndDegraded(t *testing.T) {
+func TestLoadSMTPChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Mail Server
   host: smtp.example.com
@@ -404,24 +404,24 @@ func TestLoadSMTPProbesWithRetryAndDegraded(t *testing.T) {
     delay: 1s
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "smtp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
-	if p.Type != ProbeTypeSMTP {
+	if p.Type != CheckTypeSMTP {
 		t.Errorf("expected type=smtp, got %s", p.Type)
 	}
 	if p.DegradedAfter != 3*time.Second {
@@ -438,7 +438,7 @@ func TestLoadSMTPProbesWithRetryAndDegraded(t *testing.T) {
 	}
 }
 
-func TestLoadTracerouteProbesWithRetryAndDegraded(t *testing.T) {
+func TestLoadTracerouteChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Trace Route
   host: example.com
@@ -450,24 +450,24 @@ func TestLoadTracerouteProbesWithRetryAndDegraded(t *testing.T) {
     delay: 2s
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "traceroute.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
-	if p.Type != ProbeTypeTraceroute {
+	if p.Type != CheckTypeTraceroute {
 		t.Errorf("expected type=traceroute, got %s", p.Type)
 	}
 	if p.DegradedAfter != 10*time.Second {
@@ -481,12 +481,12 @@ func TestLoadTracerouteProbesWithRetryAndDegraded(t *testing.T) {
 	}
 }
 
-func TestEnvExpansionAllProbeTypes(t *testing.T) {
+func TestEnvExpansionAllCheckTypes(t *testing.T) {
 	os.Setenv("TEST_HOST", "expanded.example.com")
 	defer os.Unsetenv("TEST_HOST")
 
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	// TCP
@@ -542,42 +542,42 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
   send: PING
 `), 0o644)
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, p := range probes {
 		switch p.Type {
-		case ProbeTypeTCP:
+		case CheckTypeTCP:
 			if p.TCP.Host != "expanded.example.com" {
 				t.Errorf("TCP: env expansion failed, got host=%s", p.TCP.Host)
 			}
-		case ProbeTypeDNS:
+		case CheckTypeDNS:
 			if p.DNS.Domain != "expanded.example.com" {
 				t.Errorf("DNS: env expansion failed, got domain=%s", p.DNS.Domain)
 			}
-		case ProbeTypeICMP:
+		case CheckTypeICMP:
 			if p.ICMP.Host != "expanded.example.com" {
 				t.Errorf("ICMP: env expansion failed, got host=%s", p.ICMP.Host)
 			}
-		case ProbeTypeGRPC:
+		case CheckTypeGRPC:
 			if p.GRPC.Host != "expanded.example.com:443" {
 				t.Errorf("gRPC: env expansion failed, got host=%s", p.GRPC.Host)
 			}
-		case ProbeTypeSMTP:
+		case CheckTypeSMTP:
 			if p.SMTP.Host != "expanded.example.com" {
 				t.Errorf("SMTP: env expansion failed, got host=%s", p.SMTP.Host)
 			}
-		case ProbeTypeTraceroute:
+		case CheckTypeTraceroute:
 			if p.Traceroute.Host != "expanded.example.com" {
 				t.Errorf("Traceroute: env expansion failed, got host=%s", p.Traceroute.Host)
 			}
-		case ProbeTypeNTP:
+		case CheckTypeNTP:
 			if p.NTP.Server != "expanded.example.com" {
 				t.Errorf("NTP: env expansion failed, got server=%s", p.NTP.Server)
 			}
-		case ProbeTypeUDP:
+		case CheckTypeUDP:
 			if p.UDP.Host != "expanded.example.com" {
 				t.Errorf("UDP: env expansion failed, got host=%s", p.UDP.Host)
 			}
@@ -585,7 +585,7 @@ func TestEnvExpansionAllProbeTypes(t *testing.T) {
 	}
 }
 
-func TestLoadNTPProbes(t *testing.T) {
+func TestLoadNTPChecks(t *testing.T) {
 	content := `
 - name: Pool NTP
   server: pool.ntp.org
@@ -597,14 +597,14 @@ func TestLoadNTPProbes(t *testing.T) {
   port: 123
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "ntp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -617,7 +617,7 @@ func TestLoadNTPProbes(t *testing.T) {
 	if p.Name != "Pool NTP" {
 		t.Errorf("expected name=Pool NTP, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeNTP {
+	if p.Type != CheckTypeNTP {
 		t.Errorf("expected type=ntp, got %s", p.Type)
 	}
 	if p.NTP.Server != "pool.ntp.org" {
@@ -639,7 +639,7 @@ func TestLoadNTPProbes(t *testing.T) {
 	}
 }
 
-func TestLoadNTPProbesWithRetryAndEnvExpansion(t *testing.T) {
+func TestLoadNTPChecksWithRetryAndEnvExpansion(t *testing.T) {
 	os.Setenv("TEST_NTP_SERVER", "time.test.com")
 	defer os.Unsetenv("TEST_NTP_SERVER")
 
@@ -653,20 +653,20 @@ func TestLoadNTPProbesWithRetryAndEnvExpansion(t *testing.T) {
     delay: 1s
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "ntp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(probes) != 1 {
-		t.Fatalf("expected 1 probe, got %d", len(probes))
+		t.Fatalf("expected 1 check, got %d", len(probes))
 	}
 
 	p := probes[0]
@@ -687,7 +687,7 @@ func TestLoadNTPProbesWithRetryAndEnvExpansion(t *testing.T) {
 	}
 }
 
-func TestLoadHTTPProbeHeaderAssertionValidation(t *testing.T) {
+func TestLoadHTTPCheckHeaderAssertionValidation(t *testing.T) {
 	content := `
 - name: Bad Header Assert
   url: https://example.com
@@ -696,14 +696,14 @@ func TestLoadHTTPProbeHeaderAssertionValidation(t *testing.T) {
       target: something
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "http.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := LoadProbes(probesDir)
+	_, err := LoadChecks(probesDir)
 	if err == nil {
 		t.Fatal("expected error for missing header field")
 	}
@@ -712,7 +712,7 @@ func TestLoadHTTPProbeHeaderAssertionValidation(t *testing.T) {
 	}
 }
 
-func TestLoadTLSProbes(t *testing.T) {
+func TestLoadTLSChecks(t *testing.T) {
 	content := `
 - name: API Cert
   host: api.example.com:443
@@ -725,14 +725,14 @@ func TestLoadTLSProbes(t *testing.T) {
   check_expiry: false
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "tls.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,7 +745,7 @@ func TestLoadTLSProbes(t *testing.T) {
 	if p.Name != "API Cert" {
 		t.Errorf("expected name=API Cert, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeTLS {
+	if p.Type != CheckTypeTLS {
 		t.Errorf("expected type=tls, got %s", p.Type)
 	}
 	if p.TLS.Host != "api.example.com:443" {
@@ -780,7 +780,7 @@ func TestLoadTLSProbes(t *testing.T) {
 	}
 }
 
-func TestLoadUDPProbes(t *testing.T) {
+func TestLoadUDPChecks(t *testing.T) {
 	content := `
 - name: DNS over UDP
   host: 8.8.8.8
@@ -801,14 +801,14 @@ func TestLoadUDPProbes(t *testing.T) {
     delay: 500ms
 `
 	dir := t.TempDir()
-	probesDir := filepath.Join(dir, "probes")
+	probesDir := filepath.Join(dir, "checks")
 	os.MkdirAll(probesDir, 0o755)
 
 	if err := os.WriteFile(filepath.Join(probesDir, "udp.yml"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	probes, err := LoadProbes(probesDir)
+	probes, err := LoadChecks(probesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -821,7 +821,7 @@ func TestLoadUDPProbes(t *testing.T) {
 	if p.Name != "DNS over UDP" {
 		t.Errorf("expected name=DNS over UDP, got %s", p.Name)
 	}
-	if p.Type != ProbeTypeUDP {
+	if p.Type != CheckTypeUDP {
 		t.Errorf("expected type=udp, got %s", p.Type)
 	}
 	if p.UDP.Host != "8.8.8.8" {

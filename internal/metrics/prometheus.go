@@ -9,28 +9,28 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/m0nkey/technician/internal/config"
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 )
 
-// maxProbeCardinality is the maximum number of distinct probe names that will
+// maxCheckCardinality is the maximum number of distinct probe names that will
 // be tracked as Prometheus labels. Beyond this limit, new names are ignored
 // and a warning is logged. This prevents accidental label-cardinality
 // explosion in Prometheus (each unique name × 33 metrics × site labels).
-const maxProbeCardinality = 500
+const maxCheckCardinality = 500
 
 var (
 	cardinalityMu    sync.Mutex
-	seenProbeNames   = make(map[string]struct{})
+	seenCheckNames   = make(map[string]struct{})
 	cardinalityLimit bool // true once we've logged the warning
 )
 
 var (
-	probeUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	checkUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_up",
 		Help: "1 if the target responded successfully, 0 if the check failed",
 	}, []string{"type", "name", "region", "city", "country"})
 
-	probeDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	checkDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_duration_seconds",
 		Help: "End-to-end probe execution time in seconds",
 	}, []string{"type", "name", "region", "city", "country"})
@@ -220,13 +220,13 @@ var (
 
 	// Infrastructure error indicator — recorded even when InfraError=true
 	// so that silently-failing probes become visible in dashboards and alerts.
-	probeInfraError = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	checkInfraError = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_infra_error",
 		Help: "1 if the probe's own infrastructure failed (not the target), 0 otherwise",
 	}, []string{"type", "name", "region", "city", "country"})
 
 	// Degraded indicator
-	probeDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	checkDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_probe_degraded",
 		Help: "Whether the probe response time exceeds the degraded threshold (1=degraded, 0=ok)",
 	}, []string{"type", "name", "region", "city", "country"})
@@ -234,8 +234,8 @@ var (
 
 func init() {
 	prometheus.MustRegister(
-		probeUp,
-		probeDuration,
+		checkUp,
+		checkDuration,
 		httpResponseStatus,
 		httpDNS,
 		httpTLS,
@@ -271,8 +271,8 @@ func init() {
 		bgpOriginMatch,
 		domainExpiryDays,
 		domainRegistered,
-		probeInfraError,
-		probeDegraded,
+		checkInfraError,
+		checkDegraded,
 	)
 }
 
@@ -280,7 +280,7 @@ func Handler() http.Handler {
 	return promhttp.Handler()
 }
 
-func RecordResult(result *probe.Result) {
+func RecordResult(result *check.Result) {
 	labels := siteLabels(result)
 	typeStr := string(result.Type)
 
@@ -289,27 +289,27 @@ func RecordResult(result *probe.Result) {
 		// alerts can surface silently-broken probes. We still skip the
 		// target-level metrics (probe_up, duration, etc.) because they
 		// would be misleading — the target was never actually tested.
-		probeInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(1)
+		checkInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(1)
 		return
 	}
 
 	// Clear any previous infra-error state now that the probe ran normally.
-	probeInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(0)
+	checkInfraError.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(0)
 
 	// Guard against label-cardinality explosion. If more unique probe names
-	// appear than maxProbeCardinality, skip recording to protect Prometheus.
+	// appear than maxCheckCardinality, skip recording to protect Prometheus.
 	cardinalityMu.Lock()
-	if _, ok := seenProbeNames[result.Name]; !ok {
-		if len(seenProbeNames) >= maxProbeCardinality {
+	if _, ok := seenCheckNames[result.Name]; !ok {
+		if len(seenCheckNames) >= maxCheckCardinality {
 			if !cardinalityLimit {
 				slog.Warn("Probe cardinality limit reached, new probe names will not be recorded as metrics",
-					"limit", maxProbeCardinality)
+					"limit", maxCheckCardinality)
 				cardinalityLimit = true
 			}
 			cardinalityMu.Unlock()
 			return
 		}
-		seenProbeNames[result.Name] = struct{}{}
+		seenCheckNames[result.Name] = struct{}{}
 	}
 	cardinalityMu.Unlock()
 
@@ -318,29 +318,29 @@ func RecordResult(result *probe.Result) {
 		up = 1
 	}
 
-	probeUp.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(up)
-	probeDuration.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(result.Duration.Seconds())
+	checkUp.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(up)
+	checkDuration.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(result.Duration.Seconds())
 
 	switch result.Type {
-	case config.ProbeTypeHTTP:
+	case config.CheckTypeHTTP:
 		recordHTTPMetrics(result, labels)
-	case config.ProbeTypePlaywright:
+	case config.CheckTypePlaywright:
 		recordBrowserMetrics(result, labels)
-	case config.ProbeTypeTCP:
+	case config.CheckTypeTCP:
 		recordTCPMetrics(result, labels)
-	case config.ProbeTypeDNS:
+	case config.CheckTypeDNS:
 		recordDNSMetrics(result, labels)
-	case config.ProbeTypeICMP:
+	case config.CheckTypeICMP:
 		recordICMPMetrics(result, labels)
-	case config.ProbeTypeNTP:
+	case config.CheckTypeNTP:
 		recordNTPMetrics(result, labels)
-	case config.ProbeTypeTLS:
+	case config.CheckTypeTLS:
 		recordTLSMetrics(result, labels)
-	case config.ProbeTypeUDP:
+	case config.CheckTypeUDP:
 		recordUDPMetrics(result, labels)
-	case config.ProbeTypeBGP:
+	case config.CheckTypeBGP:
 		recordBGPMetrics(result, labels)
-	case config.ProbeTypeDomainExpiry:
+	case config.CheckTypeDomainExpiry:
 		recordDomainExpiryMetrics(result, labels)
 	}
 
@@ -348,10 +348,10 @@ func RecordResult(result *probe.Result) {
 	if result.Degraded {
 		degraded = 1
 	}
-	probeDegraded.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(degraded)
+	checkDegraded.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(degraded)
 }
 
-func recordHTTPMetrics(result *probe.Result, labels labelSet) {
+func recordHTTPMetrics(result *check.Result, labels labelSet) {
 	httpResponseStatus.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.StatusCode))
 	httpDNS.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.DNSDuration.Seconds())
 	httpTLS.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.TLSDuration.Seconds())
@@ -361,7 +361,7 @@ func recordHTTPMetrics(result *probe.Result, labels labelSet) {
 	httpResponseBytes.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.ResponseBytes))
 }
 
-func recordBrowserMetrics(result *probe.Result, labels labelSet) {
+func recordBrowserMetrics(result *check.Result, labels labelSet) {
 	network := result.Labels["network"]
 	device := result.Labels["device"]
 
@@ -382,7 +382,7 @@ func recordBrowserMetrics(result *probe.Result, labels labelSet) {
 	}
 }
 
-func recordHARMetrics(result *probe.Result, labels labelSet) {
+func recordHARMetrics(result *check.Result, labels labelSet) {
 	if result.HARData == nil {
 		return
 	}
@@ -408,32 +408,32 @@ func recordHARMetrics(result *probe.Result, labels labelSet) {
 	}
 }
 
-func recordTCPMetrics(result *probe.Result, labels labelSet) {
+func recordTCPMetrics(result *check.Result, labels labelSet) {
 	tcpConnDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.TCPConnDuration.Seconds())
 	tcpTLSDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.TCPTLSDuration.Seconds())
 }
 
-func recordDNSMetrics(result *probe.Result, labels labelSet) {
+func recordDNSMetrics(result *check.Result, labels labelSet) {
 	dnsQueryDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.DNSQueryTime.Seconds())
 }
 
-func recordICMPMetrics(result *probe.Result, labels labelSet) {
+func recordICMPMetrics(result *check.Result, labels labelSet) {
 	icmpPacketLoss.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPPacketLoss)
 	icmpAvgRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.ICMPAvgRTT.Seconds())
 }
 
-func recordNTPMetrics(result *probe.Result, labels labelSet) {
+func recordNTPMetrics(result *check.Result, labels labelSet) {
 	ntpOffsetMs.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPOffsetMs)
 	ntpStratum.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.NTPStratum))
 	ntpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.NTPRTT.Seconds())
 }
 
-func recordUDPMetrics(result *probe.Result, labels labelSet) {
+func recordUDPMetrics(result *check.Result, labels labelSet) {
 	udpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.UDPRTT.Seconds())
 	udpResponseBytes.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.UDPResponseBytes))
 }
 
-func recordTLSMetrics(result *probe.Result, labels labelSet) {
+func recordTLSMetrics(result *check.Result, labels labelSet) {
 	tlsCertExpiryDays.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.CertDaysRemaining))
 	valid := float64(0)
 	if result.CertValid {
@@ -442,7 +442,7 @@ func recordTLSMetrics(result *probe.Result, labels labelSet) {
 	tlsCertValid.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(valid)
 }
 
-func recordBGPMetrics(result *probe.Result, labels labelSet) {
+func recordBGPMetrics(result *check.Result, labels labelSet) {
 	visible := float64(0)
 	if result.BGPPrefixVisible {
 		visible = 1
@@ -456,7 +456,7 @@ func recordBGPMetrics(result *probe.Result, labels labelSet) {
 	bgpOriginMatch.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(match)
 }
 
-func recordDomainExpiryMetrics(result *probe.Result, labels labelSet) {
+func recordDomainExpiryMetrics(result *check.Result, labels labelSet) {
 	domainExpiryDays.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.DomainExpiryDays))
 	registered := float64(0)
 	if result.DomainRegistered {
@@ -480,7 +480,7 @@ type labelSet struct {
 	country string
 }
 
-func siteLabels(result *probe.Result) labelSet {
+func siteLabels(result *check.Result) labelSet {
 	return labelSet{
 		code:    result.Labels["region"],
 		city:    result.Labels["city"],

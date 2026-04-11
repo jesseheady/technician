@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -34,21 +34,21 @@ type rdapEntity struct {
 	} `json:"publicIds"`
 }
 
-type DomainExpirationProber struct{}
+type DomainExpirationChecker struct{}
 
-func NewDomainExpirationProber() *DomainExpirationProber {
-	return &DomainExpirationProber{}
+func NewDomainExpirationChecker() *DomainExpirationChecker {
+	return &DomainExpirationChecker{}
 }
 
-func (p *DomainExpirationProber) Type() config.ProbeType {
-	return config.ProbeTypeDomainExpiry
+func (p *DomainExpirationChecker) Type() config.CheckType {
+	return config.CheckTypeDomainExpiry
 }
 
-func (p *DomainExpirationProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeDomainExpiry, site)
+func (p *DomainExpirationChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeDomainExpiry, site)
 
 	if cfg.DomainExpiry == nil {
-		result.Error = "missing domain expiration probe configuration"
+		result.Error = "missing domain expiration check configuration"
 		return result
 	}
 
@@ -155,7 +155,7 @@ func (p *DomainExpirationProber) Run(ctx context.Context, cfg *config.ProbeConfi
 		if now.After(expiryDate) || daysRemaining <= dcfg.CriticalDays {
 			result.Success = false
 		} else {
-			result.Success = true // warn-level: probe succeeds with warning
+			result.Success = true // warn-level: check succeeds with warning
 		}
 	} else {
 		result.Success = true

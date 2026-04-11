@@ -13,29 +13,29 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-// DomainGroup groups probes that share the same target domain/host.
+// DomainGroup groups checks that share the same target domain/host.
 type DomainGroup struct {
 	Domain string
-	Probes []ProbeState
+	Checks []CheckState
 }
 
-// CategoryInfo represents a category of probe types for tab navigation.
+// CategoryInfo represents a category of check types for tab navigation.
 type CategoryInfo struct {
 	Name   string
 	Status string
 	Count  int
 }
 
-// categoryForProbeType maps a probe type to its display category.
-func categoryForProbeType(t config.ProbeType) string {
+// categoryForCheckType maps a check type to its display category.
+func categoryForCheckType(t config.CheckType) string {
 	switch t {
-	case config.ProbeTypeICMP, config.ProbeTypeTCP, config.ProbeTypeUDP, config.ProbeTypeDNS, config.ProbeTypeTraceroute:
+	case config.CheckTypeICMP, config.CheckTypeTCP, config.CheckTypeUDP, config.CheckTypeDNS, config.CheckTypeTraceroute:
 		return "Network"
-	case config.ProbeTypeHTTP, config.ProbeTypePlaywright:
+	case config.CheckTypeHTTP, config.CheckTypePlaywright:
 		return "Web"
-	case config.ProbeTypeGRPC, config.ProbeTypeSMTP, config.ProbeTypeNTP:
+	case config.CheckTypeGRPC, config.CheckTypeSMTP, config.CheckTypeNTP:
 		return "Services"
-	case config.ProbeTypeTLS, config.ProbeTypeBGP, config.ProbeTypeDomainExpiry:
+	case config.CheckTypeTLS, config.CheckTypeBGP, config.CheckTypeDomainExpiry:
 		return "Security"
 	default:
 		return "Other"
@@ -85,8 +85,8 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return m
 	},
-	"probeCount": func(probes []ProbeState) int {
-		return len(probes)
+	"checkCount": func(checks []CheckState) int {
+		return len(checks)
 	},
 	"hasViolation": func(checks []BudgetCheck) bool {
 		for _, c := range checks {
@@ -96,10 +96,10 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return false
 	},
-	"groupStatus": func(probes []ProbeState) string {
+	"groupStatus": func(checks []CheckState) string {
 		down := 0
 		errCount := 0
-		for _, p := range probes {
+		for _, p := range checks {
 			if p.Status == "down" {
 				down++
 			} else if p.Status == "error" {
@@ -112,7 +112,7 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		if down == 0 && errCount > 0 {
 			return "error"
 		}
-		if down == len(probes) {
+		if down == len(checks) {
 			return "down"
 		}
 		return "degraded"
@@ -171,18 +171,18 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"isoTime": func(t time.Time) string {
 		return t.UTC().Format(time.RFC3339)
 	},
-	"groupByDomain": func(probes []ProbeState) []DomainGroup {
+	"groupByDomain": func(checks []CheckState) []DomainGroup {
 		var order []string
 		m := make(map[string]*DomainGroup)
-		for _, p := range probes {
+		for _, p := range checks {
 			key := p.Domain
 			if key == "" {
 				key = p.Name // fallback: ungrouped
 			}
 			if g, ok := m[key]; ok {
-				g.Probes = append(g.Probes, p)
+				g.Checks = append(g.Checks, p)
 			} else {
-				m[key] = &DomainGroup{Domain: key, Probes: []ProbeState{p}}
+				m[key] = &DomainGroup{Domain: key, Checks: []CheckState{p}}
 				order = append(order, key)
 			}
 		}
@@ -192,9 +192,9 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return groups
 	},
-	"domainStatus": func(probes []ProbeState) string {
+	"domainStatus": func(checks []CheckState) string {
 		down, errCount := 0, 0
-		for _, p := range probes {
+		for _, p := range checks {
 			if p.Status == "down" {
 				down++
 			} else if p.Status == "error" {
@@ -202,7 +202,7 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 			}
 		}
 		if down > 0 {
-			if down == len(probes) {
+			if down == len(checks) {
 				return "down"
 			}
 			return "degraded"
@@ -212,10 +212,10 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return "up"
 	},
-	"domainTypes": func(probes []ProbeState) string {
+	"domainTypes": func(checks []CheckState) string {
 		seen := make(map[string]bool)
 		var types []string
-		for _, p := range probes {
+		for _, p := range checks {
 			t := string(p.Type)
 			if !seen[t] {
 				seen[t] = true
@@ -231,17 +231,17 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return s
 	},
-	"probeCategory": func(t config.ProbeType) string {
-		return categoryForProbeType(t)
+	"checkCategory": func(t config.CheckType) string {
+		return categoryForCheckType(t)
 	},
-	"categories": func(probes []ProbeState) []CategoryInfo {
+	"categories": func(checks []CheckState) []CategoryInfo {
 		order := []string{"Network", "Web", "Services", "Security"}
 		counts := make(map[string]int)
 		statusPrio := make(map[string]int)
 		statusName := make(map[string]string)
 		prio := map[string]int{"up": 0, "pending": 1, "error": 2, "degraded": 3, "down": 4}
-		for _, p := range probes {
-			cat := categoryForProbeType(p.Type)
+		for _, p := range checks {
+			cat := categoryForCheckType(p.Type)
 			counts[cat]++
 			if prio[p.Status] > statusPrio[cat] {
 				statusPrio[cat] = prio[p.Status]
@@ -260,10 +260,10 @@ var pageTmpl = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 		return result
 	},
-	"numCategories": func(probes []ProbeState) int {
+	"numCategories": func(checks []CheckState) int {
 		seen := make(map[string]bool)
-		for _, p := range probes {
-			seen[categoryForProbeType(p.Type)] = true
+		for _, p := range checks {
+			seen[categoryForCheckType(p.Type)] = true
 		}
 		return len(seen)
 	},
@@ -312,15 +312,15 @@ func Handler(store *Store) http.Handler {
 	return mux
 }
 
-const pageHTML = `{{define "probe-card"}}
-  <details class="probe{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}" data-category="{{probeCategory .Type}}" data-name="{{.Name}}"{{if ne .Status "up"}} open{{end}}>
-    <summary class="probe-head">
-      <div class="probe-left">
+const pageHTML = `{{define "check-card"}}
+  <details class="check{{if hasViolation .BudgetChecks}} budget-warn{{end}}" data-type="{{.Type}}" data-category="{{checkCategory .Type}}" data-name="{{.Name}}"{{if ne .Status "up"}} open{{end}}>
+    <summary class="check-head">
+      <div class="check-left">
         <div class="dot {{.Status}}"></div>
         <span class="name">{{.Name}}</span>
       </div>
-      <div class="probe-right">
-        <span class="probe-type">{{.Type}}</span>
+      <div class="check-right">
+        <span class="check-type">{{.Type}}</span>
         <span class="uptime {{if eq .Uptime "100%"}}perfect{{else if eq .Uptime "—"}}{{else}}good{{end}}">{{.Uptime}}</span>
       </div>
     </summary>
@@ -348,14 +348,14 @@ const pageHTML = `{{define "probe-card"}}
       {{if .Timing.TransferMs}}<span><span class="legend-dot transfer"></span>transfer {{fmtMs .Timing.TransferMs}}</span>{{end}}
     </div>
     {{end}}
-    <div class="probe-meta">
+    <div class="check-meta">
       {{if .Latest}}
       <span>{{relTime .Latest.Timestamp}}</span>
       {{if .Latest.StatusCode}}<span><span class="val">{{.Latest.StatusCode}}</span></span>{{end}}
       <span><span class="val">{{fmtMs .Latest.DurationMs}}</span></span>
       {{end}}
       {{if .DownSince}}<span class="down-since">{{.DownSince}}</span>{{end}}
-      {{if eq .Status "error"}}<span class="error-label">probe error</span>{{end}}
+      {{if eq .Status "error"}}<span class="error-label">check error</span>{{end}}
     </div>
     {{if .Latest}}
     {{if and (eq .Type "tls") (not .Latest.CertExpiry.IsZero)}}
@@ -386,14 +386,14 @@ const pageHTML = `{{define "probe-card"}}
     </div>
     {{end}}
   </details>
-{{end}}{{define "domain-probes"}}{{$domains := groupByDomain .}}{{range $domains}}{{if eq (len .Probes) 1}}{{template "probe-card" (index .Probes 0)}}{{else}}<details class="domain-wrap" data-domain="{{.Domain}}"{{if ne (domainStatus .Probes) "up"}} open{{end}}>
+{{end}}{{define "domain-checks"}}{{$domains := groupByDomain .}}{{range $domains}}{{if eq (len .Checks) 1}}{{template "check-card" (index .Checks 0)}}{{else}}<details class="domain-wrap" data-domain="{{.Domain}}"{{if ne (domainStatus .Checks) "up"}} open{{end}}>
     <summary class="domain-head">
-      <div class="dot {{domainStatus .Probes}}"></div>
+      <div class="dot {{domainStatus .Checks}}"></div>
       <span class="domain-name">{{.Domain}}</span>
-      <span class="domain-info">{{len .Probes}} probes · {{domainTypes .Probes}}</span>
+      <span class="domain-info">{{len .Checks}} checks · {{domainTypes .Checks}}</span>
     </summary>
-    <div class="domain-probes">
-      {{range .Probes}}{{template "probe-card" .}}{{end}}
+    <div class="domain-checks">
+      {{range .Checks}}{{template "check-card" .}}{{end}}
     </div>
   </details>{{end}}{{end}}{{end}}<!DOCTYPE html>
 <html lang="en">
@@ -479,19 +479,19 @@ a:hover{color:var(--text)}
 .group>summary .group-count{font-weight:400;color:var(--text-mute);font-family:var(--mono);font-size:11px}
 .group>summary .group-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
-/* probe list */
-.probes{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius)}
-.probe{background:var(--surface);padding:16px 20px;position:relative}
-.probe>summary{cursor:pointer;list-style:none;user-select:none;border-radius:inherit;transition:background .15s}
-.probe>summary::-webkit-details-marker{display:none}
-.probe>summary:hover{background:color-mix(in srgb,var(--border) 30%,var(--surface))}
-.probe-left::before{content:"";display:inline-block;width:0;height:0;border-left:4px solid var(--text-mute);border-top:3px solid transparent;border-bottom:3px solid transparent;transition:transform .15s;flex-shrink:0;opacity:.35}
-.probe[open] .probe-left::before{transform:rotate(90deg);opacity:.55}
-.probe:first-child,.domain-wrap:first-child{border-radius:var(--radius) var(--radius) 0 0}
-.probe:last-child,.domain-wrap:last-child{border-radius:0 0 var(--radius) var(--radius)}
-.probe:only-child,.domain-wrap:only-child{border-radius:var(--radius)}
+/* check list */
+.checks{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius)}
+.check{background:var(--surface);padding:16px 20px;position:relative}
+.check>summary{cursor:pointer;list-style:none;user-select:none;border-radius:inherit;transition:background .15s}
+.check>summary::-webkit-details-marker{display:none}
+.check>summary:hover{background:color-mix(in srgb,var(--border) 30%,var(--surface))}
+.check-left::before{content:"";display:inline-block;width:0;height:0;border-left:4px solid var(--text-mute);border-top:3px solid transparent;border-bottom:3px solid transparent;transition:transform .15s;flex-shrink:0;opacity:.35}
+.check[open] .check-left::before{transform:rotate(90deg);opacity:.55}
+.check:first-child,.domain-wrap:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.check:last-child,.domain-wrap:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.check:only-child,.domain-wrap:only-child{border-radius:var(--radius)}
 
-/* domain grouping within probe list */
+/* domain grouping within check list */
 .domain-wrap{background:var(--surface);position:relative}
 .domain-wrap>summary{display:flex;align-items:center;gap:8px;padding:12px 20px;cursor:pointer;list-style:none;user-select:none;font-size:13px}
 .domain-wrap>summary::-webkit-details-marker{display:none}
@@ -499,21 +499,21 @@ a:hover{color:var(--text)}
 .domain-wrap[open]>summary::before{transform:rotate(90deg)}
 .domain-name{font-weight:500;color:var(--text)}
 .domain-info{font-size:11px;font-family:var(--mono);color:var(--text-mute)}
-.domain-probes{border-top:1px solid var(--border)}
-.domain-probes .probe{padding:12px 20px 12px 36px}
-.domain-probes .probe:last-child{border-radius:0}
-.domain-wrap:last-child .domain-probes .probe:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.domain-checks{border-top:1px solid var(--border)}
+.domain-checks .check{padding:12px 20px 12px 36px}
+.domain-checks .check:last-child{border-radius:0}
+.domain-wrap:last-child .domain-checks .check:last-child{border-radius:0 0 var(--radius) var(--radius)}
 
 /* controls */
 .toggle-btn{font-size:11px;font-family:var(--mono);color:var(--text-mute);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:6px 10px;cursor:pointer;transition:all .15s;user-select:none}
 .toggle-btn:hover{color:var(--text-dim);border-color:var(--border-hi)}
 .toggle-btn.active{color:var(--text);border-color:var(--border-hi);background:var(--bg)}
-.probe-head{display:flex;align-items:center;justify-content:space-between}
-.probe[open]>.probe-head{margin-bottom:10px}
-.probe-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
-.probe-left .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.probe-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.probe-type{font-size:11px;color:var(--text-mute);font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px}
+.check-head{display:flex;align-items:center;justify-content:space-between}
+.check[open]>.check-head{margin-bottom:10px}
+.check-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
+.check-left .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.check-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.check-type{font-size:11px;color:var(--text-mute);font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px}
 .uptime{font-size:12px;font-family:var(--mono);font-weight:500}
 .uptime.perfect{color:var(--green)}
 .uptime.good{color:var(--green)}
@@ -529,8 +529,8 @@ a:hover{color:var(--text)}
 .bar::after{content:attr(data-tip);display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a1e;border:1px solid var(--border-hi);border-radius:6px;padding:6px 10px;font-size:11px;font-family:var(--mono);white-space:nowrap;z-index:10;pointer-events:none;color:var(--text)}
 .bar:hover::after{display:block}
 
-/* probe meta row */
-.probe-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;flex-wrap:wrap}
+/* check meta row */
+.check-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;flex-wrap:wrap}
 .val{color:var(--text)}
 .down-since{color:var(--red);font-weight:500}
 .error-label{color:var(--amber);font-weight:500}
@@ -552,7 +552,7 @@ a:hover{color:var(--text)}
 .budget-badge.pass{color:var(--green);background:var(--green-dim)}
 .budget-badge.warn{color:var(--amber);background:var(--amber-dim);font-weight:500}
 .budget-badge.fail{color:var(--red);background:var(--red-dim);font-weight:500}
-.probe.budget-warn{border-left:3px solid var(--amber)}
+.check.budget-warn{border-left:3px solid var(--amber)}
 
 /* type-specific metadata */
 .type-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
@@ -585,14 +585,14 @@ a:hover{color:var(--text)}
     {{- if eq .Overall "operational"}}All systems operational
     {{- else if eq .Overall "degraded"}}Partial degradation
     {{- else if eq .Overall "down"}}Major outage
-    {{- else}}Waiting for probes…
+    {{- else}}Waiting for checks…
     {{- end -}}
   </div>
 </div>
 
-{{if .Probes}}
+{{if .Checks}}
 <div class="summary" id="summary">
-  <span class="stat"><span class="stat-val {{if eq .Summary.Down 0}}good{{else}}bad{{end}}">{{.Summary.Up}}/{{.Summary.Total}}</span> probes up</span>
+  <span class="stat"><span class="stat-val {{if eq .Summary.Down 0}}good{{else}}bad{{end}}">{{.Summary.Up}}/{{.Summary.Total}}</span> checks up</span>
   {{if gt .Summary.Down 0}}<span class="sep">&middot;</span>
   <span class="stat"><span class="stat-val bad">{{.Summary.Down}}</span> down</span>{{end}}
   {{if gt .Summary.Error 0}}<span class="sep">&middot;</span>
@@ -601,14 +601,14 @@ a:hover{color:var(--text)}
   <span class="stat">Budgets: <span class="stat-val {{if eq .Summary.BudgetViolations 0}}good{{else if gt .Summary.BudgetViolations 2}}bad{{else}}warn{{end}}">{{sub .Summary.BudgetTotal .Summary.BudgetViolations}}/{{.Summary.BudgetTotal}}</span> passing</span>{{end}}
 </div>
 
-{{if gt (numCategories .Probes) 1}}
+{{if gt (numCategories .Checks) 1}}
 <div class="controls">
 <nav class="tabs" id="tabs">
-  <button class="tab active" data-cat="all">All <span class="tab-count">{{len .Probes}}</span></button>
-  {{range categories .Probes}}<button class="tab" data-cat="{{.Name}}"><span class="dot {{.Status}}"></span>{{.Name}} <span class="tab-count">{{.Count}}</span></button>{{end}}
+  <button class="tab active" data-cat="all">All <span class="tab-count">{{len .Checks}}</span></button>
+  {{range categories .Checks}}<button class="tab" data-cat="{{.Name}}"><span class="dot {{.Status}}"></span>{{.Name}} <span class="tab-count">{{.Count}}</span></button>{{end}}
 </nav>
 <div class="search-row">
-  <input type="text" class="search-input" id="search" placeholder="Filter probes…" autocomplete="off">
+  <input type="text" class="search-input" id="search" placeholder="Filter checks…" autocomplete="off">
   <button class="toggle-btn" id="issues-only">issues only</button>
   <button class="toggle-btn" id="toggle-all" title="Expand or collapse all">expand all</button>
 </div>
@@ -616,7 +616,7 @@ a:hover{color:var(--text)}
 {{else}}
 <div class="controls">
 <div class="search-row">
-  <input type="text" class="search-input" id="search" placeholder="Filter probes…" autocomplete="off">
+  <input type="text" class="search-input" id="search" placeholder="Filter checks…" autocomplete="off">
   <button class="toggle-btn" id="issues-only">issues only</button>
   <button class="toggle-btn" id="toggle-all" title="Expand or collapse all">expand all</button>
 </div>
@@ -627,22 +627,22 @@ a:hover{color:var(--text)}
   {{range $i, $g := .Groups}}
   <details class="group" data-group="{{if .Name}}{{.Name}}{{else}}General{{end}}">
     <summary>
-      <span class="group-dot dot {{groupStatus .Probes}}"></span>
+      <span class="group-dot dot {{groupStatus .Checks}}"></span>
       {{if .Name}}{{.Name}}{{else}}General{{end}}
-      <span class="group-count">{{probeCount .Probes}}</span>
+      <span class="group-count">{{checkCount .Checks}}</span>
     </summary>
-    <div class="probes">
-      {{template "domain-probes" .Probes}}
+    <div class="checks">
+      {{template "domain-checks" .Checks}}
     </div>
   </details>
   {{end}}
 {{else}}
-<div class="probes">
-  {{template "domain-probes" .Probes}}
+<div class="checks">
+  {{template "domain-checks" .Checks}}
 </div>
 {{end}}
 {{else}}
-<div class="empty">No probes have reported yet.</div>
+<div class="empty">No checks have reported yet.</div>
 {{end}}
 
 <div class="footer">
@@ -670,10 +670,10 @@ a:hover{color:var(--text)}
   function applyFilters(){
     var search=(document.getElementById('search')||{}).value||'';
     search=search.toLowerCase();
-    document.querySelectorAll('.probe[data-name]').forEach(function(p){
+    document.querySelectorAll('.check[data-name]').forEach(function(p){
       var type=p.getAttribute('data-type');
       var name=(p.getAttribute('data-name')||'').toLowerCase();
-      var dot=p.querySelector('.probe-head .dot');
+      var dot=p.querySelector('.check-head .dot');
       var st=dot?dot.className:'';
       var catMatch=activeTab==='all'||(catTypes[activeTab]&&catTypes[activeTab].indexOf(type)!==-1);
       var searchMatch=!search||name.indexOf(search)!==-1;
@@ -683,15 +683,15 @@ a:hover{color:var(--text)}
     });
     // Hide empty domain wraps
     document.querySelectorAll('.domain-wrap').forEach(function(dw){
-      dw.classList.toggle('filter-hidden',!dw.querySelector('.probe[data-name]:not(.filter-hidden)'));
+      dw.classList.toggle('filter-hidden',!dw.querySelector('.check[data-name]:not(.filter-hidden)'));
     });
     // Hide empty groups
     document.querySelectorAll('.group').forEach(function(g){
-      g.classList.toggle('filter-hidden',!g.querySelector('.probe[data-name]:not(.filter-hidden)'));
+      g.classList.toggle('filter-hidden',!g.querySelector('.check[data-name]:not(.filter-hidden)'));
     });
     // Update empty state
-    document.querySelectorAll('.probes').forEach(function(container){
-      var anyVisible=container.querySelector('.probe[data-name]:not(.filter-hidden)');
+    document.querySelectorAll('.checks').forEach(function(container){
+      var anyVisible=container.querySelector('.check[data-name]:not(.filter-hidden)');
       container.style.display=anyVisible?'':'none';
     });
   }
@@ -725,7 +725,7 @@ a:hover{color:var(--text)}
   var toggleBtn=document.getElementById('toggle-all');
   if(toggleBtn){
     toggleBtn.addEventListener('click',function(){
-      var all=document.querySelectorAll('details.group:not(.filter-hidden),.domain-wrap:not(.filter-hidden),details.probe:not(.filter-hidden)');
+      var all=document.querySelectorAll('details.group:not(.filter-hidden),.domain-wrap:not(.filter-hidden),details.check:not(.filter-hidden)');
       var allOpen=true;
       all.forEach(function(d){if(!d.open)allOpen=false;});
       var next=!allOpen;
@@ -752,7 +752,7 @@ a:hover{color:var(--text)}
     });
   });
 
-  // ── Restore domain-wrap and probe card states ──
+  // ── Restore domain-wrap and check card states ──
   var dSaved=JSON.parse(localStorage.getItem(DKEY)||'{}');
   document.querySelectorAll('.domain-wrap[data-domain]').forEach(function(d){
     var g=d.closest('[data-group]');
@@ -760,12 +760,12 @@ a:hover{color:var(--text)}
     if(k in dSaved) d.open=dSaved[k];
   });
   var pSaved=JSON.parse(localStorage.getItem(PKEY)||'{}');
-  document.querySelectorAll('.probe[data-name]').forEach(function(d){
+  document.querySelectorAll('.check[data-name]').forEach(function(d){
     var nm=d.getAttribute('data-name');
     if(nm in pSaved) d.open=pSaved[nm];
   });
 
-  // ── Persist domain-wrap and probe card toggles ──
+  // ── Persist domain-wrap and check card toggles ──
   document.addEventListener('toggle',function(e){
     var t=e.target;
     if(!t.matches) return;
@@ -775,7 +775,7 @@ a:hover{color:var(--text)}
       var s=JSON.parse(localStorage.getItem(DKEY)||'{}');
       s[k]=t.open;
       localStorage.setItem(DKEY,JSON.stringify(s));
-    } else if(t.matches('.probe[data-name]')){
+    } else if(t.matches('.check[data-name]')){
       var s=JSON.parse(localStorage.getItem(PKEY)||'{}');
       s[t.getAttribute('data-name')]=t.open;
       localStorage.setItem(PKEY,JSON.stringify(s));
@@ -808,23 +808,23 @@ a:hover{color:var(--text)}
         if(dot) dot.className='dot '+data.overall;
         var txt=banner.querySelector('.banner-text');
         if(txt){
-          var labels={operational:'All systems operational',degraded:'Partial degradation',down:'Major outage',pending:'Waiting for probes\u2026'};
+          var labels={operational:'All systems operational',degraded:'Partial degradation',down:'Major outage',pending:'Waiting for checks\u2026'};
           txt.textContent=labels[data.overall]||data.overall;
         }
       }
       var sum=document.getElementById('summary');
       if(sum&&data.summary){
         var s=data.summary;
-        sum.innerHTML='<span class="stat"><span class="stat-val '+(s.down===0?'good':'bad')+'">'+s.up+'/'+s.total+'</span> probes up</span>'
+        sum.innerHTML='<span class="stat"><span class="stat-val '+(s.down===0?'good':'bad')+'">'+s.up+'/'+s.total+'</span> checks up</span>'
           +(s.down>0?' <span class="sep">&middot;</span> <span class="stat"><span class="stat-val bad">'+s.down+'</span> down</span>':'')
           +(s.error>0?' <span class="sep">&middot;</span> <span class="stat"><span class="stat-val warn">'+s.error+'</span> errors</span>':'')
           +(s.budget_total>0?' <span class="sep">&middot;</span> <span class="stat">Budgets: <span class="stat-val '+(s.budget_violations===0?'good':s.budget_violations>2?'bad':'warn')+'">'+(s.budget_total-s.budget_violations)+'/'+s.budget_total+'</span> passing</span>':'');
         }
-      if(data.probes){
-        data.probes.forEach(function(p){
-          var card=document.querySelector('.probe[data-name="'+p.name+'"]');
+      if(data.checks){
+        data.checks.forEach(function(p){
+          var card=document.querySelector('.check[data-name="'+p.name+'"]');
           if(!card) return;
-          var dot=card.querySelector('.probe-head .dot');
+          var dot=card.querySelector('.check-head .dot');
           if(dot) dot.className='dot '+p.status;
           var uptime=card.querySelector('.uptime');
           if(uptime) uptime.textContent=p.uptime;
