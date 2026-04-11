@@ -209,6 +209,34 @@ func probeKey(typ config.ProbeType, name string) string {
 	return string(typ) + ":" + name
 }
 
+// Reconcile removes persisted probes that no longer exist in the active config.
+// Call after loading state and before starting the scheduler.
+func (s *Store) Reconcile(probes []config.ProbeConfig) {
+	active := make(map[string]struct{}, len(probes))
+	for _, p := range probes {
+		active[probeKey(p.Type, p.Name)] = struct{}{}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var pruned []string
+	kept := make([]string, 0, len(s.order))
+	for _, key := range s.order {
+		if _, ok := active[key]; ok {
+			kept = append(kept, key)
+		} else {
+			delete(s.probes, key)
+			pruned = append(pruned, key)
+		}
+	}
+	s.order = kept
+
+	if len(pruned) > 0 {
+		slog.Info("Reconciled status store", "pruned", len(pruned), "kept", len(kept), "removed", pruned)
+	}
+}
+
 // Push adds a probe result to the store.
 func (s *Store) Push(r *probe.Result) {
 	e := Entry{
