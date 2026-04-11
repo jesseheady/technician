@@ -31,8 +31,8 @@ func (p *BGPChecker) Type() config.CheckType {
 	return config.CheckTypeBGP
 }
 
-func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeBGP, site)
+func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeBGP, origin)
 
 	if cfg.BGP == nil {
 		result.Error = "missing BGP check configuration"

@@ -44,8 +44,8 @@ func (p *DomainExpirationChecker) Type() config.CheckType {
 	return config.CheckTypeDomainExpiry
 }
 
-func (p *DomainExpirationChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeDomainExpiry, site)
+func (p *DomainExpirationChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeDomainExpiry, origin)
 
 	if cfg.DomainExpiry == nil {
 		result.Error = "missing domain expiration check configuration"

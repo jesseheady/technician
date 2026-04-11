@@ -46,8 +46,8 @@ func (p *DNSChecker) Type() config.CheckType {
 	return config.CheckTypeDNS
 }
 
-func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeDNS, site)
+func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeDNS, origin)
 
 	if cfg.DNS == nil {
 		result.Error = "missing DNS check configuration"

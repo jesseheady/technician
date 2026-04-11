@@ -15,10 +15,10 @@ func TestComputeStaggerNilSite(t *testing.T) {
 }
 
 func TestComputeStaggerDeterministic(t *testing.T) {
-	site := &config.Site{Code: "us-east-1"}
+	origin := &config.Origin{ID: "us-east-1"}
 
-	d1 := ComputeStagger("probe1", site)
-	d2 := ComputeStagger("probe1", site)
+	d1 := ComputeStagger("probe1", origin)
+	d2 := ComputeStagger("probe1", origin)
 
 	if d1 != d2 {
 		t.Errorf("stagger should be deterministic: %v != %v", d1, d2)
@@ -26,10 +26,10 @@ func TestComputeStaggerDeterministic(t *testing.T) {
 }
 
 func TestComputeStaggerDifferentChecks(t *testing.T) {
-	site := &config.Site{Code: "us-east-1"}
+	origin := &config.Origin{ID: "us-east-1"}
 
-	d1 := ComputeStagger("probe1", site)
-	d2 := ComputeStagger("probe2", site)
+	d1 := ComputeStagger("probe1", origin)
+	d2 := ComputeStagger("probe2", origin)
 
 	// Different checks should (generally) have different stagger
 	// This could theoretically fail due to hash collision but is extremely unlikely
@@ -39,10 +39,10 @@ func TestComputeStaggerDifferentChecks(t *testing.T) {
 }
 
 func TestComputeStaggerBound(t *testing.T) {
-	site := &config.Site{Code: "test"}
+	origin := &config.Origin{ID: "test"}
 
 	for _, name := range []string{"a", "b", "c", "long-check-name", "x"} {
-		d := ComputeStagger(name, site)
+		d := ComputeStagger(name, origin)
 		if d < 0 || d >= 10*time.Second {
 			t.Errorf("stagger for %q out of bounds: %v", name, d)
 		}

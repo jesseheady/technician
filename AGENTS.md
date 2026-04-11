@@ -30,11 +30,11 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 - **`technician validate`** – Run all checks, evaluate budgets, exit 0/1 (CI).
 - **`technician test-webhook`** – Send a test notification to all configured webhooks.
 
-Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE`), `--verbose` / `-v`.
+Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`), `--verbose` / `-v`.
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `sites`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
+- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks/`:
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
   - Playwright: `checks/playwright/playwright.yml` (or `checks/playwright.yml`) + script files.
@@ -61,13 +61,13 @@ Three strategies (see `docs/alerting.md`):
 
 - **Interface**: `internal/check.Checker`: `Type() config.CheckType` and `Run(ctx, cfg, site) *Result`.
 - **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `playwright`.
-- **Result**: `check.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `site.Labels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
+- **Result**: `check.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `origin.MetricLabels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a check type: Implement `Checker`; add `CheckType` and config struct in `internal/config/checks.go`; add loader in `LoadChecks`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired).
 
 ## Sites and deployment
 
-- **Sites** are defined in `technician.yml` (`code`, `city`, `country`, `location_hash`, `infra_provider`). Example config has `local` (infra_provider `docker`) for local/Docker, and `us-east-1` / `us-west-2` (infra_provider `aws`) for US regions. `SITE_CODE` (env or `--site`) selects which site labels are emitted; unset or unknown falls back to first site.
-- **Local/Docker**: Use `SITE_CODE=local`; the example config includes a `local` site so labels stay distinct. Prometheus in compose scrapes `technician:9590` (Docker service name = hostname on the compose network).
+- **Sites** are defined in `technician.yml` (`code`, `city`, `country`, `geohash`, `platform`). Example config has `local` (platform `docker`) for local/Docker, and `us-east-1` / `us-west-2` (platform `aws`) for US regions. `ORIGIN_ID` (env or `--origin`) selects which origin labels are emitted; unset or unknown falls back to first site.
+- **Local/Docker**: Use `ORIGIN_ID=local`; the example config includes a `local` site so labels stay distinct. Prometheus in compose scrapes `technician:9590` (Docker service name = hostname on the compose network).
 - **VPC / central observability**: Deployed workers in a VPC are scraped by central Prometheus (static or service discovery). Central Grafana uses that Prometheus as source of record. See `docs/architecture/central-prometheus-grafana.md` for scrape config, discovery, and optional edge push.
 - **Edge (Workers, Lambda)**: Site/location is derived from the platform at request time (e.g. Cloudflare colo, AWS region). See `docs/proposals/site-identifiers-edge.md`.
 

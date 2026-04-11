@@ -258,15 +258,15 @@ func TestGrouping(t *testing.T) {
 	}
 }
 
-func TestSiteInfo(t *testing.T) {
-	site := &config.Site{Code: "us-east-1", City: "Virginia", Country: "US"}
-	s := NewStore("test", site, "")
+func TestOriginInfo(t *testing.T) {
+	origin := &config.Origin{ID: "us-east-1", City: "Virginia", Country: "US"}
+	s := NewStore("test", origin, "")
 	snap := s.Snapshot()
-	if snap.Site == nil {
-		t.Fatal("expected site info")
+	if snap.Origin == nil {
+		t.Fatal("expected origin info")
 	}
-	if snap.Site.Code != "us-east-1" {
-		t.Fatalf("expected code 'us-east-1', got %q", snap.Site.Code)
+	if snap.Origin.Code != "us-east-1" {
+		t.Fatalf("expected code 'us-east-1', got %q", snap.Origin.Code)
 	}
 }
 

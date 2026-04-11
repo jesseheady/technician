@@ -16,7 +16,7 @@ type mockChecker struct {
 
 func (m *mockChecker) Type() config.CheckType { return config.CheckTypeHTTP }
 
-func (m *mockChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *check.Result {
+func (m *mockChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *check.Result {
 	idx := m.calls
 	m.calls++
 	if idx < len(m.results) {

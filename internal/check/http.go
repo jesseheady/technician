@@ -63,8 +63,8 @@ func (p *HTTPChecker) Type() config.CheckType {
 	return config.CheckTypeHTTP
 }
 
-func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeHTTP, site)
+func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeHTTP, origin)
 
 	if cfg.HTTP == nil {
 		result.Error = "missing HTTP check configuration"

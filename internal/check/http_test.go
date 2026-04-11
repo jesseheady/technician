@@ -28,9 +28,9 @@ func TestHTTPCheckerSuccess(t *testing.T) {
 			ExpectedStatus: 200,
 		},
 	}
-	site := &config.Site{Code: "test", City: "Test", Country: "XX"}
+	origin := &config.Origin{ID: "test", City: "Test", Country: "XX"}
 
-	result := checker.Run(context.Background(), cfg, site)
+	result := checker.Run(context.Background(), cfg, origin)
 
 	if !result.Success {
 		t.Errorf("expected success, got error: %s", result.Error)
