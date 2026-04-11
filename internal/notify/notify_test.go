@@ -57,7 +57,7 @@ func newTestManager(mock *mockSender, cooldown time.Duration) *Manager {
 	}
 }
 
-// sendFailures sends N consecutive failures for the given probe name.
+// sendFailures sends N consecutive failures for the given check name.
 func sendFailures(m *Manager, ctx context.Context, name string, n int) {
 	for i := 0; i < n; i++ {
 		m.HandleResult(ctx, makeResult(name, false))
@@ -465,7 +465,7 @@ func TestMultipleChecksIndependent(t *testing.T) {
 	m.HandleResult(ctx, makeResult("a", true))
 	m.HandleResult(ctx, makeResult("b", true))
 
-	// Only probe "a" goes down
+	// Only check "a" goes down
 	sendFailures(m, ctx, "a", consecutiveFailThreshold)
 	waitForDispatch()
 
@@ -550,7 +550,7 @@ func TestSeverityFilterBlocksWarnings(t *testing.T) {
 		t.Fatalf("expected 0 events (warning filtered), got %d", len(mock.sent()))
 	}
 
-	// Probe down is severity=critical — should pass
+	// Check down is severity=critical — should pass
 	m.HandleResult(ctx, makeResult("test", true))
 	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
@@ -591,7 +591,7 @@ func TestSeverityFilterAllowsWarnings(t *testing.T) {
 		t.Fatalf("expected 1 event (warning passes), got %d", len(mock.sent()))
 	}
 
-	// Probe down = critical — should be filtered
+	// Check down = critical — should be filtered
 	m.HandleResult(ctx, makeResult("test2", true))
 	sendFailures(m, ctx, "test2", consecutiveFailThreshold)
 	waitForDispatch()

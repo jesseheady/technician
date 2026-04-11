@@ -12,7 +12,7 @@ import (
 // on a best-effort basis; if Node.js or script extraction fails, a warning
 // is logged and browser checks are skipped.
 func newCheckers(cfg *config.Config) map[config.CheckType]check.Checker {
-	probers := map[config.CheckType]check.Checker{
+	checkers := map[config.CheckType]check.Checker{
 		config.CheckTypeHTTP:         check.NewHTTPChecker(),
 		config.CheckTypeSMTP:         check.NewSMTPChecker(),
 		config.CheckTypeTraceroute:   check.NewTracerouteChecker(),
@@ -30,9 +30,9 @@ func newCheckers(cfg *config.Config) map[config.CheckType]check.Checker {
 	if runner, err := playwright.NewRunner(); err != nil {
 		slog.Warn("Playwright unavailable, browser checks will be skipped", "error", err)
 	} else {
-		probers[config.CheckTypePlaywright] = check.NewPlaywrightChecker(runner.RunnerPath(), cfg.Playwright.MaxBrowsers)
+		checkers[config.CheckTypePlaywright] = check.NewPlaywrightChecker(runner.RunnerPath(), cfg.Playwright.MaxBrowsers)
 		slog.Info("Playwright browser concurrency", "max_browsers", cfg.Playwright.MaxBrowsers)
 	}
 
-	return probers
+	return checkers
 }

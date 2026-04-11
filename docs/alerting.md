@@ -17,7 +17,7 @@ Grafana is the recommended alerting backend for production. It provides:
 1. Open Grafana at [http://localhost:3000](http://localhost:3000) (default `admin`/`admin`).
 2. Go to **Alerting > Contact points** and add your integration (Discord, Slack, etc.).
 3. Go to **Alerting > Alert rules** and create rules using Technician's Prometheus metrics:
-   - `technician_check_up == 0` — probe is down
+   - `technician_check_up == 0` — check is down
    - `technician_budget_violation == 1` — budget threshold exceeded
    - `technician_http_ttfb_seconds > 2` — high TTFB
    - `technician_browser_lcp_ms > 2500` — high LCP
@@ -74,14 +74,14 @@ webhooks:
 | `type` | `discord`, `slack`, or `generic`. Determines payload format. |
 | `events` | Which events trigger notifications. Omit for all events. |
 | `severities` | Filter by severity: `warning`, `critical`. Omit to receive all severities. |
-| `cooldown` | Minimum interval between repeated notifications for the same probe+event. Default `5m`. |
+| `cooldown` | Minimum interval between repeated notifications for the same check+event. Default `5m`. |
 
 ### Event types
 
 | Event | Default severity | Fires when |
 |-------|-----------------|------------|
-| `check_down` | `critical` | A probe fails 3 consecutive checks (see [debouncing](#debouncing) below). |
-| `check_up` | — | A probe transitions from down to up (recovery). |
+| `check_down` | `critical` | A check fails 3 consecutive checks (see [debouncing](#debouncing) below). |
+| `check_up` | — | A check transitions from down to up (recovery). |
 | `budget_violation` | `warning` | A budget metric becomes newly violated. |
 | `cert_expiring` | `warning` or `critical` | A TLS certificate enters the warn or critical expiry window. Severity escalates from warning to critical as the deadline approaches. |
 
@@ -89,7 +89,7 @@ webhooks:
 
 Native webhooks use a **consecutive-failure threshold** to prevent transient blips from triggering alerts. A `check_down` notification requires **3 consecutive failures** before it fires. A single success resets the counter. Recovery (`check_up`) fires immediately when a check that was notified as down succeeds again.
 
-This works in conjunction with probe-level retries. With the recommended retry policy (`count: 1`), a check retries once before reporting failure. Combined with the 3-failure threshold, a check must fail 6 total attempts (3 cycles × 2 attempts each) before triggering an alert — providing strong protection against transient network issues.
+This works in conjunction with check-level retries. With the recommended retry policy (`count: 1`), a check retries once before reporting failure. Combined with the 3-failure threshold, a check must fail 6 total attempts (3 cycles × 2 attempts each) before triggering an alert — providing strong protection against transient network issues.
 
 Infrastructure errors (DNS resolution failures, connection refused, etc.) are classified as `InfraError` and excluded from state transitions entirely — they don't increment the failure counter or trigger notifications.
 
@@ -98,7 +98,7 @@ Infrastructure errors (DNS resolution failures, connection refused, etc.) are cl
 Events carry a severity level that enables routing to different channels:
 
 - **`warning`** — Informational. TLS cert expiring within `warn_days` (default 30), budget violations. Good for Slack or a low-priority channel.
-- **`critical`** — Actionable. Probe failures, TLS cert within `critical_days` (default 7). Route to PagerDuty, OpsGenie, or an on-call channel.
+- **`critical`** — Actionable. Check failures, TLS cert within `critical_days` (default 7). Route to PagerDuty, OpsGenie, or an on-call channel.
 
 Configure multiple webhook entries with different `severities` filters to fork notifications. For example, one Slack channel receives all alerts while PagerDuty only receives critical.
 
@@ -106,7 +106,7 @@ The `cert_expiring` event uses state tracking: it fires once when entering the w
 
 ### Payload formats
 
-- **Discord**: Native embed format with color-coded status (red for critical, amber for warning, green for recovery), probe details, error info, and cert expiry fields.
+- **Discord**: Native embed format with color-coded status (red for critical, amber for warning, green for recovery), check details, error info, and cert expiry fields.
 - **Slack**: Incoming webhook format with colored attachments and `[WARNING]`/`[CRITICAL]` severity prefix.
 - **Generic**: JSON object with `type`, `severity`, `check`, `probe_type`, `message`, `details`, and `timestamp` fields.
 
@@ -143,29 +143,29 @@ Alert rules are defined in `prometheus/rules.yml`. Rules are organized into warn
 
 Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP) use `avg_over_time(...[15m])` — a 15-minute rolling average that smooths transient spikes. A single bad check cannot fire an alert; the average must exceed the threshold and the `for` duration must elapse across multiple evaluation cycles.
 
-Critical-severity performance alerts additionally require **>50% of probes** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-check behavior.
+Critical-severity performance alerts additionally require **>50% of checks** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-check behavior.
 
 Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage, NTP offset) use raw values — smoothing would mask real state changes.
 
 | Category | Warning | Critical |
 |----------|---------|----------|
-| Probe health (all 13 types) | Single probe failing 3m; >25% error rate 5m | >50% error rate 10m |
-| Web Vitals (LCP/INP/CLS) | Google "needs improvement" (15m avg) | Google "poor" threshold, >50% of probes (15m avg) |
-| HTTP timing (TTFB/DNS/TLS) | Degraded (15m avg) | Functionally broken, >50% of probes (15m avg) |
-| TCP (connect/TLS) | Connect >1s, TLS >1s (15m avg) | Connect >5s / TLS >3s, >50% of probes (15m avg) |
-| DNS (probe) | Query >500ms (15m avg) | Query >2s, >50% of probes (15m avg) |
-| ICMP | Packet loss >5%, RTT >200ms | Packet loss >25%, RTT >1s (>50% of probes) |
+| Check health (all 13 types) | Single check failing 3m; >25% error rate 5m | >50% error rate 10m |
+| Web Vitals (LCP/INP/CLS) | Google "needs improvement" (15m avg) | Google "poor" threshold, >50% of checks (15m avg) |
+| HTTP timing (TTFB/DNS/TLS) | Degraded (15m avg) | Functionally broken, >50% of checks (15m avg) |
+| TCP (connect/TLS) | Connect >1s, TLS >1s (15m avg) | Connect >5s / TLS >3s, >50% of checks (15m avg) |
+| DNS (check) | Query >500ms (15m avg) | Query >2s, >50% of checks (15m avg) |
+| ICMP | Packet loss >5%, RTT >200ms | Packet loss >25%, RTT >1s (>50% of checks) |
 | NTP | Offset >±100ms | Offset >±500ms |
-| UDP | RTT >500ms (15m avg) | RTT >2s, >50% of probes (15m avg) |
+| UDP | RTT >500ms (15m avg) | RTT >2s, >50% of checks (15m avg) |
 | TLS cert expiry | <30 days | ≤7 days |
 | Domain expiry | <60 days | ≤7 days |
 | BGP / TLS invalid / domain gone | — | Immediate (binary failure) |
 | SMTP / Traceroute / gRPC | CheckFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
-SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_check_up`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have probe-specific threshold alerts.
+SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_up`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have check-specific threshold alerts.
 
-Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
+Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
 A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline.
 
@@ -249,7 +249,7 @@ Adjust days and times to match your schedule. All times are UTC.
 | Category routing | No | Yes (file or UI) | Yes (named receivers) |
 | Discord support | Native | Native | Requires bridge container |
 | Slack support | Native | Native | Native |
-| Grouping / dedup | Per-probe cooldown | Full | Full |
+| Grouping / dedup | Per-check cooldown | Full | Full |
 | Inhibit rules | No | No | Yes (4 pre-configured) |
 | Silencing | No | Yes (UI) | Yes (API/UI) |
 | Mute timings | No | Yes (file or UI) | Yes (time intervals) |

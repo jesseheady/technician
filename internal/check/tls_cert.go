@@ -121,7 +121,7 @@ func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 			(tcfg.CheckExpiry && daysRemaining <= tcfg.CriticalDays) {
 			result.Success = false
 		} else {
-			// Warn-level expiry: probe succeeds but error field carries the warning
+			// Warn-level expiry: check succeeds but error field carries the warning
 			result.Success = true
 		}
 	} else {

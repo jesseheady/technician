@@ -64,11 +64,11 @@ golint ./...
 | `internal/notify`  | Webhook delivery, state transitions |
 | `internal/status`  | Store persistence, snapshot, budget badges |
 
-Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP probes; mock or skip external dependencies (e.g. SMTP, mtr) when not available.
+Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP checks; mock or skip external dependencies (e.g. SMTP, mtr) when not available.
 
 ## End-to-end validation methods
 
-### 1. Validate command (probes + budgets)
+### 1. Validate command (checks + budgets)
 
 Runs all configured checks once and evaluates budgets. Use this in CI and for local e2e:
 
@@ -76,24 +76,24 @@ Runs all configured checks once and evaluates budgets. Use this in CI and for lo
 go run . validate --config config/technician.yml --budget config/budgets.yml
 ```
 
-- **Exit 0**: All probes ran and no budget violations.
-- **Exit 1**: One or more violations (or probe load/run failure).
+- **Exit 0**: All checks ran and no budget violations.
+- **Exit 1**: One or more violations (or check load/run failure).
 
 Use a **dedicated e2e config** that points at stable or mock targets so results are deterministic (see [Local development](mock-production.md)).
 
-### 2. Single-probe run
+### 2. Single-check run
 
-Sanity-check one probe by name:
+Sanity-check one check by name:
 
 ```bash
-go run . probe --name "Example Website" --config config/technician.yml
+go run . check --name "Example Website" --config config/technician.yml
 ```
 
 Inspect stdout for success/failure and timing fields.
 
 ### 3. Worker + metrics scrape
 
-1. Start the worker with a config that includes your probes:
+1. Start the worker with a config that includes your checks:
    ```bash
    go run . worker --config config/technician.yml -v
    ```
@@ -103,7 +103,7 @@ Inspect stdout for success/failure and timing fields.
    curl -s http://localhost:9590/metrics | grep technician_
    ```
 
-### 4. Blackbox-style probe endpoint
+### 4. Blackbox-style check endpoint
 
 Hit the `/probe` endpoint (same semantics as Prometheus blackbox_exporter):
 
@@ -131,7 +131,7 @@ Two workflows are available:
 
 **Main CI** (`.github/workflows/ci.yml`) — runs on push to `main` and PRs:
 - Build, test (race detector + coverage), lint
-- Validate probes + budgets (with and without Playwright)
+- Validate checks + budgets (with and without Playwright)
 - Docker build on main branch pushes
 
 **Canary** (`.github/workflows/canary.yml`) — runs post-deployment:

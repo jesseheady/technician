@@ -6,7 +6,7 @@ When Technician ships breaking changes to config fields, metric label names, or 
 
 Prometheus indexes every time series by its full label set. If a label name changes (say `regional` becomes `region`), Prometheus treats the new label as an entirely new series. The old series stops receiving data and ages out after your configured retention period. Any dashboards, alert rules, or recording rules that reference the old label name will silently return empty results until you update them.
 
-The local status store (`status.json`) has a similar issue. Probe results carry their labels as a `map[string]string`. When Technician restarts with new label names, it reads the old snapshot and tries to extract labels by the new keys — getting empty strings instead of the actual values. This doesn't crash anything, but metrics recorded from stale results will have blank label values until fresh probe runs replace them.
+The local status store (`status.json`) has a similar issue. Check results carry their labels as a `map[string]string`. When Technician restarts with new label names, it reads the old snapshot and tries to extract labels by the new keys — getting empty strings instead of the actual values. This doesn't crash anything, but metrics recorded from stale results will have blank label values until fresh check runs replace them.
 
 ## Before you upgrade
 

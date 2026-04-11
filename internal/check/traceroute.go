@@ -27,7 +27,7 @@ func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 	result := NewResult(cfg.Name, config.CheckTypeTraceroute, site)
 
 	if cfg.Traceroute == nil {
-		result.Error = "missing traceroute probe configuration"
+		result.Error = "missing traceroute check configuration"
 		return result
 	}
 
@@ -62,7 +62,7 @@ func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 		} else {
 			result.Error = fmt.Sprintf("running mtr: %v", err)
 		}
-		slog.Warn("Traceroute probe failed", "name", cfg.Name, "host", tcfg.Host, "error", err)
+		slog.Warn("Traceroute check failed", "name", cfg.Name, "host", tcfg.Host, "error", err)
 		return result
 	}
 
@@ -75,7 +75,7 @@ func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 	result.Hops = hops
 	result.Success = true
 
-	slog.Debug("Traceroute probe completed",
+	slog.Debug("Traceroute check completed",
 		"name", cfg.Name,
 		"host", tcfg.Host,
 		"hops", len(hops),

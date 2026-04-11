@@ -8,7 +8,7 @@ Three tiers of visualization, each with a clear owner:
 
 | Tier | Owner | What it shows | Examples |
 |------|-------|---------------|---------|
-| **Real-time operational** | Technician status page (`:9590/`) | Is it up? How fast? What failed? | Status bars, probe detail modal, group view |
+| **Real-time operational** | Technician status page (`:9590/`) | Is it up? How fast? What failed? | Status bars, check detail modal, group view |
 | **Historical trends** | Grafana dashboards | How has it performed over time? | LCP trend, uptime %, budget violation rate |
 | **Deep protocol analysis** | Playwright Trace Viewer / HAR viewers | What exactly happened in this request? | Network waterfall, DOM snapshots, console logs |
 
@@ -19,22 +19,22 @@ The goal is to avoid building a custom waterfall renderer or timeline viewer whe
 Things that belong on the built-in status page because they're real-time, operational, and don't need Grafana.
 
 ### Already built
-- Per-probe status bars with color coding (up/down/error)
-- Probe grouping by category
+- Per-check status bars with color coding (up/down/error)
+- Check grouping by category
 - Detail modal with duration, error message, timestamp
 - UTC + local time tooltips
 - Auto-refresh
 
 ### Proposed additions
 
-**Probe detail expansion** (low effort)
+**Check detail expansion** (low effort)
 - Show last N results in the modal (not just the latest)
 - Display Web Vitals inline when available (LCP, CLS, INP as colored badges)
-- Show network/device labels for Playwright probes
+- Show network/device labels for Playwright checks
 - Link to artifacts (screenshot, video, trace) when available
 
 **Artifact links** (low effort)
-- Serve artifacts from `/artifacts/{probe}/{timestamp}/` on the status page
+- Serve artifacts from `/artifacts/{check}/{timestamp}/` on the status page
 - Screenshot thumbnail in the check detail modal
 - "View trace" link that opens Playwright Trace Viewer (see Tier 3)
 - "View video" link for Playwright video recordings
@@ -61,7 +61,7 @@ Things that belong on the built-in status page because they're real-time, operat
 Things that are better as Grafana panels because they're historical, comparative, or need flexible time ranges.
 
 ### Already built
-- Uptime overview (probe status matrix, uptime %)
+- Uptime overview (check status matrix, uptime %)
 - HTTP timing breakdown (DNS, TLS, TTFB stacked)
 - Web Performance Vitals (LCP, INP, CLS gauges and trends)
 - HAR resource analysis (resource count, transfer size by type)
@@ -76,8 +76,8 @@ Things that are better as Grafana panels because they're historical, comparative
 - Panels: budget pass/fail per commit, LCP trend across deploys, regression detection
 - Annotation markers on existing dashboards showing deploy events
 
-**Probe comparison panel**
-- Side-by-side comparison of the same probe across network profiles
+**Check comparison panel**
+- Side-by-side comparison of the same check across network profiles
 - Already partially built (Desktop vs Mobile row in performance-vitals)
 - Extend to show budget threshold as a horizontal line overlay
 
@@ -87,7 +87,7 @@ Things that are better as Grafana panels because they're historical, comparative
 - Fits on uptime-overview dashboard as a new row
 
 ### What NOT to build as Grafana dashboards
-- Individual probe run detail (no good Grafana panel for "show me this one HAR")
+- Individual check run detail (no good Grafana panel for "show me this one HAR")
 - Video playback (Grafana doesn't do video)
 - Screenshot comparison (need pixel-level diff, not time-series)
 
@@ -119,7 +119,7 @@ That's ~3 lines of code. Playwright does the rest.
 
 **Option A: Static file serving (simplest)**
 - Save trace.zip to the artifacts directory per check run
-- Technician serves `/artifacts/{probe}/{timestamp}/trace.zip`
+- Technician serves `/artifacts/{check}/{timestamp}/trace.zip`
 - User downloads and runs `npx playwright show-trace trace.zip` locally
 - Or opens `https://trace.playwright.dev/` and uploads the file (Playwright's hosted viewer)
 
@@ -171,7 +171,7 @@ We already capture HAR files — just need to persist and serve them rather than
 | **2** | Artifact serving on status page (`/artifacts/`) | Low | High — makes traces/screenshots/videos accessible |
 | **3** | Screenshot capture per check run | Trivial | Medium — visual record of each check |
 | **4** | Budget badge on status page | Low | Medium — at-a-glance budget health |
-| **5** | Web Vitals display in probe modal | Low | Medium — details without leaving the page |
+| **5** | Web Vitals display in check modal | Low | Medium — details without leaving the page |
 | **6** | CI results to Prometheus (ci-runner proposal) | Medium | High — close the loop between CI and production |
 | **7** | SLO tracking Grafana panel | Low | Medium — error budget visibility |
 | **8** | Incident timeline on status page | Medium | Medium — outage history |

@@ -131,7 +131,7 @@ func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 	result.Duration = time.Since(start)
 	result.Success = true
 
-	slog.Debug("TCP probe completed",
+	slog.Debug("TCP check completed",
 		"name", cfg.Name,
 		"host", addr,
 		"duration", result.Duration,

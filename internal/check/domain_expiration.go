@@ -161,7 +161,7 @@ func (p *DomainExpirationChecker) Run(ctx context.Context, cfg *config.CheckConf
 		result.Success = true
 	}
 
-	slog.Debug("Domain expiry probe completed",
+	slog.Debug("Domain expiry check completed",
 		"name", cfg.Name,
 		"domain", dcfg.Domain,
 		"expiry", expiryDate.Format("2006-01-02"),

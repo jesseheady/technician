@@ -1,6 +1,6 @@
 # Central Prometheus and Grafana
 
-**Goal:** Run probe workers locally, in Docker, or at the edge, and have **deployed** workers send metrics to a **central Prometheus** on your private AWS VPC. Your **central Grafana** (also in the VPC or otherwise secured) is the source of record for those checks. Local Prometheus + Grafana (e.g. from `docker compose up`) remain for proving checks and running tests.
+**Goal:** Run check workers locally, in Docker, or at the edge, and have **deployed** workers send metrics to a **central Prometheus** on your private AWS VPC. Your **central Grafana** (also in the VPC or otherwise secured) is the source of record for those checks. Local Prometheus + Grafana (e.g. from `docker compose up`) remain for proving checks and running tests.
 
 ## Roles
 
@@ -9,7 +9,7 @@
 | **Local / Docker** | Prove checks, run tests, develop. Optional: push to central for ad‑hoc viewing. | Local stack only, or optional push to central (see below). |
 | **Central Prometheus (VPC)** | Single place where all **deployed** check metrics are stored. | Scrapes Technician instances that are reachable; optionally receives push from edge or local. |
 | **Central Grafana** | Source of record for dashboards and alerts for deployed checks. | Datasource = central Prometheus. |
-| **Edge (Workers / Lambda)** | Run probes from edge; no long‑lived `/metrics` to scrape. | Push to central (Pushgateway or remote‑write) when a check runs, or via an aggregator that Prometheus scrapes. |
+| **Edge (Workers / Lambda)** | Run checks from edge; no long‑lived `/metrics` to scrape. | Push to central (Pushgateway or remote‑write) when a check runs, or via an aggregator that Prometheus scrapes. |
 
 ## Getting metrics to central Prometheus
 
@@ -63,8 +63,8 @@ Technician does not push by default; you’d add a small push step (script or si
 
 Edge runs are request‑driven and don’t expose a long‑lived `/metrics` endpoint. Options:
 
-- **Push per run** – When an edge probe finishes, the Worker or Lambda pushes that probe’s metrics (e.g. in Prometheus exposition or remote‑write format) to a **Pushgateway** or **remote‑write endpoint** in your VPC (reachable from the public internet over HTTPS with auth, or via a private path if Lambda runs in the VPC).
-- **Aggregator** – A small service in the VPC is scraped by Prometheus. On a schedule (or on demand), it calls your edge probe endpoints, collects results, and exposes them as Prometheus metrics. Then central Prometheus only scrapes the aggregator.
+- **Push per run** – When an edge check finishes, the Worker or Lambda pushes that check’s metrics (e.g. in Prometheus exposition or remote‑write format) to a **Pushgateway** or **remote‑write endpoint** in your VPC (reachable from the public internet over HTTPS with auth, or via a private path if Lambda runs in the VPC).
+- **Aggregator** – A small service in the VPC is scraped by Prometheus. On a schedule (or on demand), it calls your edge check endpoints, collects results, and exposes them as Prometheus metrics. Then central Prometheus only scrapes the aggregator.
 
 In both cases, edge metrics should use the same **site identifier** convention (e.g. `infra_provider=cloudflare`, `region=IAD`) so central Grafana can filter and group like other sites. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
 
@@ -72,7 +72,7 @@ In both cases, edge metrics should use the same **site identifier** convention (
 
 - **Datasource:** Configure Grafana with a Prometheus datasource pointing at your **central Prometheus** (e.g. `http://prometheus.vpc.internal:9090` or the internal URL you use).
 - **Dashboards:** Use the same Technician dashboards (uptime, HTTP timing, budgets, etc.); they already use `region` and `check` variables, so they work with local, VPC, and (if you push) edge sites.
-- **Alerts:** Define alert rules in central Prometheus (or Grafana) so that deployed probes drive notifications. Your existing `prometheus/rules.yml` is a good base; deploy it with central Prometheus and adjust for your VPC targets.
+- **Alerts:** Define alert rules in central Prometheus (or Grafana) so that deployed checks drive notifications. Your existing `prometheus/rules.yml` is a good base; deploy it with central Prometheus and adjust for your VPC targets.
 
 ## Example: minimal central Prometheus config (VPC)
 
@@ -105,7 +105,7 @@ Replace hostnames with your real VPC DNS or IPs. Use IAM, security groups, and p
 
 - **Local/Docker:** Proves checks and tests; metrics stay in the local stack unless you add an optional push to central.
 - **Central Prometheus (VPC):** Scrapes all reachable Technician instances in your AWS footprint; optionally scrapes a Pushgateway or aggregator for edge/pushed metrics.
-- **Central Grafana:** Single source of record for deployed probes; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and infra_provider.
+- **Central Grafana:** Single source of record for deployed checks; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and infra_provider.
 - **Edge:** Push to a VPC-hosted Pushgateway or remote-write endpoint, or use an in-VPC aggregator that Prometheus scrapes, so edge results appear in central Grafana with consistent site labels.
 
 This keeps a clear split: local stack for development and validation, central Prometheus + Grafana for production reporting from deployed and edge workers.
@@ -119,7 +119,7 @@ Your current repo is: **Technician** (exposes `/metrics` on 9590), **Prometheus*
 ### What stays the same
 
 - **Technician binary and config** – Same Dockerfile, same `technician.yml` and `checks/` layout. Technician still listens on `:9590` and serves `/metrics`, `/health`, `/probe`.
-- **Probe definitions** – Same YAML (all 13 check types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
+- **Check definitions** – Same YAML (all 13 check types: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright). Ship your `config/` directory (or a production variant) into the image or mount from a config store.
 - **Prometheus rules** – Same `prometheus/rules.yml` (CheckFailing, BudgetViolation, etc.); deploy it with Prometheus in the VPC.
 - **Grafana dashboards** – Same JSON in `dashboards/`; provision them in central Grafana. Variables (`region`, `check`) already work with whatever sites you run.
 

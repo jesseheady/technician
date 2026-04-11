@@ -49,16 +49,16 @@ func runValidate(cmd *cobra.Command, args []string) error {
 
 	site := cfg.ResolveSite(siteCode)
 
-	probers := newCheckers(cfg)
+	checkers := newCheckers(cfg)
 
 	ctx := context.Background()
 	var allViolations []budget.Violation
 
 	for i := range checks {
 		pc := &checks[i]
-		checker, ok := probers[pc.Type]
+		checker, ok := checkers[pc.Type]
 		if !ok {
-			slog.Warn("No prober for type, skipping", "type", pc.Type, "name", pc.Name)
+			slog.Warn("No checker for type, skipping", "type", pc.Type, "name", pc.Name)
 			continue
 		}
 
