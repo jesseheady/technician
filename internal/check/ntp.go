@@ -51,8 +51,8 @@ func (p *NTPChecker) Type() config.CheckType {
 	return config.CheckTypeNTP
 }
 
-func (p *NTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeNTP, site)
+func (p *NTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeNTP, origin)
 
 	if cfg.NTP == nil {
 		result.Error = "missing NTP check configuration"

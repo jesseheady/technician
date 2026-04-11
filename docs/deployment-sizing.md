@@ -154,7 +154,7 @@ All components on one host. This is the `docker compose up` default:
 
 Separate concerns for reliability and geographic coverage:
 
-- **Workers**: One per region/vantage point. Each runs independently with its own `SITE_CODE`. If a worker goes down, other regions keep probing. Workers are stateless — no data loss on restart (metrics are scraped by Prometheus before they're lost).
+- **Workers**: One per region/vantage point. Each runs independently with its own `ORIGIN_ID`. If a worker goes down, other regions keep probing. Workers are stateless — no data loss on restart (metrics are scraped by Prometheus before they're lost).
 - **Prometheus + Grafana**: Central, on a single host or managed service. Should not run on the same box as a worker — if the worker's host dies, you lose your monitoring history.
 - **Alertmanager**: Alongside Prometheus. Fires notifications when `CheckFailing` or `BudgetViolation` rules trigger.
 
@@ -208,7 +208,7 @@ scp -r config/ yourserver:/etc/technician/
 ssh yourserver 'mkdir -p /var/lib/technician'
 
 # Run (or use systemd — see below)
-ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/technician.yml'
+ssh yourserver 'ORIGIN_ID=us-east-1 technician worker --config /etc/technician/technician.yml'
 ```
 
 **What you get with just the worker (no Prometheus/Grafana):**
@@ -237,7 +237,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/technician worker --config /etc/technician/technician.yml
-Environment=SITE_CODE=us-east-1
+Environment=ORIGIN_ID=us-east-1
 Restart=always
 RestartSec=5
 WorkingDirectory=/var/lib/technician
@@ -273,9 +273,9 @@ docker build -t technician .
 docker tag technician your-registry/technician:latest
 docker push your-registry/technician:latest
 
-# Deploy per region (each with its own SITE_CODE)
-# ECS: one service per region, env SITE_CODE=us-east-1
-# K8s: one Deployment per region, env SITE_CODE=eu-west-1
+# Deploy per region (each with its own ORIGIN_ID)
+# ECS: one service per region, env ORIGIN_ID=us-east-1
+# K8s: one Deployment per region, env ORIGIN_ID=eu-west-1
 ```
 
 Each instance runs `technician worker` (the Dockerfile default). Prometheus discovers them via DNS, ECS service discovery, or Kubernetes service endpoints.
@@ -574,7 +574,7 @@ Technician enforces a default limit of **500 unique check names** for metrics re
 
 1. **Consolidate check names** — If many checks target variants of the same endpoint (e.g. per-customer health checks), group them under fewer names using labels or a shared name prefix. The status page still shows individual results.
 2. **Use recording rules** — Pre-aggregate high-cardinality series in Prometheus with recording rules, then drop the raw series. This reduces storage cost without losing visibility.
-3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each check name creates up to ~33 series (across all metric types and site labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
+3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each check name creates up to ~33 series (across all metric types and origin labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
 4. **Shard by worker** — Run multiple Technician workers, each responsible for a subset of checks. Each worker has its own cardinality counter, effectively multiplying the limit.
 5. **Use metric relabeling** — Configure Prometheus `metric_relabel_configs` to drop series you don't need (e.g. HAR resource breakdowns for non-browser checks), freeing cardinality budget for more check names.
 

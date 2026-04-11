@@ -10,7 +10,7 @@ services:
       - ./config/budgets.yml:/etc/technician/budgets.yml:ro
       - technician_data:/var/lib/technician
     environment:
-      - SITE_CODE=local
+      - ORIGIN_ID=local
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9590/health"]

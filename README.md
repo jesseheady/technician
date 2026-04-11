@@ -62,11 +62,11 @@ docker compose up
 | `technician serve` | Metrics server only (no scheduling) |
 | `technician validate` | Run all checks, check budgets, exit 0/1 (CI) |
 
-Flags: `--config` / `-c` (default `technician.yml`), `--site` (or `SITE_CODE` env), `--verbose` / `-v`.
+Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID` env), `--verbose` / `-v`.
 
 ## Configuration
 
-- **Main config** — `technician.yml`: service name, sites (code, city, country, location_hash, infra_provider), metrics listen address, artifact storage, Playwright mode.
+- **Main config** — `technician.yml`: service name, sites (code, city, country, geohash, platform), metrics listen address, artifact storage, Playwright mode.
 - **Checks** — `checks/http.yml`, `checks/tcp.yml`, `checks/udp.yml`, `checks/dns.yml`, `checks/icmp.yml`, `checks/grpc.yml`, `checks/ntp.yml`, `checks/tls.yml`, `checks/smtp.yml`, `checks/traceroute.yml`, `checks/bgp.yml`, `checks/domain_expiry.yml`, `checks/playwright/playwright.yml`. Each file is a list of check definitions with name, target, schedule (cron), timeout, and retry policy.
 - **Budgets** — Optional `budgets.yml` with per-check thresholds for `validate`.
 - **Stability** — All checks support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `check_down`. See [alerting](docs/alerting.md) for details.

@@ -1,11 +1,11 @@
 service: technician-canary
 
-sites:
-  - code: ci
+origins:
+  - id: ci
     city: GitHub Actions
     country: US
-    location_hash: ci
-    infra_provider: github
+
+    platform: github
 
 metrics:
   prometheus:

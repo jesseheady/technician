@@ -108,7 +108,7 @@ type Summary struct {
 // Snapshot is the full status payload returned by the API.
 type Snapshot struct {
 	Service   string       `json:"service"`
-	Site      *SiteInfo    `json:"site,omitempty"`
+	Origin    *OriginInfo    `json:"origin,omitempty"`
 	Overall   string       `json:"overall"` // "operational", "degraded", "down"
 	Summary   Summary      `json:"summary"`
 	Types     []string     `json:"types"` // distinct check types present
@@ -117,8 +117,8 @@ type Snapshot struct {
 	UpdatedAt time.Time    `json:"updated_at"`
 }
 
-type SiteInfo struct {
-	Code    string `json:"code"`
+type OriginInfo struct {
+	ID      string `json:"id"`
 	City    string `json:"city"`
 	Country string `json:"country"`
 }
@@ -131,7 +131,7 @@ type Store struct {
 	checks  map[string]*checkRing
 	order   []string // insertion order of check names
 	service string
-	site    *SiteInfo
+	origin  *OriginInfo
 	path    string // file path for persistence; empty = no persistence
 
 	budgetMu     sync.RWMutex
@@ -184,17 +184,17 @@ func (r *checkRing) ordered() []Entry {
 
 // NewStore creates a new store. If path is non-empty, the store will persist
 // its state to that file and load any existing state on creation.
-func NewStore(service string, site *config.Site, path string) *Store {
+func NewStore(service string, origin *config.Origin, path string) *Store {
 	s := &Store{
 		checks:  make(map[string]*checkRing),
 		service: service,
 		path:    path,
 	}
-	if site != nil {
-		s.site = &SiteInfo{
-			Code:    site.Code,
-			City:    site.City,
-			Country: site.Country,
+	if origin != nil {
+		s.origin = &OriginInfo{
+			ID:      origin.ID,
+			City:    origin.City,
+			Country: origin.Country,
 		}
 	}
 	if path != "" {
@@ -345,7 +345,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 
 	snap := &Snapshot{
 		Service:   s.service,
-		Site:      s.site,
+		Origin:    s.origin,
 		UpdatedAt: time.Now(),
 	}
 

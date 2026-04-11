@@ -1,22 +1,22 @@
 service: technician
 hostname: monitor.example.com
 
-sites:
-  - code: local
+origins:
+  - id: local
     city: Local
     country: US
-    location_hash: local
-    infra_provider: docker
-  - code: us-east-1
+
+    platform: docker
+  - id: us-east-1
     city: N. Virginia
     country: US
-    location_hash: dqcjq
-    infra_provider: aws
-  - code: us-west-2
+
+    platform: aws
+  - id: us-west-2
     city: Oregon
     country: US
-    location_hash: c20y
-    infra_provider: aws
+
+    platform: aws
 
 metrics:
   prometheus:

@@ -53,9 +53,9 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	}
 
 	slog.Info("Loaded configuration",
-		"sites", len(cfg.Sites),
+		"origins", len(cfg.Origins),
 		"checks", len(checks),
-		"site", siteCode,
+		"origin", originID,
 		"listen", cfg.Metrics.Prometheus.Listen,
 	)
 
@@ -65,7 +65,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sched := scheduler.New(cfg, checks, registry, siteCode)
+	sched := scheduler.New(cfg, checks, registry, originID)
 	if err := sched.Start(ctx); err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	if dataDir == "" {
 		dataDir = "/var/lib/technician"
 	}
-	store := status.NewStore(cfg.Service, cfg.ResolveSite(siteCode), filepath.Join(dataDir, "status.json"))
+	store := status.NewStore(cfg.Service, cfg.ResolveOrigin(originID), filepath.Join(dataDir, "status.json"))
 	store.Reconcile(checks)
 
 	mux := http.NewServeMux()
@@ -107,7 +107,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	notifier := notify.NewManager(cfg.Webhooks)
 
 	// Drain results: store + budget evaluation + notifications + log
-	site := cfg.ResolveSite(siteCode)
+	origin := cfg.ResolveOrigin(originID)
 	go func() {
 		for result := range sched.Results() {
 			store.Push(result)
@@ -116,7 +116,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 
 			if len(budgets) > 0 && !result.InfraError {
 				for _, c := range budget.EvaluateAll(result, budgets) {
-					metrics.RecordBudgetViolation(c.Check, c.Metric, c.Violated, site)
+					metrics.RecordBudgetViolation(c.Check, c.Metric, c.Violated, origin)
 					crossedThreshold := store.RecordBudgetCheck(c.Check, c.Metric, c.Violated)
 					// Only send webhook when crossing the fail threshold
 					if crossedThreshold {

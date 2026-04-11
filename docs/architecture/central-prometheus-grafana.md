@@ -45,7 +45,7 @@ scrape_configs:
       #       port: 9590
 ```
 
-Each Technician instance should be started with the appropriate `SITE_CODE` (e.g. `us-east-1`, `us-west-2`) and the same `technician.yml` (or region‑specific) so labels are consistent. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
+Each Technician instance should be started with the appropriate `ORIGIN_ID` (e.g. `us-east-1`, `us-west-2`) and the same `technician.yml` (or region‑specific) so labels are consistent. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
 
 ### 2. Local or Docker workers (optional: push to central)
 
@@ -66,7 +66,7 @@ Edge runs are request‑driven and don’t expose a long‑lived `/metrics` endp
 - **Push per run** – When an edge check finishes, the Worker or Lambda pushes that check’s metrics (e.g. in Prometheus exposition or remote‑write format) to a **Pushgateway** or **remote‑write endpoint** in your VPC (reachable from the public internet over HTTPS with auth, or via a private path if Lambda runs in the VPC).
 - **Aggregator** – A small service in the VPC is scraped by Prometheus. On a schedule (or on demand), it calls your edge check endpoints, collects results, and exposes them as Prometheus metrics. Then central Prometheus only scrapes the aggregator.
 
-In both cases, edge metrics should use the same **site identifier** convention (e.g. `infra_provider=cloudflare`, `region=IAD`) so central Grafana can filter and group like other sites. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
+In both cases, edge metrics should use the same **site identifier** convention (e.g. `platform=cloudflare`, `region=IAD`) so central Grafana can filter and group like other sites. See [Site identifiers for edge and serverless](../proposals/site-identifiers-edge.md).
 
 ## Central Grafana
 
@@ -105,8 +105,8 @@ Replace hostnames with your real VPC DNS or IPs. Use IAM, security groups, and p
 
 - **Local/Docker:** Proves checks and tests; metrics stay in the local stack unless you add an optional push to central.
 - **Central Prometheus (VPC):** Scrapes all reachable Technician instances in your AWS footprint; optionally scrapes a Pushgateway or aggregator for edge/pushed metrics.
-- **Central Grafana:** Single source of record for deployed checks; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and infra_provider.
-- **Edge:** Push to a VPC-hosted Pushgateway or remote-write endpoint, or use an in-VPC aggregator that Prometheus scrapes, so edge results appear in central Grafana with consistent site labels.
+- **Central Grafana:** Single source of record for deployed checks; datasource = central Prometheus; same dashboards and alerts, keyed by `region` and platform.
+- **Edge:** Push to a VPC-hosted Pushgateway or remote-write endpoint, or use an in-VPC aggregator that Prometheus scrapes, so edge results appear in central Grafana with consistent origin labels.
 
 This keeps a clear split: local stack for development and validation, central Prometheus + Grafana for production reporting from deployed and edge workers.
 
@@ -127,14 +127,14 @@ Your current repo is: **Technician** (exposes `/metrics` on 9590), **Prometheus*
 
 | Piece | Local (compose) | In VPC |
 |-------|------------------|--------|
-| **Technician** | One container, hostname `technician`, `SITE_CODE=local`. | One or more instances (e.g. EC2, ECS), each with a **reachable hostname or IP** and **per-instance `SITE_CODE`** (e.g. `us-east-1`, `us-west-2`). Must listen on an interface Prometheus can reach (e.g. `0.0.0.0:9590`). |
+| **Technician** | One container, hostname `technician`, `ORIGIN_ID=local`. | One or more instances (e.g. EC2, ECS), each with a **reachable hostname or IP** and **per-instance `ORIGIN_ID`** (e.g. `us-east-1`, `us-west-2`). Must listen on an interface Prometheus can reach (e.g. `0.0.0.0:9590`). |
 | **Prometheus** | Scrapes `technician:9590` (compose DNS). | Scrapes **VPC hostnames or IPs** (e.g. `technician-us-east-1.private:9590`). Same `rule_files`; targets come from static config or service discovery. |
 | **Grafana** | Same network as Prometheus; datasource `http://prometheus:9090`. | Central Grafana's datasource is **central Prometheus** (e.g. `http://prometheus.private:9090`). No need to run Grafana next to each Technician. |
 
 ### Two deployment patterns
 
 **Pattern A – Full stack in VPC (mirror of compose)**  
-Run Technician + Prometheus + Grafana together in the VPC (e.g. one EC2 or ECS task per region, or a single cluster with all three). Prometheus scrape target is the Technician service hostname in that network (e.g. `technician:9590` if you keep the same service names). Good for a self-contained "single region" or "single cluster" deployment. Each Technician instance still gets its own `SITE_CODE`.
+Run Technician + Prometheus + Grafana together in the VPC (e.g. one EC2 or ECS task per region, or a single cluster with all three). Prometheus scrape target is the Technician service hostname in that network (e.g. `technician:9590` if you keep the same service names). Good for a self-contained "single region" or "single cluster" deployment. Each Technician instance still gets its own `ORIGIN_ID`.
 
 **Pattern B – Technician only in VPC, central Prometheus + Grafana**  
 Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one** Grafana elsewhere in the VPC (or in a shared observability account). Prometheus scrape config lists every Technician endpoint (by private DNS or IP). This is the central reporting model: many workers, one central Prometheus and one central Grafana.
@@ -145,7 +145,7 @@ Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one
 2. **Run Technician in the VPC** – ECS, EC2, or similar. Example (conceptual):
    - Image: your Technician image.
    - Command: `worker --config /etc/technician/technician.yml` (same as Dockerfile CMD).
-   - Env: `SITE_CODE=us-east-1` (or the region/identifier for that instance).
+   - Env: `ORIGIN_ID=us-east-1` (or the region/identifier for that instance).
    - Mount or bake in `technician.yml` and `checks/` (same structure as `config/`).
    - Listen: `0.0.0.0:9590` (default) so Prometheus in the VPC can reach it.
 3. **Networking** – Security group for Technician: allow **inbound TCP 9590** from the Prometheus server(s) (or from a load balancer / service discovery you use). No public port needed if Prometheus is in the same VPC or peered.
@@ -155,4 +155,4 @@ Run **only Technician** per region (or per AZ). Run **one** Prometheus and **one
 
 ### Summary
 
-In the VPC you keep the **same** Technician app, config format, checks, rules, and dashboards. The only operational differences are: **where** Technician runs (VPC hosts), **how** Prometheus finds it (VPC hostnames/IPs in `scrape_configs`), and **one** central Grafana using that Prometheus. The current setup is already "VPC-ready"; deployment is mostly wiring discovery and `SITE_CODE` per instance.
+In the VPC you keep the **same** Technician app, config format, checks, rules, and dashboards. The only operational differences are: **where** Technician runs (VPC hosts), **how** Prometheus finds it (VPC hostnames/IPs in `scrape_configs`), and **one** central Grafana using that Prometheus. The current setup is already "VPC-ready"; deployment is mostly wiring discovery and `ORIGIN_ID` per instance.

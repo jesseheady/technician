@@ -23,8 +23,8 @@ func (p *TLSChecker) Type() config.CheckType {
 	return config.CheckTypeTLS
 }
 
-func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTLS, site)
+func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeTLS, origin)
 
 	if cfg.TLS == nil {
 		result.Error = "missing TLS check configuration"

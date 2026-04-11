@@ -15,7 +15,7 @@ import (
 // maxCheckCardinality is the maximum number of distinct check names that will
 // be tracked as Prometheus labels. Beyond this limit, new names are ignored
 // and a warning is logged. This prevents accidental label-cardinality
-// explosion in Prometheus (each unique name × 33 metrics × site labels).
+// explosion in Prometheus (each unique name × 33 metrics × origin labels).
 const maxCheckCardinality = 500
 
 var (
@@ -465,8 +465,8 @@ func recordDomainExpiryMetrics(result *check.Result, labels labelSet) {
 	domainRegistered.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(registered)
 }
 
-func RecordBudgetViolation(checkName, metricName string, violated bool, site *config.Site) {
-	labels := siteLabelsFromSite(site)
+func RecordBudgetViolation(checkName, metricName string, violated bool, origin *config.Origin) {
+	labels := originLabels(origin)
 	v := float64(0)
 	if violated {
 		v = 1
@@ -488,13 +488,13 @@ func siteLabels(result *check.Result) labelSet {
 	}
 }
 
-func siteLabelsFromSite(site *config.Site) labelSet {
-	if site == nil {
+func originLabels(origin *config.Origin) labelSet {
+	if origin == nil {
 		return labelSet{}
 	}
 	return labelSet{
-		code:    site.Code,
-		city:    site.City,
-		country: site.Country,
+		code:    origin.ID,
+		city:    origin.City,
+		country: origin.Country,
 	}
 }

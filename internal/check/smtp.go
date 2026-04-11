@@ -21,8 +21,8 @@ func (p *SMTPChecker) Type() config.CheckType {
 	return config.CheckTypeSMTP
 }
 
-func (p *SMTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeSMTP, site)
+func (p *SMTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeSMTP, origin)
 
 	if cfg.SMTP == nil {
 		result.Error = "missing SMTP check configuration"

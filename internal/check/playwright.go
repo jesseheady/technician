@@ -48,8 +48,8 @@ type playwrightOutput struct {
 	Logs          []string   `json:"logs,omitempty"`
 }
 
-func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypePlaywright, site)
+func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypePlaywright, origin)
 
 	if cfg.Playwright == nil {
 		result.InfraError = true
