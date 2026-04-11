@@ -31,6 +31,42 @@
 {{- end -}}
 {{- end }}
 
+{{/* ── Discord (markdown) ──────────────────────────────────────
+     Use with:
+       title:   '{{ template "technician.discord.title" . }}'
+       message: '{{ template "technician.discord.message" . }}'
+*/}}
+
+{{ define "technician.discord.title" -}}
+{{ template "technician.title" . }}
+{{- end }}
+
+{{ define "technician.discord.message" -}}
+{{ range .Alerts -}}
+**{{ .Labels.alertname }}** — {{ .Labels.name }}
+> {{ .Annotations.summary }}
+{{ if .Annotations.description }}_{{ .Annotations.description }}_
+{{ end }}
+{{- end -}}
+{{- end }}
+
+{{/* ── Pushover (plain text) ─────────────────────────────────
+     Use with:
+       title:   '{{ template "technician.pushover.title" . }}'
+       message: '{{ template "technician.pushover.message" . }}'
+*/}}
+
+{{ define "technician.pushover.title" -}}
+{{ template "technician.title" . }}
+{{- end }}
+
+{{ define "technician.pushover.message" -}}
+{{ range .Alerts -}}
+{{ .Labels.alertname }} — {{ .Labels.name }}
+{{ .Annotations.summary }}
+{{ end -}}
+{{- end }}
+
 {{/* ── Email ───────────────────────────────────────────────────
      Use with:
        headers:
