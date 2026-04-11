@@ -24,7 +24,7 @@ type Config struct {
 type WebhookConfig struct {
 	URL        string        `yaml:"url"`
 	Type       string        `yaml:"type"`       // "discord", "slack", "generic"
-	Events     []string      `yaml:"events"`     // "check_down", "check_up", "budget_violation", "cert_expiring"
+	Events     []string      `yaml:"events"`     // "probe_down", "probe_up", "budget_violation", "cert_expiring"
 	Severities []string      `yaml:"severities"` // "warning", "critical" (empty = all)
 	Cooldown   time.Duration `yaml:"cooldown"`   // minimum interval between repeated notifications; default 5m
 }
@@ -98,7 +98,7 @@ func Load(path string) (*Config, error) {
 }
 
 var validWebhookTypes = map[string]bool{"discord": true, "slack": true, "generic": true}
-var validWebhookEvents = map[string]bool{"check_down": true, "check_up": true, "budget_violation": true, "cert_expiring": true}
+var validWebhookEvents = map[string]bool{"probe_down": true, "probe_up": true, "budget_violation": true, "cert_expiring": true}
 var validWebhookSeverities = map[string]bool{"warning": true, "critical": true}
 
 func validateWebhooks(webhooks []WebhookConfig) error {
@@ -165,7 +165,7 @@ func (s Site) Labels() map[string]string {
 	}
 }
 
-func ResolveChecksDir(configPath string) string {
+func ResolveProbesDir(configPath string) string {
 	dir := filepath.Dir(configPath)
-	return filepath.Join(dir, "checks")
+	return filepath.Join(dir, "probes")
 }

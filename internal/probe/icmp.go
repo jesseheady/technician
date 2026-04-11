@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"bytes"
@@ -17,26 +17,26 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-// ICMPChecker sends ICMP Echo Request packets and measures round-trip times.
+// ICMPProber sends ICMP Echo Request packets and measures round-trip times.
 //
 // ICMP requires elevated privileges on most platforms:
 //   - Linux: root or CAP_NET_RAW capability (or unprivileged ICMP via udp fallback)
 //   - macOS: the default user can send ICMP without root
-type ICMPChecker struct{}
+type ICMPProber struct{}
 
-func NewICMPChecker() *ICMPChecker {
-	return &ICMPChecker{}
+func NewICMPProber() *ICMPProber {
+	return &ICMPProber{}
 }
 
-func (p *ICMPChecker) Type() config.CheckType {
-	return config.CheckTypeICMP
+func (p *ICMPProber) Type() config.ProbeType {
+	return config.ProbeTypeICMP
 }
 
-func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeICMP, site)
+func (p *ICMPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeICMP, site)
 
 	if cfg.ICMP == nil {
-		result.Error = "missing ICMP check configuration"
+		result.Error = "missing ICMP probe configuration"
 		return result
 	}
 
@@ -156,7 +156,7 @@ func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *co
 		result.Success = true
 	}
 
-	slog.Debug("ICMP check completed",
+	slog.Debug("ICMP probe completed",
 		"name", cfg.Name,
 		"host", icfg.Host,
 		"sent", result.ICMPPacketsSent,
@@ -173,7 +173,7 @@ func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *co
 
 // sendPing sends a single ICMP Echo Request and waits for the corresponding reply.
 // It returns the round-trip time or an error if the reply was not received.
-func (p *ICMPChecker) sendPing(
+func (p *ICMPProber) sendPing(
 	ctx context.Context,
 	conn *icmp.PacketConn,
 	dst *net.IPAddr,

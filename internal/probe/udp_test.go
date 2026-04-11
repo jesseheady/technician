@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -33,16 +33,16 @@ func startUDPEcho(t *testing.T) (*net.UDPAddr, func()) {
 	return addr, func() { conn.Close() }
 }
 
-func TestUDPCheckerSuccess(t *testing.T) {
+func TestUDPProberSuccess(t *testing.T) {
 	addr, cleanup := startUDPEcho(t)
 	defer cleanup()
 
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-success",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 5 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host: "127.0.0.1",
 			Port: addr.Port,
 			Send: "PING",
@@ -66,16 +66,16 @@ func TestUDPCheckerSuccess(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerExpectRecv(t *testing.T) {
+func TestUDPProberExpectRecv(t *testing.T) {
 	addr, cleanup := startUDPEcho(t)
 	defer cleanup()
 
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-expect",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 5 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:       "127.0.0.1",
 			Port:       addr.Port,
 			Send:       "HELLO",
@@ -90,16 +90,16 @@ func TestUDPCheckerExpectRecv(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerExpectRecvFail(t *testing.T) {
+func TestUDPProberExpectRecvFail(t *testing.T) {
 	addr, cleanup := startUDPEcho(t)
 	defer cleanup()
 
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-expect-fail",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 5 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:       "127.0.0.1",
 			Port:       addr.Port,
 			Send:       "WRONG",
@@ -117,16 +117,16 @@ func TestUDPCheckerExpectRecvFail(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerNoResponseExpected(t *testing.T) {
+func TestUDPProberNoResponseExpected(t *testing.T) {
 	// Send to a port with no listener. With expect_response=false,
 	// fire-and-forget should succeed.
-	prober := NewUDPChecker()
+	prober := NewUDPProber()
 	expectResponse := false
-	cfg := &config.CheckConfig{
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-no-response",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 2 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:           "127.0.0.1",
 			Port:           19999,
 			Send:           "test.metric:1|c",
@@ -141,15 +141,15 @@ func TestUDPCheckerNoResponseExpected(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerTimeoutExpectingResponse(t *testing.T) {
+func TestUDPProberTimeoutExpectingResponse(t *testing.T) {
 	// Send to a port with no listener, expecting a response — should timeout.
 	// Use a high port that's unlikely to have a listener.
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-timeout",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 1 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host: "127.0.0.1",
 			Port: 19998,
 			Send: "PING",
@@ -163,16 +163,16 @@ func TestUDPCheckerTimeoutExpectingResponse(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerSendHex(t *testing.T) {
+func TestUDPProberSendHex(t *testing.T) {
 	addr, cleanup := startUDPEcho(t)
 	defer cleanup()
 
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-hex",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 5 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:    "127.0.0.1",
 			Port:    addr.Port,
 			SendHex: "48454c4c4f", // "HELLO" in hex
@@ -189,13 +189,13 @@ func TestUDPCheckerSendHex(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerInvalidHex(t *testing.T) {
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+func TestUDPProberInvalidHex(t *testing.T) {
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-bad-hex",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 2 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:    "127.0.0.1",
 			Port:    1234,
 			SendHex: "ZZZZ",
@@ -209,11 +209,11 @@ func TestUDPCheckerInvalidHex(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerMissingConfig(t *testing.T) {
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+func TestUDPProberMissingConfig(t *testing.T) {
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name: "test-udp-nil",
-		Type: config.CheckTypeUDP,
+		Type: config.ProbeTypeUDP,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -221,18 +221,18 @@ func TestUDPCheckerMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil UDP config")
 	}
-	if result.Error != "missing UDP check configuration" {
+	if result.Error != "missing UDP probe configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestUDPCheckerMissingPayload(t *testing.T) {
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+func TestUDPProberMissingPayload(t *testing.T) {
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-no-payload",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 2 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host: "127.0.0.1",
 			Port: 1234,
 		},
@@ -248,7 +248,7 @@ func TestUDPCheckerMissingPayload(t *testing.T) {
 	}
 }
 
-func TestUDPCheckerIPv4(t *testing.T) {
+func TestUDPProberIPv4(t *testing.T) {
 	conn, err := net.ListenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start udp4 listener: %v", err)
@@ -267,12 +267,12 @@ func TestUDPCheckerIPv4(t *testing.T) {
 		}
 	}()
 
-	prober := NewUDPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewUDPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-udp-ipv4",
-		Type:    config.CheckTypeUDP,
+		Type:    config.ProbeTypeUDP,
 		Timeout: 5 * time.Second,
-		UDP: &config.UDPCheckConfig{
+		UDP: &config.UDPProbeConfig{
 			Host:      "127.0.0.1",
 			Port:      addr.Port,
 			IPVersion: "4",

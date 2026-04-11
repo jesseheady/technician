@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -13,21 +13,21 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-type TLSChecker struct{}
+type TLSProber struct{}
 
-func NewTLSChecker() *TLSChecker {
-	return &TLSChecker{}
+func NewTLSProber() *TLSProber {
+	return &TLSProber{}
 }
 
-func (p *TLSChecker) Type() config.CheckType {
-	return config.CheckTypeTLS
+func (p *TLSProber) Type() config.ProbeType {
+	return config.ProbeTypeTLS
 }
 
-func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTLS, site)
+func (p *TLSProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeTLS, site)
 
 	if cfg.TLS == nil {
-		result.Error = "missing TLS check configuration"
+		result.Error = "missing TLS probe configuration"
 		return result
 	}
 
@@ -59,7 +59,7 @@ func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 
 	// Use InsecureSkipVerify so the handshake completes even with self-signed
 	// or otherwise invalid certificates. We inspect and validate the chain
-	// manually afterward — a cert monitoring check needs to see the cert
+	// manually afterward — a cert monitoring probe needs to see the cert
 	// even when the chain is broken.
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         hostname,
@@ -121,14 +121,14 @@ func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 			(tcfg.CheckExpiry && daysRemaining <= tcfg.CriticalDays) {
 			result.Success = false
 		} else {
-			// Warn-level expiry: check succeeds but error field carries the warning
+			// Warn-level expiry: probe succeeds but error field carries the warning
 			result.Success = true
 		}
 	} else {
 		result.Success = true
 	}
 
-	slog.Debug("TLS check completed",
+	slog.Debug("TLS probe completed",
 		"name", cfg.Name,
 		"host", host,
 		"subject", result.CertSubject,

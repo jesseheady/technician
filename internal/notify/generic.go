@@ -23,8 +23,8 @@ func NewGenericSender(url string) *GenericSender {
 type genericPayload struct {
 	Type      string            `json:"type"`
 	Severity  string            `json:"severity,omitempty"`
-	Check     string            `json:"check"`
-	CheckType string            `json:"probe_type,omitempty"`
+	Probe     string            `json:"probe"`
+	ProbeType string            `json:"probe_type,omitempty"`
 	Message   string            `json:"message"`
 	Details   map[string]string `json:"details,omitempty"`
 	Timestamp time.Time         `json:"timestamp"`
@@ -34,8 +34,8 @@ func (g *GenericSender) Send(ctx context.Context, event Event) error {
 	payload := genericPayload{
 		Type:      string(event.Type),
 		Severity:  string(event.Severity),
-		Check:     event.Check,
-		CheckType: string(event.CheckType),
+		Probe:     event.Probe,
+		ProbeType: string(event.ProbeType),
 		Message:   event.Message,
 		Details:   event.Details,
 		Timestamp: event.Timestamp,

@@ -8,7 +8,7 @@ import (
 
 func TestBlackboxHandlerMissingTarget(t *testing.T) {
 	handler := NewBlackboxHandler()
-	req := httptest.NewRequest("GET", "/check", nil)
+	req := httptest.NewRequest("GET", "/probe", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -53,8 +53,8 @@ func TestBlackboxHandlerHTTP(t *testing.T) {
 	}
 }
 
-func TestBuildCheckConfigHTTP(t *testing.T) {
-	cfg := buildCheckConfig("https://example.com", "http_2xx")
+func TestBuildProbeConfigHTTP(t *testing.T) {
+	cfg := buildProbeConfig("https://example.com", "http_2xx")
 	if cfg.HTTP == nil {
 		t.Fatal("expected HTTP config")
 	}
@@ -63,8 +63,8 @@ func TestBuildCheckConfigHTTP(t *testing.T) {
 	}
 }
 
-func TestBuildCheckConfigSMTP(t *testing.T) {
-	cfg := buildCheckConfig("mail.example.com", "smtp")
+func TestBuildProbeConfigSMTP(t *testing.T) {
+	cfg := buildProbeConfig("mail.example.com", "smtp")
 	if cfg.SMTP == nil {
 		t.Fatal("expected SMTP config")
 	}

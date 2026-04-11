@@ -5,25 +5,25 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/probe"
 	"gopkg.in/yaml.v3"
 )
 
 type Budget struct {
-	Check      string             `yaml:"check"`
+	Probe      string             `yaml:"probe"`
 	Thresholds map[string]float64 `yaml:"thresholds"`
 	AlertOn    string             `yaml:"alert_on"`
 }
 
 type Violation struct {
-	Check     string
+	Probe     string
 	Metric    string
 	Threshold float64
 	Actual    float64
 }
 
 func (v Violation) String() string {
-	return fmt.Sprintf("%s: %s = %.2f (threshold: %.2f)", v.Check, v.Metric, v.Actual, v.Threshold)
+	return fmt.Sprintf("%s: %s = %.2f (threshold: %.2f)", v.Probe, v.Metric, v.Actual, v.Threshold)
 }
 
 func LoadBudgets(path string) ([]Budget, error) {
@@ -56,19 +56,19 @@ func LoadBudgetsFromDir(configPath string) ([]Budget, error) {
 
 // CheckResult represents a single budget metric check (pass or fail).
 type CheckResult struct {
-	Check     string
+	Probe     string
 	Metric    string
 	Threshold float64
 	Actual    float64
 	Violated  bool
 }
 
-func Evaluate(result *check.Result, budgets []Budget) []Violation {
+func Evaluate(result *probe.Result, budgets []Budget) []Violation {
 	var violations []Violation
 	for _, c := range EvaluateAll(result, budgets) {
 		if c.Violated {
 			violations = append(violations, Violation{
-				Check:     c.Check,
+				Probe:     c.Probe,
 				Metric:    c.Metric,
 				Threshold: c.Threshold,
 				Actual:    c.Actual,
@@ -80,11 +80,11 @@ func Evaluate(result *check.Result, budgets []Budget) []Violation {
 
 // EvaluateAll returns a CheckResult for every applicable budget metric,
 // including passing checks (Violated=false).
-func EvaluateAll(result *check.Result, budgets []Budget) []CheckResult {
+func EvaluateAll(result *probe.Result, budgets []Budget) []CheckResult {
 	var checks []CheckResult
 
 	for _, budget := range budgets {
-		if budget.Check != "*" && budget.Check != result.Name {
+		if budget.Probe != "*" && budget.Probe != result.Name {
 			continue
 		}
 
@@ -96,7 +96,7 @@ func EvaluateAll(result *check.Result, budgets []Budget) []CheckResult {
 				continue
 			}
 			checks = append(checks, CheckResult{
-				Check:     result.Name,
+				Probe:     result.Name,
 				Metric:    metric,
 				Threshold: threshold,
 				Actual:    actual,
@@ -108,7 +108,7 @@ func EvaluateAll(result *check.Result, budgets []Budget) []CheckResult {
 	return checks
 }
 
-func extractMetrics(result *check.Result) map[string]float64 {
+func extractMetrics(result *probe.Result) map[string]float64 {
 	m := map[string]float64{
 		"duration": float64(result.Duration.Milliseconds()),
 	}
