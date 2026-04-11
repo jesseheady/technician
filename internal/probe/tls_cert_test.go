@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -74,18 +74,18 @@ func startTLSServer(t *testing.T, cert tls.Certificate) net.Listener {
 	return ln
 }
 
-func TestTLSCheckerSuccess(t *testing.T) {
+func TestTLSProberSuccess(t *testing.T) {
 	cert := newTestCert(t, "localhost", time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 	ln := startTLSServer(t, cert)
 	defer ln.Close()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-tls-success",
-		Type:    config.CheckTypeTLS,
+		Type:    config.ProbeTypeTLS,
 		Timeout: 5 * time.Second,
-		TLS: &config.TLSCheckConfig{
+		TLS: &config.TLSProbeConfig{
 			Host:         net.JoinHostPort("localhost", itoa(addr.Port)),
 			CheckExpiry:  true,
 			WarnDays:     30,
@@ -120,18 +120,18 @@ func TestTLSCheckerSuccess(t *testing.T) {
 	}
 }
 
-func TestTLSCheckerExpiredCert(t *testing.T) {
+func TestTLSProberExpiredCert(t *testing.T) {
 	cert := newTestCert(t, "localhost", time.Now().Add(-48*time.Hour), time.Now().Add(-24*time.Hour))
 	ln := startTLSServer(t, cert)
 	defer ln.Close()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-tls-expired",
-		Type:    config.CheckTypeTLS,
+		Type:    config.ProbeTypeTLS,
 		Timeout: 5 * time.Second,
-		TLS: &config.TLSCheckConfig{
+		TLS: &config.TLSProbeConfig{
 			Host:         net.JoinHostPort("localhost", itoa(addr.Port)),
 			CheckExpiry:  true,
 			WarnDays:     30,
@@ -151,19 +151,19 @@ func TestTLSCheckerExpiredCert(t *testing.T) {
 	}
 }
 
-func TestTLSCheckerCriticalExpiry(t *testing.T) {
+func TestTLSProberCriticalExpiry(t *testing.T) {
 	// Cert that expires in 3 days (within critical threshold of 7)
 	cert := newTestCert(t, "localhost", time.Now().Add(-time.Hour), time.Now().Add(3*24*time.Hour))
 	ln := startTLSServer(t, cert)
 	defer ln.Close()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-tls-critical",
-		Type:    config.CheckTypeTLS,
+		Type:    config.ProbeTypeTLS,
 		Timeout: 5 * time.Second,
-		TLS: &config.TLSCheckConfig{
+		TLS: &config.TLSProbeConfig{
 			Host:         net.JoinHostPort("localhost", itoa(addr.Port)),
 			CheckExpiry:  true,
 			WarnDays:     30,
@@ -182,13 +182,13 @@ func TestTLSCheckerCriticalExpiry(t *testing.T) {
 	}
 }
 
-func TestTLSCheckerConnectionRefused(t *testing.T) {
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+func TestTLSProberConnectionRefused(t *testing.T) {
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-tls-refused",
-		Type:    config.CheckTypeTLS,
+		Type:    config.ProbeTypeTLS,
 		Timeout: 2 * time.Second,
-		TLS: &config.TLSCheckConfig{
+		TLS: &config.TLSProbeConfig{
 			Host:         "127.0.0.1:1",
 			CheckExpiry:  true,
 			WarnDays:     30,
@@ -206,11 +206,11 @@ func TestTLSCheckerConnectionRefused(t *testing.T) {
 	}
 }
 
-func TestTLSCheckerMissingConfig(t *testing.T) {
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+func TestTLSProberMissingConfig(t *testing.T) {
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name: "test-tls-nil",
-		Type: config.CheckTypeTLS,
+		Type: config.ProbeTypeTLS,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -218,20 +218,20 @@ func TestTLSCheckerMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil TLS config")
 	}
-	if result.Error != "missing TLS check configuration" {
+	if result.Error != "missing TLS probe configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestTLSCheckerDefaultPort(t *testing.T) {
+func TestTLSProberDefaultPort(t *testing.T) {
 	// Just verify no panic when port is omitted — connection will fail
-	// but the checkr should handle it gracefully
-	prober := NewTLSChecker()
-	cfg := &config.CheckConfig{
+	// but the prober should handle it gracefully
+	prober := NewTLSProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-tls-default-port",
-		Type:    config.CheckTypeTLS,
+		Type:    config.ProbeTypeTLS,
 		Timeout: 2 * time.Second,
-		TLS: &config.TLSCheckConfig{
+		TLS: &config.TLSProbeConfig{
 			Host:         "192.0.2.1", // TEST-NET, won't connect
 			CheckExpiry:  true,
 			WarnDays:     30,
@@ -248,10 +248,10 @@ func TestTLSCheckerDefaultPort(t *testing.T) {
 	}
 }
 
-func TestTLSCheckerType(t *testing.T) {
-	prober := NewTLSChecker()
-	if prober.Type() != config.CheckTypeTLS {
-		t.Errorf("expected type %q, got %q", config.CheckTypeTLS, prober.Type())
+func TestTLSProberType(t *testing.T) {
+	prober := NewTLSProber()
+	if prober.Type() != config.ProbeTypeTLS {
+		t.Errorf("expected type %q, got %q", config.ProbeTypeTLS, prober.Type())
 	}
 }
 

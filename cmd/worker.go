@@ -23,7 +23,7 @@ import (
 
 var workerCmd = &cobra.Command{
 	Use:   "worker",
-	Short: "Run as a long-running worker with scheduled checks and /metrics endpoint",
+	Short: "Run as a long-running worker with scheduled probes and /metrics endpoint",
 	RunE:  runWorker,
 }
 
@@ -37,11 +37,11 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksDir := config.ResolveChecksDir(cfgFile)
-	checks, err := config.LoadChecks(checksDir)
+	probesDir := config.ResolveProbesDir(cfgFile)
+	probes, err := config.LoadProbes(probesDir)
 	if err != nil {
-		slog.Warn("No checks loaded", "error", err)
-		checks = nil
+		slog.Warn("No probes loaded", "error", err)
+		probes = nil
 	}
 
 	// Load budgets (optional — not an error if missing)
@@ -54,18 +54,18 @@ func runWorker(cmd *cobra.Command, args []string) error {
 
 	slog.Info("Loaded configuration",
 		"sites", len(cfg.Sites),
-		"checks", len(checks),
+		"probes", len(probes),
 		"site", siteCode,
 		"listen", cfg.Metrics.Prometheus.Listen,
 	)
 
-	registry := scheduler.NewCheckerRegistry()
-	registry.RegisterMap(newCheckers(cfg))
+	registry := scheduler.NewProberRegistry()
+	registry.RegisterMap(newProbers(cfg))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sched := scheduler.New(cfg, checks, registry, siteCode)
+	sched := scheduler.New(cfg, probes, registry, siteCode)
 	if err := sched.Start(ctx); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		dataDir = "/var/lib/technician"
 	}
 	store := status.NewStore(cfg.Service, cfg.ResolveSite(siteCode), filepath.Join(dataDir, "status.json"))
-	store.Reconcile(checks)
+	store.Reconcile(probes)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
@@ -116,15 +116,15 @@ func runWorker(cmd *cobra.Command, args []string) error {
 
 			if len(budgets) > 0 && !result.InfraError {
 				for _, c := range budget.EvaluateAll(result, budgets) {
-					metrics.RecordBudgetViolation(c.Check, c.Metric, c.Violated, site)
-					crossedThreshold := store.RecordBudgetCheck(c.Check, c.Metric, c.Violated)
+					metrics.RecordBudgetViolation(c.Probe, c.Metric, c.Violated, site)
+					crossedThreshold := store.RecordBudgetCheck(c.Probe, c.Metric, c.Violated)
 					// Only send webhook when crossing the fail threshold
 					if crossedThreshold {
-						notifier.HandleBudgetViolation(ctx, c.Check, c.Metric, true)
+						notifier.HandleBudgetViolation(ctx, c.Probe, c.Metric, true)
 					}
 					if c.Violated {
 						slog.Warn("Budget violation",
-							"check", c.Check,
+							"probe", c.Probe,
 							"metric", c.Metric,
 							"actual", c.Actual,
 							"threshold", c.Threshold,
@@ -137,7 +137,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 			if !result.Success {
 				level = slog.LevelWarn
 			}
-			slog.Log(ctx, level, "Check result",
+			slog.Log(ctx, level, "Probe result",
 				"name", result.Name,
 				"type", result.Type,
 				"success", result.Success,

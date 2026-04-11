@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"bytes"
@@ -13,18 +13,18 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-type TracerouteChecker struct{}
+type TracerouteProber struct{}
 
-func NewTracerouteChecker() *TracerouteChecker {
-	return &TracerouteChecker{}
+func NewTracerouteProber() *TracerouteProber {
+	return &TracerouteProber{}
 }
 
-func (p *TracerouteChecker) Type() config.CheckType {
-	return config.CheckTypeTraceroute
+func (p *TracerouteProber) Type() config.ProbeType {
+	return config.ProbeTypeTraceroute
 }
 
-func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTraceroute, site)
+func (p *TracerouteProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeTraceroute, site)
 
 	if cfg.Traceroute == nil {
 		result.Error = "missing traceroute probe configuration"
@@ -62,7 +62,7 @@ func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 		} else {
 			result.Error = fmt.Sprintf("running mtr: %v", err)
 		}
-		slog.Warn("Traceroute check failed", "name", cfg.Name, "host", tcfg.Host, "error", err)
+		slog.Warn("Traceroute probe failed", "name", cfg.Name, "host", tcfg.Host, "error", err)
 		return result
 	}
 
@@ -75,7 +75,7 @@ func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 	result.Hops = hops
 	result.Success = true
 
-	slog.Debug("Traceroute check completed",
+	slog.Debug("Traceroute probe completed",
 		"name", cfg.Name,
 		"host", tcfg.Host,
 		"hops", len(hops),

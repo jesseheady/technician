@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -12,20 +12,20 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-type DNSChecker struct {
+type DNSProber struct {
 	mu        sync.Mutex
 	resolvers map[string]*net.Resolver // keyed by DNS server address
 }
 
-func NewDNSChecker() *DNSChecker {
-	return &DNSChecker{
+func NewDNSProber() *DNSProber {
+	return &DNSProber{
 		resolvers: make(map[string]*net.Resolver),
 	}
 }
 
 // getResolver returns a cached *net.Resolver for the given DNS server address,
-// reusing the resolver across check runs to benefit from connection reuse.
-func (p *DNSChecker) getResolver(server string) *net.Resolver {
+// reusing the resolver across probe runs to benefit from connection reuse.
+func (p *DNSProber) getResolver(server string) *net.Resolver {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if r, ok := p.resolvers[server]; ok {
@@ -42,15 +42,15 @@ func (p *DNSChecker) getResolver(server string) *net.Resolver {
 	return r
 }
 
-func (p *DNSChecker) Type() config.CheckType {
-	return config.CheckTypeDNS
+func (p *DNSProber) Type() config.ProbeType {
+	return config.ProbeTypeDNS
 }
 
-func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeDNS, site)
+func (p *DNSProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeDNS, site)
 
 	if cfg.DNS == nil {
-		result.Error = "missing DNS check configuration"
+		result.Error = "missing DNS probe configuration"
 		return result
 	}
 
@@ -180,7 +180,7 @@ func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 
 	result.Success = true
 
-	slog.Debug("DNS check completed",
+	slog.Debug("DNS probe completed",
 		"name", cfg.Name,
 		"domain", domain,
 		"server", dcfg.Server,

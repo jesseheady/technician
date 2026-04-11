@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -13,28 +13,28 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-type PlaywrightChecker struct {
+type PlaywrightProber struct {
 	RunnerPath  string
 	browserSem  chan struct{} // limits concurrent Chromium instances
 	maxBrowsers int
 }
 
-// NewPlaywrightChecker creates a Playwright checker with a concurrency limit.
+// NewPlaywrightProber creates a Playwright prober with a concurrency limit.
 // maxBrowsers controls how many Chromium instances can run simultaneously.
 // If maxBrowsers <= 0, it defaults to 2.
-func NewPlaywrightChecker(runnerPath string, maxBrowsers int) *PlaywrightChecker {
+func NewPlaywrightProber(runnerPath string, maxBrowsers int) *PlaywrightProber {
 	if maxBrowsers <= 0 {
 		maxBrowsers = 2
 	}
-	return &PlaywrightChecker{
+	return &PlaywrightProber{
 		RunnerPath:  runnerPath,
 		browserSem:  make(chan struct{}, maxBrowsers),
 		maxBrowsers: maxBrowsers,
 	}
 }
 
-func (p *PlaywrightChecker) Type() config.CheckType {
-	return config.CheckTypePlaywright
+func (p *PlaywrightProber) Type() config.ProbeType {
+	return config.ProbeTypePlaywright
 }
 
 type playwrightOutput struct {
@@ -48,12 +48,12 @@ type playwrightOutput struct {
 	Logs          []string   `json:"logs,omitempty"`
 }
 
-func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypePlaywright, site)
+func (p *PlaywrightProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypePlaywright, site)
 
 	if cfg.Playwright == nil {
 		result.InfraError = true
-		result.Error = "missing Playwright check configuration"
+		result.Error = "missing Playwright probe configuration"
 		return result
 	}
 
@@ -73,7 +73,7 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 	case <-ctx.Done():
 		result.InfraError = true
 		result.Error = fmt.Sprintf("timed out waiting for browser slot (%d/%d in use)", len(p.browserSem), p.maxBrowsers)
-		slog.Warn("Playwright check queued too long", "name", cfg.Name, "max_browsers", p.maxBrowsers)
+		slog.Warn("Playwright probe queued too long", "name", cfg.Name, "max_browsers", p.maxBrowsers)
 		return result
 	}
 
@@ -116,7 +116,7 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 		} else {
 			result.Error = fmt.Sprintf("running playwright: %v", err)
 		}
-		slog.Warn("Playwright check infra error", "name", cfg.Name, "error", result.Error)
+		slog.Warn("Playwright probe infra error", "name", cfg.Name, "error", result.Error)
 		return result
 	}
 
@@ -144,7 +144,7 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, si
 		result.Error = pwOutput.Error
 	}
 
-	slog.Debug("Playwright check completed",
+	slog.Debug("Playwright probe completed",
 		"name", cfg.Name,
 		"success", result.Success,
 		"duration", result.Duration,

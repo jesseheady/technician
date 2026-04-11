@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -10,19 +10,19 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-func TestHTTPCheckerHeaderContains(t *testing.T) {
+func TestHTTPProberHeaderContains(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Custom", "hello-world")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-header-contains",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -45,19 +45,19 @@ func TestHTTPCheckerHeaderContains(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerHeaderContainsFail(t *testing.T) {
+func TestHTTPProberHeaderContainsFail(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Custom", "nope")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-header-contains-fail",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -77,19 +77,19 @@ func TestHTTPCheckerHeaderContainsFail(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerHeaderNotContains(t *testing.T) {
+func TestHTTPProberHeaderNotContains(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Custom", "production")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-header-not-contains",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -112,19 +112,19 @@ func TestHTTPCheckerHeaderNotContains(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerHeaderRegex(t *testing.T) {
+func TestHTTPProberHeaderRegex(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Version", "v2.5.1")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-header-regex",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -147,19 +147,19 @@ func TestHTTPCheckerHeaderRegex(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerHeaderRegexFail(t *testing.T) {
+func TestHTTPProberHeaderRegexFail(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Version", "latest")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-header-regex-fail",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:            server.URL,
 			Method:         "GET",
 			ExpectedStatus: 200,
@@ -179,7 +179,7 @@ func TestHTTPCheckerHeaderRegexFail(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerFollowRedirects(t *testing.T) {
+func TestHTTPProberFollowRedirects(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/target", http.StatusMovedPermanently)
@@ -191,12 +191,12 @@ func TestHTTPCheckerFollowRedirects(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-follow-redirects",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:             server.URL,
 			Method:          "GET",
 			ExpectedStatus:  200,
@@ -214,7 +214,7 @@ func TestHTTPCheckerFollowRedirects(t *testing.T) {
 	}
 }
 
-func TestHTTPCheckerNoFollowRedirects(t *testing.T) {
+func TestHTTPProberNoFollowRedirects(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/target", http.StatusMovedPermanently)
@@ -226,12 +226,12 @@ func TestHTTPCheckerNoFollowRedirects(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	prober := NewHTTPChecker()
-	cfg := &config.CheckConfig{
+	prober := NewHTTPProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-no-follow-redirects",
-		Type:    config.CheckTypeHTTP,
+		Type:    config.ProbeTypeHTTP,
 		Timeout: 5 * time.Second,
-		HTTP: &config.HTTPCheckConfig{
+		HTTP: &config.HTTPProbeConfig{
 			URL:             server.URL,
 			Method:          "GET",
 			ExpectedStatus:  301,

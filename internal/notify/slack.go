@@ -34,7 +34,7 @@ type slackAttachment struct {
 func (s *SlackSender) Send(ctx context.Context, event Event) error {
 	color := "#ff0000" // default: red (critical)
 	switch {
-	case event.Type == EventCheckUp:
+	case event.Type == EventProbeUp:
 		color = "#00ff00"
 	case event.Severity == SeverityWarning:
 		color = "#f5a623"

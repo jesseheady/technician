@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -13,21 +13,21 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-type TCPChecker struct{}
+type TCPProber struct{}
 
-func NewTCPChecker() *TCPChecker {
-	return &TCPChecker{}
+func NewTCPProber() *TCPProber {
+	return &TCPProber{}
 }
 
-func (p *TCPChecker) Type() config.CheckType {
-	return config.CheckTypeTCP
+func (p *TCPProber) Type() config.ProbeType {
+	return config.ProbeTypeTCP
 }
 
-func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTCP, site)
+func (p *TCPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeTCP, site)
 
 	if cfg.TCP == nil {
-		result.Error = "missing TCP check configuration"
+		result.Error = "missing TCP probe configuration"
 		return result
 	}
 
@@ -131,7 +131,7 @@ func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 	result.Duration = time.Since(start)
 	result.Success = true
 
-	slog.Debug("TCP check completed",
+	slog.Debug("TCP probe completed",
 		"name", cfg.Name,
 		"host", addr,
 		"duration", result.Duration,

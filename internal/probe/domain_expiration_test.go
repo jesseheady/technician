@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -9,18 +9,18 @@ import (
 	"github.com/m0nkey/technician/internal/config"
 )
 
-func TestDomainExpirationCheckerType(t *testing.T) {
-	prober := NewDomainExpirationChecker()
-	if prober.Type() != config.CheckTypeDomainExpiry {
-		t.Errorf("expected type %q, got %q", config.CheckTypeDomainExpiry, prober.Type())
+func TestDomainExpirationProberType(t *testing.T) {
+	prober := NewDomainExpirationProber()
+	if prober.Type() != config.ProbeTypeDomainExpiry {
+		t.Errorf("expected type %q, got %q", config.ProbeTypeDomainExpiry, prober.Type())
 	}
 }
 
-func TestDomainExpirationCheckerMissingConfig(t *testing.T) {
-	prober := NewDomainExpirationChecker()
-	cfg := &config.CheckConfig{
+func TestDomainExpirationProberMissingConfig(t *testing.T) {
+	prober := NewDomainExpirationProber()
+	cfg := &config.ProbeConfig{
 		Name: "test-domain-expiry-nil",
-		Type: config.CheckTypeDomainExpiry,
+		Type: config.ProbeTypeDomainExpiry,
 	}
 
 	result := prober.Run(context.Background(), cfg, nil)
@@ -28,21 +28,21 @@ func TestDomainExpirationCheckerMissingConfig(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for nil DomainExpiry config")
 	}
-	if result.Error != "missing domain expiration check configuration" {
+	if result.Error != "missing domain expiration probe configuration" {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }
 
-func TestDomainExpirationCheckerCancelledContext(t *testing.T) {
+func TestDomainExpirationProberCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	prober := NewDomainExpirationChecker()
-	cfg := &config.CheckConfig{
+	prober := NewDomainExpirationProber()
+	cfg := &config.ProbeConfig{
 		Name:    "test-domain-expiry-cancelled",
-		Type:    config.CheckTypeDomainExpiry,
+		Type:    config.ProbeTypeDomainExpiry,
 		Timeout: 5 * time.Second,
-		DomainExpiry: &config.DomainExpirationCheckConfig{
+		DomainExpiry: &config.DomainExpirationProbeConfig{
 			Domain:       "example.com",
 			WarnDays:     30,
 			CriticalDays: 7,

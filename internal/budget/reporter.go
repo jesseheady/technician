@@ -42,7 +42,7 @@ func NewJSONReporter(w io.Writer) *JSONReporter {
 }
 
 type jsonViolation struct {
-	Check     string  `json:"check"`
+	Probe     string  `json:"probe"`
 	Metric    string  `json:"metric"`
 	Threshold float64 `json:"threshold"`
 	Actual    float64 `json:"actual"`
@@ -61,7 +61,7 @@ func (r *JSONReporter) Report(violations []Violation) error {
 	}
 	for i, v := range violations {
 		report.Violations[i] = jsonViolation{
-			Check:     v.Check,
+			Probe:     v.Probe,
 			Metric:    v.Metric,
 			Threshold: v.Threshold,
 			Actual:    v.Actual,

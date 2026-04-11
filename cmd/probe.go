@@ -10,34 +10,34 @@ import (
 	"time"
 
 	"github.com/m0nkey/technician/internal/config"
-	"github.com/m0nkey/technician/internal/check"
+	"github.com/m0nkey/technician/internal/probe"
 	"github.com/spf13/cobra"
 )
 
 var (
-	checkName   string
-	checkOutput string
+	probeName   string
+	probeOutput string
 )
 
-var checkCmd = &cobra.Command{
-	Use:  "check",
-	Short: "Run checks",
+var probeCmd = &cobra.Command{
+	Use:   "probe",
+	Short: "Run probes",
 }
 
-var checkRunCmd = &cobra.Command{
+var probeRunCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run a single check or all checks and output results",
-	RunE:  runCheck,
+	Short: "Run a single probe or all probes and output results",
+	RunE:  runProbe,
 }
 
 func init() {
-	checkRunCmd.Flags().StringVar(&checkName, "check", "", "check name to run (runs all if empty)")
-	checkRunCmd.Flags().StringVarP(&checkOutput, "output", "o", "text", "output format: text, json")
-	checkCmd.AddCommand(checkRunCmd)
-	rootCmd.AddCommand(checkCmd)
+	probeRunCmd.Flags().StringVar(&probeName, "probe", "", "probe name to run (runs all if empty)")
+	probeRunCmd.Flags().StringVarP(&probeOutput, "output", "o", "text", "output format: text, json")
+	probeCmd.AddCommand(probeRunCmd)
+	rootCmd.AddCommand(probeCmd)
 }
 
-type checkResultOutput struct {
+type probeResultOutput struct {
 	Name      string  `json:"name"`
 	Type      string  `json:"type"`
 	Success   bool    `json:"success"`
@@ -52,56 +52,56 @@ type checkResultOutput struct {
 	BodyBytes int64   `json:"response_bytes,omitempty"`
 }
 
-func runCheck(cmd *cobra.Command, args []string) error {
+func runProbe(cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(cfgFile)
 	if err != nil {
 		return err
 	}
 
-	checksDir := config.ResolveChecksDir(cfgFile)
-	checks, err := config.LoadChecks(checksDir)
+	probesDir := config.ResolveProbesDir(cfgFile)
+	probes, err := config.LoadProbes(probesDir)
 	if err != nil {
-		return fmt.Errorf("loading checks: %w", err)
+		return fmt.Errorf("loading probes: %w", err)
 	}
 
 	site := cfg.ResolveSite(siteCode)
 
-	checkers := newCheckers(cfg)
+	probers := newProbers(cfg)
 
-	var toRun []config.CheckConfig
-	if checkName != "" {
-		p := config.FindCheckByName(checks, checkName)
+	var toRun []config.ProbeConfig
+	if probeName != "" {
+		p := config.FindProbeByName(probes, probeName)
 		if p == nil {
-			return fmt.Errorf("check %q not found", checkName)
+			return fmt.Errorf("probe %q not found", probeName)
 		}
 		toRun = append(toRun, *p)
 	} else {
-		toRun = checks
+		toRun = probes
 	}
 
 	ctx := context.Background()
-	var results []*check.Result
+	var results []*probe.Result
 
 	for i := range toRun {
 		pc := &toRun[i]
-		checker, ok := checkers[pc.Type]
+		prober, ok := probers[pc.Type]
 		if !ok {
-			slog.Warn("No checker for type", "type", pc.Type, "name", pc.Name)
+			slog.Warn("No prober for type", "type", pc.Type, "name", pc.Name)
 			continue
 		}
-		result := checker.Run(ctx, pc, site)
+		result := prober.Run(ctx, pc, site)
 		results = append(results, result)
 	}
 
-	return outputResults(results, checkOutput)
+	return outputResults(results, probeOutput)
 }
 
-func outputResults(results []*check.Result, format string) error {
+func outputResults(results []*probe.Result, format string) error {
 	switch strings.ToLower(format) {
 	case "json":
-		out := make([]checkResultOutput, len(results))
+		out := make([]probeResultOutput, len(results))
 		for i, r := range results {
-			out[i] = checkResultOutput{
+			out[i] = probeResultOutput{
 				Name:      r.Name,
 				Type:      string(r.Type),
 				Success:   r.Success,
