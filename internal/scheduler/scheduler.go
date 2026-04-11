@@ -48,11 +48,11 @@ type Scheduler struct {
 	cfg      *config.Config
 	checks   []config.CheckConfig
 	registry *ProberRegistry
-	site     *config.Site
+	origin   *config.Origin
 	results  chan *check.Result
 }
 
-func New(cfg *config.Config, checks []config.CheckConfig, registry *ProberRegistry, siteCode string) *Scheduler {
+func New(cfg *config.Config, checks []config.CheckConfig, registry *ProberRegistry, originID string) *Scheduler {
 	c := cron.New(cron.WithSeconds(), cron.WithLogger(cron.DefaultLogger))
 
 	return &Scheduler{
@@ -60,7 +60,7 @@ func New(cfg *config.Config, checks []config.CheckConfig, registry *ProberRegist
 		cfg:      cfg,
 		checks:   checks,
 		registry: registry,
-		site:     cfg.ResolveSite(siteCode),
+		origin:   cfg.ResolveOrigin(originID),
 		results:  make(chan *check.Result, 100),
 	}
 }
@@ -76,7 +76,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		}
 
 		schedule := pc.Schedule
-		staggerDelay := ComputeStagger(pc.Name, s.site)
+		staggerDelay := ComputeStagger(pc.Name, s.origin)
 		if staggerDelay > 0 {
 			slog.Info("Staggering check", "name", pc.Name, "delay", staggerDelay)
 		}
@@ -91,7 +91,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 				time.Sleep(checkDelay)
 			}
 			slog.Debug("Running check", "name", checkCfg.Name, "type", checkCfg.Type)
-			result := runWithRetry(ctx, checker, &checkCfg, s.site)
+			result := runWithRetry(ctx, checker, &checkCfg, s.origin)
 			result.Group = checkCfg.Group
 			result.Target = checkCfg.Target()
 
@@ -133,8 +133,8 @@ func (s *Scheduler) Results() <-chan *check.Result {
 }
 
 // runWithRetry executes a check with optional retry policy.
-func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, site *config.Site) *check.Result {
-	result := checker.Run(ctx, cfg, site)
+func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, origin *config.Origin) *check.Result {
+	result := checker.Run(ctx, cfg, origin)
 	if result.Success || cfg.Retry == nil || cfg.Retry.Count <= 0 {
 		return result
 	}
@@ -153,7 +153,7 @@ func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckC
 		case <-time.After(delay):
 		}
 
-		result = checker.Run(ctx, cfg, site)
+		result = checker.Run(ctx, cfg, origin)
 		if result.Success {
 			return result
 		}

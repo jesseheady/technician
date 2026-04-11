@@ -22,8 +22,8 @@ func (p *UDPChecker) Type() config.CheckType {
 	return config.CheckTypeUDP
 }
 
-func (p *UDPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeUDP, site)
+func (p *UDPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeUDP, origin)
 
 	if cfg.UDP == nil {
 		result.Error = "missing UDP check configuration"

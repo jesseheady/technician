@@ -7,12 +7,12 @@
 service: technician
 hostname: localhost
 
-sites:
-  - code: local
+origins:
+  - id: local
     city: Local
     country: XX
-    location_hash: local
-    infra_provider: mock
+
+    platform: mock
 
 metrics:
   prometheus:

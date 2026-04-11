@@ -32,8 +32,8 @@ func (p *ICMPChecker) Type() config.CheckType {
 	return config.CheckTypeICMP
 }
 
-func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeICMP, site)
+func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeICMP, origin)
 
 	if cfg.ICMP == nil {
 		result.Error = "missing ICMP check configuration"

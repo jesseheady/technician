@@ -23,8 +23,8 @@ func (p *TracerouteChecker) Type() config.CheckType {
 	return config.CheckTypeTraceroute
 }
 
-func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTraceroute, site)
+func (p *TracerouteChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeTraceroute, origin)
 
 	if cfg.Traceroute == nil {
 		result.Error = "missing traceroute check configuration"

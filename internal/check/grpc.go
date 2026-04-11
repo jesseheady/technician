@@ -61,8 +61,8 @@ func (p *GRPCChecker) Type() config.CheckType {
 	return config.CheckTypeGRPC
 }
 
-func (p *GRPCChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeGRPC, site)
+func (p *GRPCChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeGRPC, origin)
 
 	if cfg.GRPC == nil {
 		result.Error = "missing gRPC check configuration"

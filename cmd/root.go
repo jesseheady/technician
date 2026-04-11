@@ -9,7 +9,7 @@ import (
 
 var (
 	cfgFile  string
-	siteCode string
+	originID string
 	verbose  bool
 	logLevel string
 )
@@ -43,7 +43,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "technician.yml", "config file path")
-	rootCmd.PersistentFlags().StringVar(&siteCode, "site", os.Getenv("SITE_CODE"), "site code for this instance")
+	rootCmd.PersistentFlags().StringVar(&originID, "origin", os.Getenv("ORIGIN_ID"), "origin ID for this instance")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "log level: debug, info, warn, error")
 }

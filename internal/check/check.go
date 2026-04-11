@@ -170,18 +170,18 @@ func (r *Result) DomainCriticalDays() int {
 
 type Checker interface {
 	Type() config.CheckType
-	Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result
+	Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result
 }
 
-func NewResult(name string, checkType config.CheckType, site *config.Site) *Result {
+func NewResult(name string, checkType config.CheckType, origin *config.Origin) *Result {
 	r := &Result{
 		Name:      name,
 		Type:      checkType,
 		Timestamp: time.Now(),
 		Labels:    make(map[string]string),
 	}
-	if site != nil {
-		r.Labels = site.Labels()
+	if origin != nil {
+		r.Labels = origin.MetricLabels()
 	}
 	return r
 }

@@ -174,10 +174,10 @@ This already works today with separate config directories:
 
 ```bash
 # Lightweight worker (no Playwright checks in its config)
-technician worker --config /etc/technician/light/technician.yml --site us-east-1
+technician worker --config /etc/technician/light/technician.yml --origin us-east-1
 
 # Browser worker (only Playwright checks in its config)
-technician worker --config /etc/technician/browser/technician.yml --site us-east-1
+technician worker --config /etc/technician/browser/technician.yml --origin us-east-1
 ```
 
 Prometheus scrapes both on different ports. Grafana sees all metrics with the same `region` label.

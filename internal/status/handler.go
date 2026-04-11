@@ -430,7 +430,7 @@ a:hover{color:var(--text)}
 .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
 .header h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
 .header h1 span{color:var(--text-dim);font-weight:400}
-.site-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono);color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;margin-left:10px;vertical-align:middle}
+.origin-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono);color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;margin-left:10px;vertical-align:middle}
 .links{display:flex;gap:16px;font-size:12px}
 
 /* banner */
@@ -570,7 +570,7 @@ a:hover{color:var(--text)}
 <div class="header">
   <h1>
     {{if .Service}}{{.Service}}{{else}}Technician{{end}} <span>Status</span>
-    {{if .Site}}<span class="site-badge">{{.Site.City}}, {{.Site.Country}} · {{.Site.Code}}</span>{{end}}
+    {{if .Origin}}<span class="origin-badge">{{.Origin.City}}, {{.Origin.Country}} · {{.Origin.ID}}</span>{{end}}
   </h1>
   <div class="links">
     <a href="/metrics">/metrics</a>

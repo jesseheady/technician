@@ -23,8 +23,8 @@ func (p *TCPChecker) Type() config.CheckType {
 	return config.CheckTypeTCP
 }
 
-func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeTCP, site)
+func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *config.Origin) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeTCP, origin)
 
 	if cfg.TCP == nil {
 		result.Error = "missing TCP check configuration"

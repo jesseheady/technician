@@ -55,7 +55,7 @@ go run . worker --config examples/technician.yml
 - Health: [http://localhost:9590/health](http://localhost:9590/health)
 - Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
 
-Use `--site <code>` to run as a specific site (e.g. `--site us-east-1`). Use `-v` for debug logging.
+Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`). Use `-v` for debug logging.
 
 ## Run with Prometheus and Grafana
 
@@ -68,7 +68,7 @@ docker compose up
 - **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Slack, Discord, PagerDuty, etc. Configure receivers in `prometheus/alertmanager.yml`.
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
-Config and checks are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `SITE_CODE` only affects metric labels (`region`, `city`, `country`); Compose uses `SITE_CODE=local` so the config's "local" site is used and labels stay distinct from real regions.
+Config and checks are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose uses `ORIGIN_ID=local` so the config's "local" site is used and labels stay distinct from real regions.
 
 ## Check configuration
 

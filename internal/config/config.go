@@ -14,7 +14,7 @@ import (
 type Config struct {
 	Service    string           `yaml:"service"`
 	Hostname   string           `yaml:"hostname"`
-	Sites      []Site           `yaml:"sites"`
+	Origins    []Origin         `yaml:"origins"`
 	Metrics    MetricsConfig    `yaml:"metrics"`
 	Artifacts  ArtifactsConfig  `yaml:"artifacts"`
 	Playwright PlaywrightConfig `yaml:"playwright"`
@@ -29,12 +29,12 @@ type WebhookConfig struct {
 	Cooldown   time.Duration `yaml:"cooldown"`   // minimum interval between repeated notifications; default 5m
 }
 
-type Site struct {
-	Code          string `yaml:"code"`
-	City          string `yaml:"city"`
-	Country       string `yaml:"country"`
-	LocationHash  string `yaml:"location_hash"`
-	InfraProvider string `yaml:"infra_provider"`
+type Origin struct {
+	ID       string            `yaml:"id"`
+	City     string            `yaml:"city"`
+	Country  string            `yaml:"country"`
+	Platform string            `yaml:"platform"`
+	Labels   map[string]string `yaml:"labels"`
 }
 
 type MetricsConfig struct {
@@ -135,34 +135,42 @@ func expandEnvVars(s string) string {
 	})
 }
 
-func (c *Config) SiteByCode(code string) *Site {
-	for i := range c.Sites {
-		if c.Sites[i].Code == code {
-			return &c.Sites[i]
+func (c *Config) OriginByID(id string) *Origin {
+	for i := range c.Origins {
+		if c.Origins[i].ID == id {
+			return &c.Origins[i]
 		}
 	}
 	return nil
 }
 
-// ResolveSite finds a site by code, falling back to the first configured site.
-func (c *Config) ResolveSite(code string) *Site {
-	if code != "" {
-		if s := c.SiteByCode(code); s != nil {
-			return s
+// ResolveOrigin finds an origin by ID, falling back to the first configured origin.
+func (c *Config) ResolveOrigin(id string) *Origin {
+	if id != "" {
+		if o := c.OriginByID(id); o != nil {
+			return o
 		}
 	}
-	if len(c.Sites) > 0 {
-		return &c.Sites[0]
+	if len(c.Origins) > 0 {
+		return &c.Origins[0]
 	}
 	return nil
 }
 
-func (s Site) Labels() map[string]string {
-	return map[string]string{
-		"region":  s.Code,
-		"city":    s.City,
-		"country": s.Country,
+// MetricLabels returns the base Prometheus labels for this origin, merged with
+// any user-defined labels from config. User labels do not override built-in keys.
+func (o Origin) MetricLabels() map[string]string {
+	m := map[string]string{
+		"region":  o.ID,
+		"city":    o.City,
+		"country": o.Country,
 	}
+	for k, v := range o.Labels {
+		if _, builtin := m[k]; !builtin {
+			m[k] = v
+		}
+	}
+	return m
 }
 
 func ResolveChecksDir(configPath string) string {
