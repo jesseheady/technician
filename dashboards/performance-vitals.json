@@ -117,7 +117,7 @@
       },
       "options": {
         "mode": "html",
-        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">Web Vitals</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-checks\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">Web Vitals</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
       }
     },
     {
@@ -136,7 +136,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_lcp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_lcp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -193,7 +193,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_fcp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_fcp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -250,7 +250,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_inp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_inp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -307,7 +307,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_ttfb_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_ttfb_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -364,7 +364,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_cls{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_cls{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -421,7 +421,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_lcp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_lcp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }
@@ -494,7 +494,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_inp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_inp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }
@@ -567,7 +567,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_ttfb_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_ttfb_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }
@@ -640,7 +640,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_cls{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_cls{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }
@@ -713,7 +713,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_fcp_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_fcp_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }
@@ -786,7 +786,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_dom_complete_ms{region=~\"$region\", name=~\"$probe\", network=~\"$network\", device=~\"$device\"}",
+          "expr": "technician_browser_dom_complete_ms{region=~\"$region\", name=~\"$check\", network=~\"$network\", device=~\"$device\"}",
           "legendFormat": "{{name}} [{{network}}/{{device}}] @ {{region}}",
           "refId": "A"
         }

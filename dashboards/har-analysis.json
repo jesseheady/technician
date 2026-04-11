@@ -73,7 +73,7 @@
       },
       "options": {
         "mode": "html",
-        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HAR Analysis</strong></div>"
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-http-timing\" style=\"color:rgb(110,159,255);text-decoration:none\">HTTP Timing</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-checks\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HAR Analysis</strong></div>"
       }
     },
     {
@@ -92,7 +92,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$check\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }
@@ -141,7 +141,7 @@
       },
       "targets": [
         {
-          "expr": "sum(technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
+          "expr": "sum(technician_har_resource_bytes{region=~\"$region\", name=~\"$check\"})",
           "legendFormat": "Total Bytes",
           "refId": "A"
         }
@@ -198,7 +198,7 @@
       },
       "targets": [
         {
-          "expr": "technician_browser_resource_count{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_browser_resource_count{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -237,7 +237,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_bytes{region=~\"$region\", name=~\"$check\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }
@@ -293,7 +293,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (resource_type) (technician_har_resource_duration_ms{region=~\"$region\", name=~\"$probe\"})",
+          "expr": "sum by (resource_type) (technician_har_resource_duration_ms{region=~\"$region\", name=~\"$check\"})",
           "legendFormat": "{{resource_type}}",
           "refId": "A"
         }

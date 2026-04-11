@@ -423,7 +423,7 @@ All check types support an optional `retry` config with `count`, `backoff` (none
 
 ### Response time thresholds
 
-All check types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_probe_degraded` metric). Distinct from failure: the check passed, but response time indicates degradation.
+All check types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_check_degraded` metric). Distinct from failure: the check passed, but response time indicates degradation.
 
 ### NTP probe
 
