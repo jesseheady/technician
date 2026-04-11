@@ -1,0 +1,112 @@
+# Example HTTP checks.
+# Copy to config/probes/http.yml and customise for your targets.
+#
+# degraded_after guidance:
+#   Static / CDN:  500ms (cloud) / 3s (residential)
+#   API / dynamic:   1s (cloud) / 5s (residential)
+# HTTP latency varies widely by what's behind the URL. A static site on a CDN
+# responds in 50-100ms from cloud; a dynamic API may take 500ms-2s legitimately.
+# Residential adds ISP latency + Docker overhead.
+
+- name: example.com
+  group: Marketing
+  url: https://example.com
+  expected_status: 200
+  schedule: "*/60 * * * * *"
+  degraded_after: 3s
+  retry:
+    count: 2
+    backoff: exponential
+    delay: 1s
+
+- name: example.com/api
+  group: API
+  url: https://jsonplaceholder.typicode.com/posts/1
+  expected_status: 200
+  timeout: 5s
+  schedule: "0 */5 * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# Custom method/headers example:
+# - name: example.com/graphql
+#   url: https://example.com/graphql
+#   method: POST
+#   headers:
+#     Content-Type: application/json
+#     Authorization: "Bearer ${API_TOKEN}"
+#   body: '{"query":"{ __typename }"}'
+#   expected_status: 200
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+
+# Response body assertions:
+# - name: api-health
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   assertions:
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+
+# ── API health check with header + body assertions ──────────────────
+# Validates status code, response body, content type, and security headers.
+# - name: api-full-check
+#   group: API
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   timeout: 10s
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+#   assertions:
+#     # Body assertions
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#     # Content-Type
+#     - type: header_contains
+#       header: Content-Type
+#       target: application/json
+#     # Security headers
+#     - type: header_contains
+#       header: Strict-Transport-Security
+#       target: max-age=
+#     - type: header_contains
+#       header: X-Content-Type-Options
+#       target: nosniff
+#     - type: header_contains
+#       header: X-Frame-Options
+#       target: DENY
+#     - type: header_regex
+#       header: Content-Security-Policy
+#       target: "default-src"
+
+# Follow redirects (e.g. HTTP→HTTPS):
+# - name: example.com (follow)
+#   url: http://example.com
+#   expected_status: 200
+#   follow_redirects: true
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 3s
+
+# Skip TLS verification (self-signed certs):
+# - name: internal-service
+#   url: https://internal.example.com
+#   skip_tls: true
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s

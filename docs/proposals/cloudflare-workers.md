@@ -13,13 +13,13 @@ This proposal outlines how to support **Cloudflare Workers** as an additional de
 
 ## Is Workers the right Cloudflare product?
 
-Cloudflare has more than one way to run checks from the edge. Choose based on how much you need to own the probe logic and metrics format.
+Cloudflare has more than one way to run checks from the edge. Choose based on how much you need to own the check logic and metrics format.
 
 | Option | What it is | Best when |
 |--------|------------|------------|
 | **Health Checks** | Built-in edge service: monitor hostnames/IPs, response codes, protocols, intervals. Plan limits (e.g. Pro: 10, Business: 50, Enterprise: 1000). Analytics for uptime, latency, failure reasons. | You want “HTTP up/down from the edge” with minimal custom code and are fine with Cloudflare’s UI/API and metric shape. |
 | **Synthetic Monitoring (Speed / Observatory)** | Browser or network tests from selected regions; Lighthouse-style analysis; configurable frequency by plan. | You want performance/UX checks and region selection, still within Cloudflare’s product. |
-| **Workers (or Workers Unbound)** | Your own code at the edge: one HTTP request → run a probe → return whatever you want (e.g. Prometheus text). Cron Triggers can run it on a schedule. Unbound removes strict CPU/time limits. | You need a **custom probe contract**, **Prometheus (or other) metric format**, or **tight integration with Technician’s pipeline** (same dashboards, same scrape targets). |
+| **Workers (or Workers Unbound)** | Your own code at the edge: one HTTP request → run a check → return whatever you want (e.g. Prometheus text). Cron Triggers can run it on a schedule. Unbound removes strict CPU/time limits. | You need a **custom probe contract**, **Prometheus (or other) metric format**, or **tight integration with Technician’s pipeline** (same dashboards, same scrape targets). |
 
 **Recommendation:**  
 - **Try Health Checks (and Synthetic Monitoring)** first if “HTTP probe from the edge” is enough and you can accept their limits and metric format. No Worker to build or maintain.  
@@ -52,11 +52,11 @@ AWS also offers several ways to run synthetic or health checks. Choose based on 
 | Scheduler        | In-process cron           | External (Cron Triggers, etc.)|
 | Metrics endpoint | /metrics + /probe         | Per-request response         |
 
-So we cannot run the **full** Technician stack (scheduler + mtr + Playwright) inside a single Worker. We can, however, run **per-request probe execution** and optional metric export.
+So we cannot run the **full** Technician stack (scheduler + mtr + Playwright) inside a single Worker. We can, however, run **per-request check execution** and optional metric export.
 
 ## Proposed direction
 
-### 1. Treat Workers (and Lambda Edge) as “probe runners,” not the main orchestrator
+### 1. Treat Workers (and Lambda Edge) as “check runners,” not the main orchestrator
 
 - **Orchestrator** (scheduler, aggregation, dashboards) stays as today: Docker, VM, or Lambda **container** (long-running process).
 - **Edge / Workers** run a **single probe per request**: e.g. one HTTP request hits the Worker, the Worker performs one HTTP (or DNS) probe and returns result and/or exposes metrics for that run.
@@ -72,13 +72,13 @@ Keep Technician as a Go binary. Add a **tiny Worker (or Lambda) in JS/TS** that:
 - Performs a single HTTP (or DNS) check using the Worker runtime (e.g. `fetch` with timing).
 - Returns Prometheus text format for that one probe, or a small JSON payload.
 
-Technician’s Prometheus or a separate aggregator can **scrape** these Worker URLs (one per probe per region) and aggregate. No Go in the Worker; only lightweight edge logic.
+Technician’s Prometheus or a separate aggregator can **scrape** these Worker URLs (one per check per region) and aggregate. No Go in the Worker; only lightweight edge logic.
 
 **Path B – Go in the Worker (WASM or compile target)**  
 If/when CF Workers support Go (e.g. via WASM or a Go runtime):
 
 - Compile a minimal “single HTTP probe” Go package to the Worker target.
-- Reuse `internal/probe/http.go` logic (or a trimmed, dependency-free copy) so behavior matches the main binary.
+- Reuse `internal/check/http.go` logic (or a trimmed, dependency-free copy) so behavior matches the main binary.
 - Worker receives request, runs one probe, returns metrics.
 
 Path B is more work and depends on Go-on-Workers support; Path A is immediately feasible.
@@ -93,14 +93,14 @@ Path B is more work and depends on Go-on-Workers support; Path A is immediately 
 
 - **Out of scope (v1):**
   - Running scheduler, mtr, or Playwright inside Workers.
-  - Full parity with all probe types on Workers (SMTP, traceroute, browser) – those remain on the main Technician deployment.
+  - Full parity with all check types on Workers (SMTP, traceroute, browser) – those remain on the main Technician deployment.
 
 ### 4. Alignment with AWS Lambda Edge
 
 - Use the **same request/response contract** for “single probe run” so that:
   - A Lambda Edge function can implement the same contract (one probe per invocation).
   - Technician’s Prometheus, Grafana, and alerting can treat “scrape from Worker URL” and “scrape from Lambda URL” the same way.
-- Lambda Edge can run a **compiled Go binary** (e.g. custom runtime or Lambda container) that reuses `internal/probe` and `internal/exporter` to keep behavior identical to the main binary.
+- Lambda Edge can run a **compiled Go binary** (e.g. custom runtime or Lambda container) that reuses `internal/check` and `internal/exporter` to keep behavior identical to the main binary.
 
 ### 5. Plan (high level)
 
@@ -116,7 +116,7 @@ Path B is more work and depends on Go-on-Workers support; Path A is immediately 
 
 - A Cloudflare Worker can be deployed that, when requested, runs one HTTP probe and returns metrics in a format compatible with Technician’s expectations.
 - The same dashboards and alerts can consume data from both the main Technician binary and from Worker (and later Lambda Edge) endpoints.
-- Documentation clearly states which features run where (orchestrator vs edge probe runners).
+- Documentation clearly states which features run where (orchestrator vs edge check runners).
 
 ### 7. Risks and mitigations
 

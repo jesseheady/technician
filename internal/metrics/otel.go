@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jesseheady/technician/internal/config"
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
 var tracer trace.Tracer
@@ -53,17 +53,17 @@ func InitOTEL(ctx context.Context, cfg *config.OTELConfig, serviceName string) (
 	return tp.Shutdown, nil
 }
 
-func TraceProbeResult(ctx context.Context, result *probe.Result) {
+func TraceCheckResult(ctx context.Context, result *check.Result) {
 	if tracer == nil {
 		return
 	}
 
-	_, span := tracer.Start(ctx, fmt.Sprintf("probe.%s.%s", result.Type, result.Name),
+	_, span := tracer.Start(ctx, fmt.Sprintf("check.%s.%s", result.Type, result.Name),
 		trace.WithAttributes(
-			attribute.String("probe.type", string(result.Type)),
-			attribute.String("probe.name", result.Name),
-			attribute.Bool("probe.success", result.Success),
-			attribute.Float64("probe.duration_ms", float64(result.Duration.Milliseconds())),
+			attribute.String("check.type", string(result.Type)),
+			attribute.String("check.name", result.Name),
+			attribute.Bool("check.success", result.Success),
+			attribute.Float64("check.duration_ms", float64(result.Duration.Milliseconds())),
 		),
 	)
 	defer span.End()
@@ -74,7 +74,7 @@ func TraceProbeResult(ctx context.Context, result *probe.Result) {
 
 	if result.Error != "" {
 		span.SetStatus(codes.Error, result.Error)
-		span.SetAttributes(attribute.String("probe.error", result.Error))
+		span.SetAttributes(attribute.String("check.error", result.Error))
 	} else {
 		span.SetStatus(codes.Ok, "")
 	}

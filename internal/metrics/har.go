@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
 // HARFile represents the top-level HAR 1.2 structure.
@@ -48,15 +48,15 @@ type HARTimings struct {
 	SSL     float64 `json:"ssl"`
 }
 
-// ParseHARFile parses a HAR JSON file into probe.HARData.
-func ParseHARFile(data []byte) (*probe.HARData, error) {
+// ParseHARFile parses a HAR JSON file into check.HARData.
+func ParseHARFile(data []byte) (*check.HARData, error) {
 	var har HARFile
 	if err := json.Unmarshal(data, &har); err != nil {
 		return nil, fmt.Errorf("parsing HAR: %w", err)
 	}
 
-	result := &probe.HARData{
-		Entries: make([]probe.HAREntry, len(har.Log.Entries)),
+	result := &check.HARData{
+		Entries: make([]check.HAREntry, len(har.Log.Entries)),
 	}
 
 	var totalTransfer int64
@@ -68,7 +68,7 @@ func ParseHARFile(data []byte) (*probe.HARData, error) {
 		}
 		totalTransfer += transferSize
 
-		result.Entries[i] = probe.HAREntry{
+		result.Entries[i] = check.HAREntry{
 			URL:          entry.Request.URL,
 			ResourceType: resourceType,
 			Duration:     entry.Time,

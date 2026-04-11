@@ -11,7 +11,7 @@ The local status store (`status.json`) has a similar issue. Probe results carry 
 ## Before you upgrade
 
 1. **Check the changelog or diff** for any renamed config fields, metric labels, default ports, or Prometheus rule names.
-2. **Update your config files** (`technician.yml`, `probes/*.yml`, `budgets.yml`) to match the new field names. If you're using example configs as a base, re-copy from `examples/` and re-apply your customizations.
+2. **Update your config files** (`technician.yml`, `checks/*.yml`, `budgets.yml`) to match the new field names. If you're using example configs as a base, re-copy from `examples/` and re-apply your customizations.
 3. **Update Prometheus rules and scrape config** — recording rules, alert rules, and scrape targets may reference renamed labels, rule names, or ports. Diff your `prometheus/rules.yml` and `prometheus/prometheus.yml` against the new versions.
 4. **Update Grafana dashboards** — re-import from `dashboards/*.json` or update template variables and PromQL queries manually.
 
@@ -43,12 +43,12 @@ If you need dashboards to show both old and new data during the transition, add 
 
 ```yaml
 # Add to prometheus/rules.yml temporarily
-- record: technician_probe_up_compat
+- record: technician_check_up_compat
   expr: |
-    technician_probe_up
+    technician_check_up
     or
     label_replace(
-      technician_probe_up{site_code!=""},
+      technician_check_up{site_code!=""},
       "region", "$1", "site_code", "(.*)"
     )
 ```
@@ -91,8 +91,8 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 - `site_country` → `country`
 
 **Prometheus rule renames:**
-- Recording rule `technician:probe_down_fraction` → `technician:failure_ratio`
-- Recording rule `technician:probe_uptime_daily` → `technician:daily_availability`
+- Recording rule `technician:check_down_fraction` → `technician:failure_ratio`
+- Recording rule `technician:check_uptime_daily` → `technician:daily_availability`
 - Alert `ProbeDown` → `ProbeFailing` (also changed `for:` from 5m to 3m)
 
 **Action required:**

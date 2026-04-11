@@ -35,18 +35,18 @@ Things that belong on the built-in status page because they're real-time, operat
 
 **Artifact links** (low effort)
 - Serve artifacts from `/artifacts/{probe}/{timestamp}/` on the status page
-- Screenshot thumbnail in the probe detail modal
+- Screenshot thumbnail in the check detail modal
 - "View trace" link that opens Playwright Trace Viewer (see Tier 3)
 - "View video" link for Playwright video recordings
-- Retention policy: keep last N runs per probe, prune on schedule
+- Retention policy: keep last N runs per check, prune on schedule
 
 **Budget status indicator** (low effort)
-- Green/yellow/red badge per probe showing budget status
+- Green/yellow/red badge per check showing budget status
 - Tooltip shows which metric violated and by how much
 - Data comes from the in-memory budget evaluation (already computed in worker.go)
 
 **Incident timeline** (medium effort)
-- Collapsible list of state transitions (up→down, down→up) per probe
+- Collapsible list of state transitions (up→down, down→up) per check
 - Shows duration of each incident
 - Data source: in-memory ring buffer (short term) or Prometheus query (long term)
 
@@ -83,7 +83,7 @@ Things that are better as Grafana panels because they're historical, comparative
 
 **SLO tracking panel**
 - Monthly/weekly uptime SLO (e.g., 99.9% target)
-- `1 - avg_over_time(technician_probe_up[30d])` as error budget burn
+- `1 - avg_over_time(technician_check_up[30d])` as error budget burn
 - Fits on uptime-overview dashboard as a new row
 
 ### What NOT to build as Grafana dashboards
@@ -118,7 +118,7 @@ That's ~3 lines of code. Playwright does the rest.
 **Serve traces** (two options):
 
 **Option A: Static file serving (simplest)**
-- Save trace.zip to the artifacts directory per probe run
+- Save trace.zip to the artifacts directory per check run
 - Technician serves `/artifacts/{probe}/{timestamp}/trace.zip`
 - User downloads and runs `npx playwright show-trace trace.zip` locally
 - Or opens `https://trace.playwright.dev/` and uploads the file (Playwright's hosted viewer)
@@ -169,7 +169,7 @@ We already capture HAR files — just need to persist and serve them rather than
 |----------|---------|--------|-------|
 | **1** | Playwright trace capture (3 lines in run.js) | Trivial | High — unlocks Trace Viewer for free |
 | **2** | Artifact serving on status page (`/artifacts/`) | Low | High — makes traces/screenshots/videos accessible |
-| **3** | Screenshot capture per probe run | Trivial | Medium — visual record of each check |
+| **3** | Screenshot capture per check run | Trivial | Medium — visual record of each check |
 | **4** | Budget badge on status page | Low | Medium — at-a-glance budget health |
 | **5** | Web Vitals display in probe modal | Low | Medium — details without leaving the page |
 | **6** | CI results to Prometheus (ci-runner proposal) | Medium | High — close the loop between CI and production |

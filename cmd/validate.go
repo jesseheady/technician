@@ -19,8 +19,8 @@ var (
 
 var validateCmd = &cobra.Command{
 	Use:   "validate",
-	Short: "Run probes and check performance budgets (CI mode)",
-	Long:  "Run all configured probes, evaluate results against performance budgets, and exit with code 0 (pass) or 1 (violations found).",
+	Short: "Run checks and check performance budgets (CI mode)",
+	Long:  "Run all configured checks, evaluate results against performance budgets, and exit with code 0 (pass) or 1 (violations found).",
 	RunE:  runValidate,
 }
 
@@ -36,10 +36,10 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	probesDir := config.ResolveProbesDir(cfgFile)
-	probes, err := config.LoadProbes(probesDir)
+	checksDir := config.ResolveChecksDir(cfgFile)
+	checks, err := config.LoadChecks(checksDir)
 	if err != nil {
-		return fmt.Errorf("loading probes: %w", err)
+		return fmt.Errorf("loading checks: %w", err)
 	}
 
 	budgets, err := budget.LoadBudgets(budgetFile)
@@ -49,25 +49,25 @@ func runValidate(cmd *cobra.Command, args []string) error {
 
 	site := cfg.ResolveSite(siteCode)
 
-	probers := newProbers(cfg)
+	probers := newCheckers(cfg)
 
 	ctx := context.Background()
 	var allViolations []budget.Violation
 
-	for i := range probes {
-		pc := &probes[i]
-		prober, ok := probers[pc.Type]
+	for i := range checks {
+		pc := &checks[i]
+		checker, ok := probers[pc.Type]
 		if !ok {
 			slog.Warn("No prober for type, skipping", "type", pc.Type, "name", pc.Name)
 			continue
 		}
 
-		result := prober.Run(ctx, pc, site)
+		result := checker.Run(ctx, pc, site)
 		metrics.RecordResult(result)
 
 		violations := budget.Evaluate(result, budgets)
 		for _, v := range violations {
-			metrics.RecordBudgetViolation(v.Probe, v.Metric, true, site)
+			metrics.RecordBudgetViolation(v.Check, v.Metric, true, site)
 		}
 		allViolations = append(allViolations, violations...)
 	}

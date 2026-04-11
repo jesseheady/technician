@@ -1,7 +1,7 @@
 # Site identifiers for edge and serverless
 
 **Status:** Proposal  
-**Goal:** Define how we identify "site" (probe execution location) when probes run on Cloudflare Workers, AWS Lambda, or Lambda@Edge, so metrics and dashboards stay consistent with the current fixed-infrastructure model.
+**Goal:** Define how we identify "site" (check execution location) when probes run on Cloudflare Workers, AWS Lambda, or Lambda@Edge, so metrics and dashboards stay consistent with the current fixed-infrastructure model.
 
 ## Current model
 

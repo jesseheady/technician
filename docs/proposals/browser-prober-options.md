@@ -112,7 +112,7 @@ Go orchestrator
 
 **Cons:**
 - Latest release July 2024 — 8+ months old (worth monitoring maintenance pace)
-- Bot detection issues reported (#1208) — may affect probes that hit bot-protected sites
+- Bot detection issues reported (#1208) — may affect checks that hit bot-protected sites
 - Same "probe scripts must be Go" limitation as chromedp
 - No built-in video recording
 - Smaller ecosystem than chromedp (fewer third-party examples, Stack Overflow answers)
@@ -131,7 +131,7 @@ Go orchestrator
 | Video recording | Not built-in | Hard (or drop feature) |
 | User JS probe scripts | Must rewrite as Go functions | Breaking change |
 
-**Best for:** Teams that want pure Go with a friendlier API than chromedp, need browser pooling, and value rod's concurrency model for running many probes.
+**Best for:** Teams that want pure Go with a friendlier API than chromedp, need browser pooling, and value rod's concurrency model for running many checks.
 
 ### Option D: playwright-go (Go bindings, still requires Node.js)
 
@@ -145,7 +145,7 @@ Go orchestrator
 ```
 
 **Pros:**
-- Go API surface — write probes in Go, not JS
+- Go API surface — write checks in Go, not JS
 - API-compatible with Node.js Playwright (auto-waiting, selectors, HAR, video — all built-in)
 - Multi-browser support (Chromium, Firefox, WebKit)
 - Latest release February 2026
@@ -191,7 +191,7 @@ Go orchestrator
 ## If we proceed with rod (Option C)
 
 ### Phase 1: Core prober
-- New `internal/probe/browser.go` with `BrowserProber` struct
+- New `internal/check/browser.go` with `BrowserProber` struct
 - `rod.New().MustConnect()` lifecycle with context timeout
 - Navigate to URL, wait for load
 - CDP network throttling via `proto.NetworkEmulateNetworkConditions`
@@ -204,9 +204,9 @@ Go orchestrator
 - Wire into existing `HARData` struct and metrics
 
 ### Phase 3: Probe definition model
-- Define browser probes in Go as functions matching `func(page *rod.Page, ctx ProbeContext) error`
+- Define browser checks in Go as functions matching `func(page *rod.Page, ctx ProbeContext) error`
 - Built-in probes: page load + vitals, multi-step navigation, form submission
-- YAML config references built-in probe names (not script file paths)
+- YAML config references built-in check names (not script file paths)
 
 ### Phase 4: Slim Docker image
 - Multi-stage build: `FROM chromedp/headless-shell` (~300 MB) instead of Node.js + Playwright
@@ -214,14 +214,14 @@ Go orchestrator
 - Feature flag: `--browser-engine=rod` vs `--browser-engine=playwright`
 
 ### What we'd lose (vs Playwright)
-- User-authored JS probe scripts (must define probes in Go or accept a limited DSL)
+- User-authored JS probe scripts (must define checks in Go or accept a limited DSL)
 - Built-in video recording (would need to implement or drop)
 - Multi-browser support (rod is Chromium-only)
 - Playwright's selector engine (`:text()`, `:has()`, etc.)
 
 ### What we'd gain
 - ~180 MB smaller Docker image
-- ~40 MB less RSS per probe run
+- ~40 MB less RSS per check run
 - No subprocess spawning overhead
 - Single language codebase
 - Browser pool for concurrent probes
