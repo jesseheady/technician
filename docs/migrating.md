@@ -69,7 +69,7 @@ The worker won't start on the old port automatically — if your Prometheus scra
 
 ### Webhook and alert rule renames
 
-If a Prometheus alert name changes (e.g., `ProbeDown` → `ProbeFailing`), update:
+If a Prometheus alert name changes (e.g., `ProbeDown` → `CheckFailing`), update:
 
 - `prometheus/rules.yml` — the alert definition
 - `prometheus/alertmanager.yml` — any `match` or `inhibit_rules` referencing the old alert name
@@ -93,13 +93,13 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 **Prometheus rule renames:**
 - Recording rule `technician:check_down_fraction` → `technician:failure_ratio`
 - Recording rule `technician:check_uptime_daily` → `technician:daily_availability`
-- Alert `ProbeDown` → `ProbeFailing` (also changed `for:` from 5m to 3m)
+- Alert `ProbeDown` → `CheckFailing` (also changed `for:` from 5m to 3m)
 
 **Action required:**
 1. Update `technician.yml` site fields (`location_hash`, `infra_provider`).
 2. Ensure `prometheus/prometheus.yml` scrape target uses port `9590`.
 3. Ensure `docker-compose.yml` port mapping is `9590:9590`.
 4. Replace `prometheus/rules.yml` with the new version.
-5. Update `prometheus/alertmanager.yml` inhibit rules (`ProbeFailing`).
+5. Update `prometheus/alertmanager.yml` inhibit rules (`CheckFailing`).
 6. Re-import Grafana dashboards from `dashboards/`.
 7. Delete `status.json` and backups before restarting the worker.

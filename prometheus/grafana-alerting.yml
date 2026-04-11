@@ -63,7 +63,7 @@ apiVersion: 1
 #       # Infrastructure critical — pages on-call.
 #       - receiver: infrastructure
 #         matchers:
-#           - alertname =~ "ProbeFailing|HighErrorRate|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered"
+#           - alertname =~ "CheckFailing|HighErrorRate|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered"
 #         repeat_interval: 1h
 #
 #       # Expiry — cert/domain renewal tracking.
