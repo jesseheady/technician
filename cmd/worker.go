@@ -75,6 +75,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		dataDir = "/var/lib/technician"
 	}
 	store := status.NewStore(cfg.Service, cfg.ResolveSite(siteCode), filepath.Join(dataDir, "status.json"))
+	store.Reconcile(probes)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
