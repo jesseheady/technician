@@ -265,8 +265,8 @@ func TestOriginInfo(t *testing.T) {
 	if snap.Origin == nil {
 		t.Fatal("expected origin info")
 	}
-	if snap.Origin.Code != "us-east-1" {
-		t.Fatalf("expected code 'us-east-1', got %q", snap.Origin.Code)
+	if snap.Origin.ID != "us-east-1" {
+		t.Fatalf("expected id 'us-east-1', got %q", snap.Origin.ID)
 	}
 }
 

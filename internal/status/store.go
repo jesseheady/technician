@@ -118,7 +118,7 @@ type Snapshot struct {
 }
 
 type OriginInfo struct {
-	Code    string `json:"code"`
+	ID      string `json:"id"`
 	City    string `json:"city"`
 	Country string `json:"country"`
 }
@@ -192,7 +192,7 @@ func NewStore(service string, origin *config.Origin, path string) *Store {
 	}
 	if origin != nil {
 		s.origin = &OriginInfo{
-			Code:    origin.ID,
+			ID:      origin.ID,
 			City:    origin.City,
 			Country: origin.Country,
 		}
