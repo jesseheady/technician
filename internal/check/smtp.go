@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -11,21 +11,21 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-type SMTPProber struct{}
+type SMTPChecker struct{}
 
-func NewSMTPProber() *SMTPProber {
-	return &SMTPProber{}
+func NewSMTPChecker() *SMTPChecker {
+	return &SMTPChecker{}
 }
 
-func (p *SMTPProber) Type() config.ProbeType {
-	return config.ProbeTypeSMTP
+func (p *SMTPChecker) Type() config.CheckType {
+	return config.CheckTypeSMTP
 }
 
-func (p *SMTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeSMTP, site)
+func (p *SMTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeSMTP, site)
 
 	if cfg.SMTP == nil {
-		result.Error = "missing SMTP probe configuration"
+		result.Error = "missing SMTP check configuration"
 		return result
 	}
 
@@ -66,7 +66,7 @@ func (p *SMTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 	result.Duration = time.Since(start)
 	result.Success = true
 
-	slog.Debug("SMTP probe completed",
+	slog.Debug("SMTP check completed",
 		"name", cfg.Name,
 		"host", addr,
 		"duration", result.Duration,

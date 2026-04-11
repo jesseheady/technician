@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -21,20 +21,20 @@ type httpClientKey struct {
 	followRedirects bool
 }
 
-type HTTPProber struct {
+type HTTPChecker struct {
 	mu      sync.Mutex
 	clients map[httpClientKey]*http.Client
 }
 
-func NewHTTPProber() *HTTPProber {
-	return &HTTPProber{
+func NewHTTPChecker() *HTTPChecker {
+	return &HTTPChecker{
 		clients: make(map[httpClientKey]*http.Client),
 	}
 }
 
 // getClient returns a shared *http.Client for the given config, reusing
-// transports so TCP/TLS connections are pooled across probe runs.
-func (p *HTTPProber) getClient(skipTLS, followRedirects bool) *http.Client {
+// transports so TCP/TLS connections are pooled across check runs.
+func (p *HTTPChecker) getClient(skipTLS, followRedirects bool) *http.Client {
 	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -59,15 +59,15 @@ func (p *HTTPProber) getClient(skipTLS, followRedirects bool) *http.Client {
 	return client
 }
 
-func (p *HTTPProber) Type() config.ProbeType {
-	return config.ProbeTypeHTTP
+func (p *HTTPChecker) Type() config.CheckType {
+	return config.CheckTypeHTTP
 }
 
-func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.ProbeTypeHTTP, site)
+func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.CheckTypeHTTP, site)
 
 	if cfg.HTTP == nil {
-		result.Error = "missing HTTP probe configuration"
+		result.Error = "missing HTTP check configuration"
 		return result
 	}
 
@@ -140,7 +140,7 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 	if err != nil {
 		result.Duration = totalDuration
 		result.Error = fmt.Sprintf("request failed: %v", err)
-		slog.Warn("HTTP probe failed", "name", cfg.Name, "url", hcfg.URL, "error", err)
+		slog.Warn("HTTP check failed", "name", cfg.Name, "url", hcfg.URL, "error", err)
 		return result
 	}
 	defer resp.Body.Close()
@@ -198,7 +198,7 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 		}
 	}
 
-	slog.Debug("HTTP probe completed",
+	slog.Debug("HTTP check completed",
 		"name", cfg.Name,
 		"url", hcfg.URL,
 		"status", resp.StatusCode,
@@ -213,7 +213,7 @@ func (p *HTTPProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *con
 }
 
 // regexCache caches compiled regular expressions used in assertions to avoid
-// recompiling the same pattern on every probe run.
+// recompiling the same pattern on every check run.
 var regexCache sync.Map // map[string]*regexp.Regexp
 
 func cachedCompile(pattern string) (*regexp.Regexp, error) {

@@ -1,4 +1,4 @@
-package probe
+package check
 
 import (
 	"context"
@@ -17,11 +17,11 @@ type AssertionResult struct {
 
 type Result struct {
 	Name       string
-	Type       config.ProbeType
+	Type       config.CheckType
 	Group      string
 	Target     string // canonical hostname/domain for status page grouping
 	Success    bool
-	InfraError bool // true when the probe infrastructure itself failed (not the target)
+	InfraError bool // true when the check infrastructure itself failed (not the target)
 	Duration   time.Duration
 	Error      string
 	Timestamp  time.Time
@@ -168,15 +168,15 @@ func (r *Result) DomainCriticalDays() int {
 	return 7
 }
 
-type Prober interface {
-	Type() config.ProbeType
-	Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result
+type Checker interface {
+	Type() config.CheckType
+	Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result
 }
 
-func NewResult(name string, probeType config.ProbeType, site *config.Site) *Result {
+func NewResult(name string, checkType config.CheckType, site *config.Site) *Result {
 	r := &Result{
 		Name:      name,
-		Type:      probeType,
+		Type:      checkType,
 		Timestamp: time.Now(),
 		Labels:    make(map[string]string),
 	}

@@ -12,17 +12,17 @@ import (
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
-	"github.com/jesseheady/technician/internal/probe"
+	"github.com/jesseheady/technician/internal/check"
 )
 
 const backupRetention = 90 * 24 * time.Hour
 
 const maxHistory = 90
 
-// Entry is a compact snapshot of a single probe result.
+// Entry is a compact snapshot of a single check result.
 type Entry struct {
 	Success    bool      `json:"success"`
-	InfraError bool      `json:"infra_error,omitempty"` // probe infrastructure failed, not the target
+	InfraError bool      `json:"infra_error,omitempty"` // check infrastructure failed, not the target
 	DurationMs float64   `json:"duration_ms"`
 	Timestamp  time.Time `json:"timestamp"`
 	Error      string    `json:"error,omitempty"`
@@ -66,7 +66,7 @@ type Latency struct {
 	P99 float64 `json:"p99"`
 }
 
-// TimingBreakdown holds average timing phases for successful HTTP probes.
+// TimingBreakdown holds average timing phases for successful HTTP checks.
 type TimingBreakdown struct {
 	DNSMs      float64 `json:"dns_ms"`
 	TLSMs      float64 `json:"tls_ms"`
@@ -74,10 +74,10 @@ type TimingBreakdown struct {
 	TransferMs float64 `json:"transfer_ms"`
 }
 
-// ProbeState is the current state of a single probe.
-type ProbeState struct {
+// CheckState is the current state of a single check.
+type CheckState struct {
 	Name         string           `json:"name"`
-	Type         config.ProbeType `json:"type"`
+	Type         config.CheckType `json:"type"`
 	Domain       string           `json:"domain,omitempty"` // canonical hostname for domain grouping
 	Status       string           `json:"status"`           // "up", "down", "pending"
 	DownSince    string           `json:"down_since"`       // human-readable, e.g. "for 2h 15m"
@@ -89,10 +89,10 @@ type ProbeState struct {
 	BudgetChecks []BudgetCheck    `json:"budget_checks,omitempty"`
 }
 
-// ProbeGroup is a named group of probes for the status page.
-type ProbeGroup struct {
+// CheckGroup is a named group of checks for the status page.
+type CheckGroup struct {
 	Name   string       `json:"name"`
-	Probes []ProbeState `json:"probes"`
+	Checks []CheckState `json:"checks"`
 }
 
 // Summary provides aggregate counts for the status page header.
@@ -111,9 +111,9 @@ type Snapshot struct {
 	Site      *SiteInfo    `json:"site,omitempty"`
 	Overall   string       `json:"overall"` // "operational", "degraded", "down"
 	Summary   Summary      `json:"summary"`
-	Types     []string     `json:"types"` // distinct probe types present
-	Groups    []ProbeGroup `json:"groups"`
-	Probes    []ProbeState `json:"probes"`
+	Types     []string     `json:"types"` // distinct check types present
+	Groups    []CheckGroup `json:"groups"`
+	Checks    []CheckState `json:"checks"`
 	UpdatedAt time.Time    `json:"updated_at"`
 }
 
@@ -125,11 +125,11 @@ type SiteInfo struct {
 
 const snapshotTTL = 2 * time.Second
 
-// Store holds recent probe results in memory with optional file persistence.
+// Store holds recent check results in memory with optional file persistence.
 type Store struct {
 	mu      sync.RWMutex
-	probes  map[string]*probeRing
-	order   []string // insertion order of probe names
+	checks  map[string]*checkRing
+	order   []string // insertion order of check names
 	service string
 	site    *SiteInfo
 	path    string // file path for persistence; empty = no persistence
@@ -147,9 +147,9 @@ type budgetState struct {
 	consecutiveViolations int
 }
 
-type probeRing struct {
+type checkRing struct {
 	name      string
-	typ       config.ProbeType
+	typ       config.CheckType
 	group     string
 	target    string // canonical hostname/domain
 	entries   []Entry
@@ -159,7 +159,7 @@ type probeRing struct {
 }
 
 // push appends an entry to the circular ring buffer.
-func (r *probeRing) push(e Entry) {
+func (r *checkRing) push(e Entry) {
 	if len(r.entries) < maxHistory {
 		// Still filling up — just append
 		r.entries = append(r.entries, e)
@@ -172,7 +172,7 @@ func (r *probeRing) push(e Entry) {
 }
 
 // ordered returns entries in chronological order (oldest first).
-func (r *probeRing) ordered() []Entry {
+func (r *checkRing) ordered() []Entry {
 	if !r.full || r.head == 0 {
 		return r.entries
 	}
@@ -186,7 +186,7 @@ func (r *probeRing) ordered() []Entry {
 // its state to that file and load any existing state on creation.
 func NewStore(service string, site *config.Site, path string) *Store {
 	s := &Store{
-		probes:  make(map[string]*probeRing),
+		checks:  make(map[string]*checkRing),
 		service: service,
 		path:    path,
 	}
@@ -203,18 +203,18 @@ func NewStore(service string, site *config.Site, path string) *Store {
 	return s
 }
 
-// probeKey returns a unique key for a probe by combining type and name,
-// since different probe types (e.g. http and traceroute) can share a name.
-func probeKey(typ config.ProbeType, name string) string {
+// checkKey returns a unique key for a check by combining type and name,
+// since different check types (e.g. http and traceroute) can share a name.
+func checkKey(typ config.CheckType, name string) string {
 	return string(typ) + ":" + name
 }
 
-// Reconcile removes persisted probes that no longer exist in the active config.
+// Reconcile removes persisted checks that no longer exist in the active config.
 // Call after loading state and before starting the scheduler.
-func (s *Store) Reconcile(probes []config.ProbeConfig) {
-	active := make(map[string]struct{}, len(probes))
-	for _, p := range probes {
-		active[probeKey(p.Type, p.Name)] = struct{}{}
+func (s *Store) Reconcile(checks []config.CheckConfig) {
+	active := make(map[string]struct{}, len(checks))
+	for _, c := range checks {
+		active[checkKey(c.Type, c.Name)] = struct{}{}
 	}
 
 	s.mu.Lock()
@@ -226,7 +226,7 @@ func (s *Store) Reconcile(probes []config.ProbeConfig) {
 		if _, ok := active[key]; ok {
 			kept = append(kept, key)
 		} else {
-			delete(s.probes, key)
+			delete(s.checks, key)
 			pruned = append(pruned, key)
 		}
 	}
@@ -238,7 +238,7 @@ func (s *Store) Reconcile(probes []config.ProbeConfig) {
 }
 
 // Push adds a probe result to the store.
-func (s *Store) Push(r *probe.Result) {
+func (s *Store) Push(r *check.Result) {
 	e := Entry{
 		Success:           r.Success,
 		InfraError:        r.InfraError,
@@ -260,11 +260,11 @@ func (s *Store) Push(r *probe.Result) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	key := probeKey(r.Type, r.Name)
-	ring, ok := s.probes[key]
+	key := checkKey(r.Type, r.Name)
+	ring, ok := s.checks[key]
 	if !ok {
-		ring = &probeRing{name: r.Name, typ: r.Type, group: r.Group, target: r.Target}
-		s.probes[key] = ring
+		ring = &checkRing{name: r.Name, typ: r.Type, group: r.Group, target: r.Target}
+		s.checks[key] = ring
 		s.order = append(s.order, key)
 	}
 	if r.Group != "" {
@@ -312,7 +312,7 @@ func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) bool {
 	return bs.consecutiveViolations == BudgetFailThreshold
 }
 
-// Snapshot returns the current status of all probes. Results are cached
+// Snapshot returns the current status of all checks. Results are cached
 // for snapshotTTL to avoid recomputing percentiles on rapid requests.
 func (s *Store) Snapshot() *Snapshot {
 	s.snapMu.Lock()
@@ -353,15 +353,15 @@ func (s *Store) computeSnapshot() *Snapshot {
 	downCount := 0
 	errCount := 0
 	typesSeen := make(map[string]bool)
-	groupMap := make(map[string]*ProbeGroup)
+	groupMap := make(map[string]*CheckGroup)
 	var groupOrder []string
 
 	for _, key := range s.order {
-		ring := s.probes[key]
+		ring := s.checks[key]
 		typesSeen[string(ring.typ)] = true
 
 		entries := ring.ordered()
-		ps := ProbeState{
+		ps := CheckState{
 			Name:    ring.name,
 			Type:    ring.typ,
 			Domain:  ring.target,
@@ -390,16 +390,16 @@ func (s *Store) computeSnapshot() *Snapshot {
 			}
 		}
 
-		snap.Probes = append(snap.Probes, ps)
+		snap.Checks = append(snap.Checks, ps)
 
 		gName := ring.group
 		g, exists := groupMap[gName]
 		if !exists {
-			g = &ProbeGroup{Name: gName}
+			g = &CheckGroup{Name: gName}
 			groupMap[gName] = g
 			groupOrder = append(groupOrder, gName)
 		}
-		g.Probes = append(g.Probes, ps)
+		g.Checks = append(g.Checks, ps)
 	}
 
 	for _, gName := range groupOrder {
@@ -407,7 +407,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 	}
 
 	// Collect distinct types in stable order
-	typeOrder := []config.ProbeType{config.ProbeTypeHTTP, config.ProbeTypeTCP, config.ProbeTypeUDP, config.ProbeTypeDNS, config.ProbeTypeICMP, config.ProbeTypeGRPC, config.ProbeTypeNTP, config.ProbeTypeTLS, config.ProbeTypeSMTP, config.ProbeTypeTraceroute, config.ProbeTypeBGP, config.ProbeTypeDomainExpiry, config.ProbeTypePlaywright}
+	typeOrder := []config.CheckType{config.CheckTypeHTTP, config.CheckTypeTCP, config.CheckTypeUDP, config.CheckTypeDNS, config.CheckTypeICMP, config.CheckTypeGRPC, config.CheckTypeNTP, config.CheckTypeTLS, config.CheckTypeSMTP, config.CheckTypeTraceroute, config.CheckTypeBGP, config.CheckTypeDomainExpiry, config.CheckTypePlaywright}
 	for _, t := range typeOrder {
 		if typesSeen[string(t)] {
 			snap.Types = append(snap.Types, string(t))
@@ -457,17 +457,17 @@ func (s *Store) computeSnapshot() *Snapshot {
 			return probeBudgets[k][i].Metric < probeBudgets[k][j].Metric
 		})
 	}
-	// Attach budget checks to probes
-	for i := range snap.Probes {
-		if checks, ok := probeBudgets[snap.Probes[i].Name]; ok {
-			snap.Probes[i].BudgetChecks = checks
+	// Attach budget checks to entries
+	for i := range snap.Checks {
+		if checks, ok := probeBudgets[snap.Checks[i].Name]; ok {
+			snap.Checks[i].BudgetChecks = checks
 		}
 	}
-	// Also update probes inside groups
+	// Also update checks inside groups
 	for gi := range snap.Groups {
-		for pi := range snap.Groups[gi].Probes {
-			if checks, ok := probeBudgets[snap.Groups[gi].Probes[pi].Name]; ok {
-				snap.Groups[gi].Probes[pi].BudgetChecks = checks
+		for pi := range snap.Groups[gi].Checks {
+			if checks, ok := probeBudgets[snap.Groups[gi].Checks[pi].Name]; ok {
+				snap.Groups[gi].Checks[pi].BudgetChecks = checks
 			}
 		}
 	}
@@ -586,10 +586,10 @@ func fmtDuration(d time.Duration) string {
 
 // --- Persistence ---
 
-// persistedRing is the JSON-serializable form of probeRing.
+// persistedRing is the JSON-serializable form of checkRing.
 type persistedRing struct {
 	Name      string           `json:"name"`
-	Type      config.ProbeType `json:"type"`
+	Type      config.CheckType `json:"type"`
 	Group     string           `json:"group,omitempty"`
 	Target    string           `json:"target,omitempty"`
 	Entries   []Entry          `json:"entries"`
@@ -624,9 +624,9 @@ func (s *Store) Save() {
 	s.mu.RLock()
 	ps := persistedStore{
 		Order: s.order,
-		Rings: make(map[string]persistedRing, len(s.probes)),
+		Rings: make(map[string]persistedRing, len(s.checks)),
 	}
-	for key, ring := range s.probes {
+	for key, ring := range s.checks {
 		ps.Rings[key] = persistedRing{
 			Name:      ring.name,
 			Type:      ring.typ,
@@ -787,7 +787,7 @@ func (s *Store) tryLoadData(data []byte) bool {
 
 	s.order = raw.Order
 	for key, pr := range raw.Rings {
-		s.probes[key] = &probeRing{
+		s.checks[key] = &checkRing{
 			name:      pr.Name,
 			typ:       pr.Type,
 			group:     pr.Group,
@@ -824,6 +824,6 @@ func (s *Store) tryLoadData(data []byte) bool {
 		}
 	}
 
-	slog.Info("Loaded status store from disk", "probes", len(s.probes), "budget_checks", len(s.budgetChecks))
+	slog.Info("Loaded status store from disk", "checks", len(s.checks), "budget_checks", len(s.budgetChecks))
 	return true
 }

@@ -58,13 +58,13 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 	}
 
 	switch event.Type {
-	case EventProbeDown:
-		embed.Title = fmt.Sprintf("Probe Down: %s", event.Probe)
+	case EventCheckDown:
+		embed.Title = fmt.Sprintf("Probe Down: %s", event.Check)
 		embed.Color = colorRed
 		var desc strings.Builder
-		desc.WriteString(fmt.Sprintf("Probe **%s**", event.Probe))
-		if event.ProbeType != "" {
-			desc.WriteString(fmt.Sprintf(" (%s)", event.ProbeType))
+		desc.WriteString(fmt.Sprintf("Probe **%s**", event.Check))
+		if event.CheckType != "" {
+			desc.WriteString(fmt.Sprintf(" (%s)", event.CheckType))
 		}
 		desc.WriteString(" is down.")
 		embed.Description = desc.String()
@@ -79,20 +79,20 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 			})
 		}
 
-	case EventProbeUp:
-		embed.Title = fmt.Sprintf("Probe Recovered: %s", event.Probe)
+	case EventCheckUp:
+		embed.Title = fmt.Sprintf("Probe Recovered: %s", event.Check)
 		embed.Color = colorGreen
-		embed.Description = fmt.Sprintf("Probe **%s** is back up.", event.Probe)
+		embed.Description = fmt.Sprintf("Probe **%s** is back up.", event.Check)
 
 	case EventBudgetViolation:
-		embed.Title = fmt.Sprintf("Budget Violation: %s", event.Probe)
+		embed.Title = fmt.Sprintf("Budget Violation: %s", event.Check)
 		embed.Color = colorAmber
 		metric := event.Details["metric"]
-		embed.Description = fmt.Sprintf("Probe **%s** exceeds **%s** budget threshold.", event.Probe, metric)
+		embed.Description = fmt.Sprintf("Probe **%s** exceeds **%s** budget threshold.", event.Check, metric)
 
 	case EventCertExpiring:
 		severityLabel := strings.ToUpper(string(event.Severity))
-		embed.Title = fmt.Sprintf("[%s] Certificate Expiring: %s", severityLabel, event.Probe)
+		embed.Title = fmt.Sprintf("[%s] Certificate Expiring: %s", severityLabel, event.Check)
 		if event.Severity == SeverityCritical {
 			embed.Color = colorRed
 		} else {
