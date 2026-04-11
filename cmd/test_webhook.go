@@ -37,9 +37,9 @@ func runTestWebhook(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	event := notify.Event{
-		Type:      notify.EventCheckDown,
-		Check:     "test-alert",
-		CheckType: "http",
+		Type:      notify.EventProbeDown,
+		Probe:     "test-alert",
+		ProbeType: "http",
 		Message:   "Test alert - webhook pipeline validation",
 		Details:   map[string]string{"error": "This is a test. No action required."},
 		Timestamp: time.Now(),

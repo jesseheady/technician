@@ -1,4 +1,4 @@
-package check
+package probe
 
 import (
 	"context"
@@ -21,20 +21,20 @@ type grpcConnKey struct {
 	skipTLS bool
 }
 
-type GRPCChecker struct {
+type GRPCProber struct {
 	mu    sync.Mutex
 	conns map[grpcConnKey]*grpc.ClientConn
 }
 
-func NewGRPCChecker() *GRPCChecker {
-	return &GRPCChecker{
+func NewGRPCProber() *GRPCProber {
+	return &GRPCProber{
 		conns: make(map[grpcConnKey]*grpc.ClientConn),
 	}
 }
 
 // getConn returns a cached gRPC client connection for the given config,
-// reusing connections across check runs to avoid repeated TCP/TLS setup.
-func (p *GRPCChecker) getConn(host string, useTLS, skipTLS bool) (*grpc.ClientConn, error) {
+// reusing connections across probe runs to avoid repeated TCP/TLS setup.
+func (p *GRPCProber) getConn(host string, useTLS, skipTLS bool) (*grpc.ClientConn, error) {
 	key := grpcConnKey{host: host, tls: useTLS, skipTLS: skipTLS}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -57,15 +57,15 @@ func (p *GRPCChecker) getConn(host string, useTLS, skipTLS bool) (*grpc.ClientCo
 	return conn, nil
 }
 
-func (p *GRPCChecker) Type() config.CheckType {
-	return config.CheckTypeGRPC
+func (p *GRPCProber) Type() config.ProbeType {
+	return config.ProbeTypeGRPC
 }
 
-func (p *GRPCChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *config.Site) *Result {
-	result := NewResult(cfg.Name, config.CheckTypeGRPC, site)
+func (p *GRPCProber) Run(ctx context.Context, cfg *config.ProbeConfig, site *config.Site) *Result {
+	result := NewResult(cfg.Name, config.ProbeTypeGRPC, site)
 
 	if cfg.GRPC == nil {
-		result.Error = "missing gRPC check configuration"
+		result.Error = "missing gRPC probe configuration"
 		return result
 	}
 
@@ -101,7 +101,7 @@ func (p *GRPCChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *co
 	result.GRPCStatus = resp.Status.String()
 	result.Success = resp.Status == healthpb.HealthCheckResponse_SERVING
 
-	slog.Debug("gRPC check completed",
+	slog.Debug("gRPC probe completed",
 		"name", cfg.Name,
 		"host", gcfg.Host,
 		"service", gcfg.Service,

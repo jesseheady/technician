@@ -18,22 +18,22 @@ var validAssertionTypes = map[string]bool{
 	"header_contains": true, "header_not_contains": true, "header_regex": true,
 }
 
-type CheckType string
+type ProbeType string
 
 const (
-	CheckTypeHTTP        CheckType = "http"
-	CheckTypeSMTP        CheckType = "smtp"
-	CheckTypeTraceroute  CheckType = "traceroute"
-	CheckTypePlaywright  CheckType = "playwright"
-	CheckTypeTCP         CheckType = "tcp"
-	CheckTypeDNS         CheckType = "dns"
-	CheckTypeICMP        CheckType = "icmp"
-	CheckTypeGRPC        CheckType = "grpc"
-	CheckTypeNTP         CheckType = "ntp"
-	CheckTypeTLS         CheckType = "tls"
-	CheckTypeUDP         CheckType = "udp"
-	CheckTypeBGP         CheckType = "bgp"
-	CheckTypeDomainExpiry CheckType = "domain_expiry"
+	ProbeTypeHTTP        ProbeType = "http"
+	ProbeTypeSMTP        ProbeType = "smtp"
+	ProbeTypeTraceroute  ProbeType = "traceroute"
+	ProbeTypePlaywright  ProbeType = "playwright"
+	ProbeTypeTCP         ProbeType = "tcp"
+	ProbeTypeDNS         ProbeType = "dns"
+	ProbeTypeICMP        ProbeType = "icmp"
+	ProbeTypeGRPC        ProbeType = "grpc"
+	ProbeTypeNTP         ProbeType = "ntp"
+	ProbeTypeTLS         ProbeType = "tls"
+	ProbeTypeUDP         ProbeType = "udp"
+	ProbeTypeBGP         ProbeType = "bgp"
+	ProbeTypeDomainExpiry ProbeType = "domain_expiry"
 )
 
 type RetryPolicy struct {
@@ -42,87 +42,87 @@ type RetryPolicy struct {
 	Delay   time.Duration `yaml:"delay"`   // base delay between retries
 }
 
-type CheckConfig struct {
+type ProbeConfig struct {
 	Name     string            `yaml:"name"`
-	Type     CheckType         `yaml:"-"`
+	Type     ProbeType         `yaml:"-"`
 	Group    string            `yaml:"group"`
 	Schedule string            `yaml:"schedule"`
 	Timeout  time.Duration     `yaml:"timeout"`
 	Retry    *RetryPolicy      `yaml:"retry"`
 	DegradedAfter time.Duration `yaml:"degraded_after"` // response time threshold for "degraded" state
-	HTTP     *HTTPCheckConfig  `yaml:"-"`
-	SMTP     *SMTPCheckConfig  `yaml:"-"`
-	Traceroute *TracerouteCheckConfig `yaml:"-"`
-	Playwright *PlaywrightCheckConfig `yaml:"-"`
-	TCP      *TCPCheckConfig   `yaml:"-"`
-	DNS      *DNSCheckConfig   `yaml:"-"`
-	ICMP     *ICMPCheckConfig  `yaml:"-"`
-	GRPC     *GRPCCheckConfig  `yaml:"-"`
-	NTP      *NTPCheckConfig   `yaml:"-"`
-	TLS      *TLSCheckConfig   `yaml:"-"`
-	UDP          *UDPCheckConfig              `yaml:"-"`
-	BGP          *BGPCheckConfig              `yaml:"-"`
-	DomainExpiry *DomainExpirationCheckConfig `yaml:"-"`
+	HTTP     *HTTPProbeConfig  `yaml:"-"`
+	SMTP     *SMTPProbeConfig  `yaml:"-"`
+	Traceroute *TracerouteProbeConfig `yaml:"-"`
+	Playwright *PlaywrightProbeConfig `yaml:"-"`
+	TCP      *TCPProbeConfig   `yaml:"-"`
+	DNS      *DNSProbeConfig   `yaml:"-"`
+	ICMP     *ICMPProbeConfig  `yaml:"-"`
+	GRPC     *GRPCProbeConfig  `yaml:"-"`
+	NTP      *NTPProbeConfig   `yaml:"-"`
+	TLS      *TLSProbeConfig   `yaml:"-"`
+	UDP          *UDPProbeConfig              `yaml:"-"`
+	BGP          *BGPProbeConfig              `yaml:"-"`
+	DomainExpiry *DomainExpirationProbeConfig `yaml:"-"`
 }
 
-// Target returns the canonical hostname or IP that this check checks.
+// Target returns the canonical hostname or IP that this probe checks.
 // Used for domain-level grouping on the status page.
-func (p *CheckConfig) Target() string {
+func (p *ProbeConfig) Target() string {
 	var raw string
 	switch p.Type {
-	case CheckTypeHTTP:
+	case ProbeTypeHTTP:
 		if p.HTTP != nil {
 			if u, err := url.Parse(p.HTTP.URL); err == nil {
 				raw = u.Hostname()
 			}
 		}
-	case CheckTypeTCP:
+	case ProbeTypeTCP:
 		if p.TCP != nil {
 			raw = p.TCP.Host
 		}
-	case CheckTypeUDP:
+	case ProbeTypeUDP:
 		if p.UDP != nil {
 			raw = p.UDP.Host
 		}
-	case CheckTypeDNS:
+	case ProbeTypeDNS:
 		if p.DNS != nil {
 			raw = p.DNS.Domain
 		}
-	case CheckTypeICMP:
+	case ProbeTypeICMP:
 		if p.ICMP != nil {
 			raw = p.ICMP.Host
 		}
-	case CheckTypeGRPC:
+	case ProbeTypeGRPC:
 		if p.GRPC != nil {
 			raw = p.GRPC.Host
 		}
-	case CheckTypeNTP:
+	case ProbeTypeNTP:
 		if p.NTP != nil {
 			raw = p.NTP.Server
 		}
-	case CheckTypeTLS:
+	case ProbeTypeTLS:
 		if p.TLS != nil {
 			raw = p.TLS.Host
 		}
-	case CheckTypeSMTP:
+	case ProbeTypeSMTP:
 		if p.SMTP != nil {
 			raw = p.SMTP.Host
 		}
-	case CheckTypeTraceroute:
+	case ProbeTypeTraceroute:
 		if p.Traceroute != nil {
 			raw = p.Traceroute.Host
 		}
-	case CheckTypePlaywright:
+	case ProbeTypePlaywright:
 		if p.Playwright != nil {
 			if u, err := url.Parse(p.Playwright.BaseURL); err == nil {
 				raw = u.Hostname()
 			}
 		}
-	case CheckTypeBGP:
+	case ProbeTypeBGP:
 		if p.BGP != nil {
 			raw = p.BGP.Prefix
 		}
-	case CheckTypeDomainExpiry:
+	case ProbeTypeDomainExpiry:
 		if p.DomainExpiry != nil {
 			raw = p.DomainExpiry.Domain
 		}
@@ -140,7 +140,7 @@ type Assertion struct {
 	Target string `yaml:"target"` // string to match or regex pattern
 }
 
-type HTTPCheckConfig struct {
+type HTTPProbeConfig struct {
 	URL             string            `yaml:"url"`
 	Method          string            `yaml:"method"`
 	ExpectedStatus  int               `yaml:"expected_status"`
@@ -151,7 +151,7 @@ type HTTPCheckConfig struct {
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
-type TCPCheckConfig struct {
+type TCPProbeConfig struct {
 	Host       string `yaml:"host"`
 	Port       int    `yaml:"port"`
 	IPVersion  string `yaml:"ip_version"` // "4", "6", or "" (any)
@@ -160,39 +160,39 @@ type TCPCheckConfig struct {
 	ExpectRecv string `yaml:"expect_recv"` // optional expected response substring
 }
 
-type DNSCheckConfig struct {
+type DNSProbeConfig struct {
 	Domain     string   `yaml:"domain"`
 	Server     string   `yaml:"server"`      // DNS server address (e.g. "8.8.8.8:53")
 	RecordType string   `yaml:"record_type"` // A, AAAA, MX, TXT, CNAME, NS, SOA, SRV
 	Expected   []string `yaml:"expected"`    // expected values in answer section
 }
 
-type ICMPCheckConfig struct {
+type ICMPProbeConfig struct {
 	Host      string `yaml:"host"`
 	Count     int    `yaml:"count"`      // number of pings (default 3)
 	IPVersion string `yaml:"ip_version"` // "4", "6", or "" (any)
 }
 
-type GRPCCheckConfig struct {
+type GRPCProbeConfig struct {
 	Host    string `yaml:"host"`    // host:port
 	Service string `yaml:"service"` // gRPC health check service name (empty = overall)
 	TLS     bool   `yaml:"tls"`
 	SkipTLS bool   `yaml:"skip_tls"` // skip TLS cert verification
 }
 
-type NTPCheckConfig struct {
+type NTPProbeConfig struct {
 	Server string `yaml:"server"` // NTP server hostname or IP (e.g. "pool.ntp.org")
 	Port   int    `yaml:"port"`   // UDP port (default 123)
 }
 
-type TLSCheckConfig struct {
+type TLSProbeConfig struct {
 	Host         string `yaml:"host"`          // host:port (e.g. "api.example.com:443")
 	CheckExpiry  bool   `yaml:"check_expiry"`  // check certificate expiry (default true)
 	WarnDays     int    `yaml:"warn_days"`     // days before expiry to warn (default 30)
 	CriticalDays int    `yaml:"critical_days"` // days before expiry to critical (default 7)
 }
 
-type UDPCheckConfig struct {
+type UDPProbeConfig struct {
 	Host             string `yaml:"host"`
 	Port             int    `yaml:"port"`
 	IPVersion        string `yaml:"ip_version"`      // "4", "6", or "" (any)
@@ -203,30 +203,30 @@ type UDPCheckConfig struct {
 	MaxResponseBytes int    `yaml:"max_response_bytes"` // default 4096
 }
 
-type BGPCheckConfig struct {
+type BGPProbeConfig struct {
 	Prefix         string `yaml:"prefix"`          // IP prefix to monitor (e.g. "203.0.113.0/24")
 	ExpectedOrigin int    `yaml:"expected_origin"` // expected origin ASN
 }
 
-type DomainExpirationCheckConfig struct {
+type DomainExpirationProbeConfig struct {
 	Domain       string `yaml:"domain"`
 	WarnDays     int    `yaml:"warn_days"`     // days before expiry to warn (default 30)
 	CriticalDays int    `yaml:"critical_days"` // days before expiry to critical (default 7)
 }
 
-type SMTPCheckConfig struct {
+type SMTPProbeConfig struct {
 	Host    string        `yaml:"host"`
 	Port    int           `yaml:"port"`
 	Timeout time.Duration `yaml:"timeout"`
 }
 
-type TracerouteCheckConfig struct {
+type TracerouteProbeConfig struct {
 	Host     string `yaml:"host"`
 	MaxHops  int    `yaml:"max_hops"`
 	Count    int    `yaml:"count"`
 }
 
-type PlaywrightCheckConfig struct {
+type PlaywrightProbeConfig struct {
 	Script        string `yaml:"script"`
 	Authenticator string `yaml:"authenticator"`
 	BaseURL       string `yaml:"base_url"`
@@ -235,7 +235,7 @@ type PlaywrightCheckConfig struct {
 	Device        string `yaml:"device"`   // Playwright device name, e.g. "iPhone 14", "Pixel 7"
 }
 
-type httpCheckYAML struct {
+type httpProbeYAML struct {
 	Name            string            `yaml:"name"`
 	Group           string            `yaml:"group"`
 	URL             string            `yaml:"url"`
@@ -252,7 +252,7 @@ type httpCheckYAML struct {
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
-type smtpCheckYAML struct {
+type smtpProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -263,7 +263,7 @@ type smtpCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type tracerouteCheckYAML struct {
+type tracerouteProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -275,7 +275,7 @@ type tracerouteCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type playwrightCheckYAML struct {
+type playwrightProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Script        string        `yaml:"script"`
@@ -290,7 +290,7 @@ type playwrightCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type tcpCheckYAML struct {
+type tcpProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -305,7 +305,7 @@ type tcpCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type dnsCheckYAML struct {
+type dnsProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Domain        string        `yaml:"domain"`
@@ -318,7 +318,7 @@ type dnsCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type icmpCheckYAML struct {
+type icmpProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -330,7 +330,7 @@ type icmpCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type ntpCheckYAML struct {
+type ntpProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Server        string        `yaml:"server"`
@@ -341,7 +341,7 @@ type ntpCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type tlsCheckYAML struct {
+type tlsProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -354,7 +354,7 @@ type tlsCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type udpCheckYAML struct {
+type udpProbeYAML struct {
 	Name             string        `yaml:"name"`
 	Group            string        `yaml:"group"`
 	Host             string        `yaml:"host"`
@@ -371,7 +371,7 @@ type udpCheckYAML struct {
 	DegradedAfter    time.Duration `yaml:"degraded_after"`
 }
 
-type grpcCheckYAML struct {
+type grpcProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Host          string        `yaml:"host"`
@@ -384,7 +384,7 @@ type grpcCheckYAML struct {
 	DegradedAfter time.Duration `yaml:"degraded_after"`
 }
 
-type bgpCheckYAML struct {
+type bgpProbeYAML struct {
 	Name           string        `yaml:"name"`
 	Group          string        `yaml:"group"`
 	Prefix         string        `yaml:"prefix"`
@@ -395,7 +395,7 @@ type bgpCheckYAML struct {
 	DegradedAfter  time.Duration `yaml:"degraded_after"`
 }
 
-type domainExpiryCheckYAML struct {
+type domainExpiryProbeYAML struct {
 	Name          string        `yaml:"name"`
 	Group         string        `yaml:"group"`
 	Domain        string        `yaml:"domain"`
@@ -407,100 +407,100 @@ type domainExpiryCheckYAML struct {
 	DegradedAfter  time.Duration `yaml:"degraded_after"`
 }
 
-func LoadChecks(checksDir string) ([]CheckConfig, error) {
-	var checks []CheckConfig
+func LoadProbes(probesDir string) ([]ProbeConfig, error) {
+	var probes []ProbeConfig
 
-	httpChecks, err := loadHTTPChecks(filepath.Join(checksDir, "http.yml"))
+	httpProbes, err := loadHTTPProbes(filepath.Join(probesDir, "http.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading HTTP checks: %w", err)
+		return nil, fmt.Errorf("loading HTTP probes: %w", err)
 	}
-	checks = append(checks, httpChecks...)
+	probes = append(probes, httpProbes...)
 
-	smtpChecks, err := loadSMTPChecks(filepath.Join(checksDir, "smtp.yml"))
+	smtpProbes, err := loadSMTPProbes(filepath.Join(probesDir, "smtp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading SMTP checks: %w", err)
+		return nil, fmt.Errorf("loading SMTP probes: %w", err)
 	}
-	checks = append(checks, smtpChecks...)
+	probes = append(probes, smtpProbes...)
 
-	trChecks, err := loadTracerouteChecks(filepath.Join(checksDir, "traceroute.yml"))
+	trProbes, err := loadTracerouteProbes(filepath.Join(probesDir, "traceroute.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading traceroute checks: %w", err)
+		return nil, fmt.Errorf("loading traceroute probes: %w", err)
 	}
-	checks = append(checks, trChecks...)
+	probes = append(probes, trProbes...)
 
-	pwChecks, err := loadPlaywrightChecks(checksDir)
+	pwProbes, err := loadPlaywrightProbes(probesDir)
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading Playwright checks: %w", err)
+		return nil, fmt.Errorf("loading Playwright probes: %w", err)
 	}
-	checks = append(checks, pwChecks...)
+	probes = append(probes, pwProbes...)
 
-	tcpChecks, err := loadTCPChecks(filepath.Join(checksDir, "tcp.yml"))
+	tcpProbes, err := loadTCPProbes(filepath.Join(probesDir, "tcp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading TCP checks: %w", err)
+		return nil, fmt.Errorf("loading TCP probes: %w", err)
 	}
-	checks = append(checks, tcpChecks...)
+	probes = append(probes, tcpProbes...)
 
-	dnsChecks, err := loadDNSChecks(filepath.Join(checksDir, "dns.yml"))
+	dnsProbes, err := loadDNSProbes(filepath.Join(probesDir, "dns.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading DNS checks: %w", err)
+		return nil, fmt.Errorf("loading DNS probes: %w", err)
 	}
-	checks = append(checks, dnsChecks...)
+	probes = append(probes, dnsProbes...)
 
-	icmpChecks, err := loadICMPChecks(filepath.Join(checksDir, "icmp.yml"))
+	icmpProbes, err := loadICMPProbes(filepath.Join(probesDir, "icmp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading ICMP checks: %w", err)
+		return nil, fmt.Errorf("loading ICMP probes: %w", err)
 	}
-	checks = append(checks, icmpChecks...)
+	probes = append(probes, icmpProbes...)
 
-	grpcChecks, err := loadGRPCChecks(filepath.Join(checksDir, "grpc.yml"))
+	grpcProbes, err := loadGRPCProbes(filepath.Join(probesDir, "grpc.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading gRPC checks: %w", err)
+		return nil, fmt.Errorf("loading gRPC probes: %w", err)
 	}
-	checks = append(checks, grpcChecks...)
+	probes = append(probes, grpcProbes...)
 
-	ntpChecks, err := loadNTPChecks(filepath.Join(checksDir, "ntp.yml"))
+	ntpProbes, err := loadNTPProbes(filepath.Join(probesDir, "ntp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading NTP checks: %w", err)
+		return nil, fmt.Errorf("loading NTP probes: %w", err)
 	}
-	checks = append(checks, ntpChecks...)
+	probes = append(probes, ntpProbes...)
 
-	udpChecks, err := loadUDPChecks(filepath.Join(checksDir, "udp.yml"))
+	udpProbes, err := loadUDPProbes(filepath.Join(probesDir, "udp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading UDP checks: %w", err)
+		return nil, fmt.Errorf("loading UDP probes: %w", err)
 	}
-	checks = append(checks, udpChecks...)
+	probes = append(probes, udpProbes...)
 
-	tlsChecks, err := loadTLSChecks(filepath.Join(checksDir, "tls.yml"))
+	tlsProbes, err := loadTLSProbes(filepath.Join(probesDir, "tls.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading TLS checks: %w", err)
+		return nil, fmt.Errorf("loading TLS probes: %w", err)
 	}
-	checks = append(checks, tlsChecks...)
+	probes = append(probes, tlsProbes...)
 
-	bgpChecks, err := loadBGPChecks(filepath.Join(checksDir, "bgp.yml"))
+	bgpProbes, err := loadBGPProbes(filepath.Join(probesDir, "bgp.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading BGP checks: %w", err)
+		return nil, fmt.Errorf("loading BGP probes: %w", err)
 	}
-	checks = append(checks, bgpChecks...)
+	probes = append(probes, bgpProbes...)
 
-	domainExpiryChecks, err := loadDomainExpiryChecks(filepath.Join(checksDir, "domain_expiry.yml"))
+	domainExpiryProbes, err := loadDomainExpiryProbes(filepath.Join(probesDir, "domain_expiry.yml"))
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("loading domain expiry checks: %w", err)
+		return nil, fmt.Errorf("loading domain expiry probes: %w", err)
 	}
-	checks = append(checks, domainExpiryChecks...)
+	probes = append(probes, domainExpiryProbes...)
 
-	for i := range checks {
-		if checks[i].Timeout == 0 {
-			checks[i].Timeout = 30 * time.Second
+	for i := range probes {
+		if probes[i].Timeout == 0 {
+			probes[i].Timeout = 30 * time.Second
 		}
-		if checks[i].Schedule == "" {
-			checks[i].Schedule = "*/30 * * * * *"
+		if probes[i].Schedule == "" {
+			probes[i].Schedule = "*/30 * * * * *"
 		}
 	}
 
-	return checks, nil
+	return probes, nil
 }
 
-func loadHTTPChecks(path string) ([]CheckConfig, error) {
+func loadHTTPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -508,12 +508,12 @@ func loadHTTPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []httpCheckYAML
+	var raw []httpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.ExpectedStatus == 0 {
 			r.ExpectedStatus = 200
@@ -521,15 +521,15 @@ func loadHTTPChecks(path string) ([]CheckConfig, error) {
 		if r.Method == "" {
 			r.Method = "GET"
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeHTTP,
+			Type:          ProbeTypeHTTP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			HTTP: &HTTPCheckConfig{
+			HTTP: &HTTPProbeConfig{
 				URL:             r.URL,
 				Method:          r.Method,
 				ExpectedStatus:  r.ExpectedStatus,
@@ -541,29 +541,29 @@ func loadHTTPChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	for i, p := range checks {
+	for i, p := range probes {
 		for j, a := range p.HTTP.Assertions {
 			if !validAssertionTypes[a.Type] {
-				return nil, fmt.Errorf("check %q assertion[%d]: invalid type %q", checks[i].Name, j, a.Type)
+				return nil, fmt.Errorf("probe %q assertion[%d]: invalid type %q", probes[i].Name, j, a.Type)
 			}
 			if a.Target == "" {
-				return nil, fmt.Errorf("check %q assertion[%d]: target is required", checks[i].Name, j)
+				return nil, fmt.Errorf("probe %q assertion[%d]: target is required", probes[i].Name, j)
 			}
 			if strings.HasPrefix(a.Type, "header_") && a.Header == "" {
-				return nil, fmt.Errorf("check %q assertion[%d]: header is required for type %q", checks[i].Name, j, a.Type)
+				return nil, fmt.Errorf("probe %q assertion[%d]: header is required for type %q", probes[i].Name, j, a.Type)
 			}
 			if a.Type == "regex" || a.Type == "header_regex" {
 				if _, err := regexp.Compile(a.Target); err != nil {
-					return nil, fmt.Errorf("check %q assertion[%d]: invalid regex %q: %w", checks[i].Name, j, a.Target, err)
+					return nil, fmt.Errorf("probe %q assertion[%d]: invalid regex %q: %w", probes[i].Name, j, a.Target, err)
 				}
 			}
 		}
 	}
 
-	return checks, nil
+	return probes, nil
 }
 
-func loadSMTPChecks(path string) ([]CheckConfig, error) {
+func loadSMTPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -571,35 +571,35 @@ func loadSMTPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []smtpCheckYAML
+	var raw []smtpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.Port == 0 {
 			r.Port = 25
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeSMTP,
+			Type:          ProbeTypeSMTP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			SMTP: &SMTPCheckConfig{
+			SMTP: &SMTPProbeConfig{
 				Host:    r.Host,
 				Port:    r.Port,
 				Timeout: r.Timeout,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadTracerouteChecks(path string) ([]CheckConfig, error) {
+func loadTracerouteProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -607,12 +607,12 @@ func loadTracerouteChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []tracerouteCheckYAML
+	var raw []tracerouteProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.MaxHops == 0 {
 			r.MaxHops = 30
@@ -620,32 +620,32 @@ func loadTracerouteChecks(path string) ([]CheckConfig, error) {
 		if r.Count == 0 {
 			r.Count = 3
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeTraceroute,
+			Type:          ProbeTypeTraceroute,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			Traceroute: &TracerouteCheckConfig{
+			Traceroute: &TracerouteProbeConfig{
 				Host:    r.Host,
 				MaxHops: r.MaxHops,
 				Count:   r.Count,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadPlaywrightChecks(checksDir string) ([]CheckConfig, error) {
-	pwDir := filepath.Join(checksDir, "playwright")
+func loadPlaywrightProbes(probesDir string) ([]ProbeConfig, error) {
+	pwDir := filepath.Join(probesDir, "playwright")
 	configPath := filepath.Join(pwDir, "playwright.yml")
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		// Also try checks/playwright.yml at parent level
-		data, err = os.ReadFile(filepath.Join(checksDir, "playwright.yml"))
+		// Also try probes/playwright.yml at parent level
+		data, err = os.ReadFile(filepath.Join(probesDir, "playwright.yml"))
 		if err != nil {
 			return nil, err
 		}
@@ -653,27 +653,27 @@ func loadPlaywrightChecks(checksDir string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []playwrightCheckYAML
+	var raw []playwrightProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing playwright config: %w", err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
-		// Resolve script path relative to checks directory
+		// Resolve script path relative to probes directory
 		script := r.Script
 		if !filepath.IsAbs(script) {
-			script = filepath.Join(checksDir, script)
+			script = filepath.Join(probesDir, script)
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypePlaywright,
+			Type:          ProbeTypePlaywright,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			Playwright: &PlaywrightCheckConfig{
+			Playwright: &PlaywrightProbeConfig{
 				Script:        script,
 				Authenticator: r.Authenticator,
 				BaseURL:       r.BaseURL,
@@ -683,10 +683,10 @@ func loadPlaywrightChecks(checksDir string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadTCPChecks(path string) ([]CheckConfig, error) {
+func loadTCPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -694,22 +694,22 @@ func loadTCPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []tcpCheckYAML
+	var raw []tcpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeTCP,
+			Type:          ProbeTypeTCP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			TCP: &TCPCheckConfig{
+			TCP: &TCPProbeConfig{
 				Host:       r.Host,
 				Port:       r.Port,
 				IPVersion:  r.IPVersion,
@@ -719,10 +719,10 @@ func loadTCPChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadDNSChecks(path string) ([]CheckConfig, error) {
+func loadDNSProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -730,12 +730,12 @@ func loadDNSChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []dnsCheckYAML
+	var raw []dnsProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.RecordType == "" {
 			r.RecordType = "A"
@@ -743,15 +743,15 @@ func loadDNSChecks(path string) ([]CheckConfig, error) {
 		if r.Server == "" {
 			r.Server = "8.8.8.8:53"
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeDNS,
+			Type:          ProbeTypeDNS,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			DNS: &DNSCheckConfig{
+			DNS: &DNSProbeConfig{
 				Domain:     r.Domain,
 				Server:     r.Server,
 				RecordType: r.RecordType,
@@ -759,10 +759,10 @@ func loadDNSChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadICMPChecks(path string) ([]CheckConfig, error) {
+func loadICMPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -770,35 +770,35 @@ func loadICMPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []icmpCheckYAML
+	var raw []icmpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.Count == 0 {
 			r.Count = 3
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeICMP,
+			Type:          ProbeTypeICMP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			ICMP: &ICMPCheckConfig{
+			ICMP: &ICMPProbeConfig{
 				Host:      r.Host,
 				Count:     r.Count,
 				IPVersion: r.IPVersion,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadGRPCChecks(path string) ([]CheckConfig, error) {
+func loadGRPCProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -806,22 +806,22 @@ func loadGRPCChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []grpcCheckYAML
+	var raw []grpcProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeGRPC,
+			Type:          ProbeTypeGRPC,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			GRPC: &GRPCCheckConfig{
+			GRPC: &GRPCProbeConfig{
 				Host:    r.Host,
 				Service: r.Service,
 				TLS:     r.TLS,
@@ -829,10 +829,10 @@ func loadGRPCChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadNTPChecks(path string) ([]CheckConfig, error) {
+func loadNTPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -840,34 +840,34 @@ func loadNTPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []ntpCheckYAML
+	var raw []ntpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		if r.Port == 0 {
 			r.Port = 123
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeNTP,
+			Type:          ProbeTypeNTP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			NTP: &NTPCheckConfig{
+			NTP: &NTPProbeConfig{
 				Server: r.Server,
 				Port:   r.Port,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadTLSChecks(path string) ([]CheckConfig, error) {
+func loadTLSProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -875,12 +875,12 @@ func loadTLSChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []tlsCheckYAML
+	var raw []tlsProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		checkExpiry := true
 		if r.CheckExpiry != nil {
@@ -894,15 +894,15 @@ func loadTLSChecks(path string) ([]CheckConfig, error) {
 		if criticalDays == 0 {
 			criticalDays = 7
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeTLS,
+			Type:          ProbeTypeTLS,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			TLS: &TLSCheckConfig{
+			TLS: &TLSProbeConfig{
 				Host:         r.Host,
 				CheckExpiry:  checkExpiry,
 				WarnDays:     warnDays,
@@ -910,10 +910,10 @@ func loadTLSChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadUDPChecks(path string) ([]CheckConfig, error) {
+func loadUDPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -921,26 +921,26 @@ func loadUDPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []udpCheckYAML
+	var raw []udpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		maxResp := r.MaxResponseBytes
 		if maxResp == 0 {
 			maxResp = 4096
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeUDP,
+			Type:          ProbeTypeUDP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			UDP: &UDPCheckConfig{
+			UDP: &UDPProbeConfig{
 				Host:             r.Host,
 				Port:             r.Port,
 				IPVersion:        r.IPVersion,
@@ -952,10 +952,10 @@ func loadUDPChecks(path string) ([]CheckConfig, error) {
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadBGPChecks(path string) ([]CheckConfig, error) {
+func loadBGPProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -963,31 +963,31 @@ func loadBGPChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []bgpCheckYAML
+	var raw []bgpProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeBGP,
+			Type:          ProbeTypeBGP,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			BGP: &BGPCheckConfig{
+			BGP: &BGPProbeConfig{
 				Prefix:         r.Prefix,
 				ExpectedOrigin: r.ExpectedOrigin,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func loadDomainExpiryChecks(path string) ([]CheckConfig, error) {
+func loadDomainExpiryProbes(path string) ([]ProbeConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -995,12 +995,12 @@ func loadDomainExpiryChecks(path string) ([]CheckConfig, error) {
 
 	expanded := expandEnvVars(string(data))
 
-	var raw []domainExpiryCheckYAML
+	var raw []domainExpiryProbeYAML
 	if err := yaml.Unmarshal([]byte(expanded), &raw); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	checks := make([]CheckConfig, len(raw))
+	probes := make([]ProbeConfig, len(raw))
 	for i, r := range raw {
 		warnDays := r.WarnDays
 		if warnDays == 0 {
@@ -1010,28 +1010,28 @@ func loadDomainExpiryChecks(path string) ([]CheckConfig, error) {
 		if criticalDays == 0 {
 			criticalDays = 7
 		}
-		checks[i] = CheckConfig{
+		probes[i] = ProbeConfig{
 			Name:          r.Name,
-			Type:          CheckTypeDomainExpiry,
+			Type:          ProbeTypeDomainExpiry,
 			Group:         r.Group,
 			Schedule:      r.Schedule,
 			Timeout:       r.Timeout,
 			Retry:         r.Retry,
 			DegradedAfter: r.DegradedAfter,
-			DomainExpiry: &DomainExpirationCheckConfig{
+			DomainExpiry: &DomainExpirationProbeConfig{
 				Domain:       r.Domain,
 				WarnDays:     warnDays,
 				CriticalDays: criticalDays,
 			},
 		}
 	}
-	return checks, nil
+	return probes, nil
 }
 
-func FindCheckByName(checks []CheckConfig, name string) *CheckConfig {
-	for i := range checks {
-		if checks[i].Name == name {
-			return &checks[i]
+func FindProbeByName(probes []ProbeConfig, name string) *ProbeConfig {
+	for i := range probes {
+		if probes[i].Name == name {
+			return &probes[i]
 		}
 	}
 	return nil
