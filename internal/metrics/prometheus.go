@@ -26,12 +26,12 @@ var (
 
 var (
 	checkUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "technician_probe_up",
+		Name: "technician_check_healthy",
 		Help: "1 if the target responded successfully, 0 if the check failed",
 	}, []string{"type", "name", "region", "city", "country"})
 
 	checkDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "technician_probe_duration_seconds",
+		Name: "technician_check_duration_seconds",
 		Help: "End-to-end probe execution time in seconds",
 	}, []string{"type", "name", "region", "city", "country"})
 
@@ -221,13 +221,13 @@ var (
 	// Infrastructure error indicator — recorded even when InfraError=true
 	// so that silently-failing probes become visible in dashboards and alerts.
 	checkInfraError = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "technician_probe_infra_error",
+		Name: "technician_check_infra_error",
 		Help: "1 if the probe's own infrastructure failed (not the target), 0 otherwise",
 	}, []string{"type", "name", "region", "city", "country"})
 
 	// Degraded indicator
 	checkDegraded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "technician_probe_degraded",
+		Name: "technician_check_degraded",
 		Help: "Whether the check response time exceeds the degraded threshold (1=degraded, 0=ok)",
 	}, []string{"type", "name", "region", "city", "country"})
 )

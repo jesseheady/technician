@@ -120,7 +120,7 @@ Full stack e2e:
 ```bash
 docker compose up -d
 # Wait for scrape + evaluation (e.g. 1–2 minutes)
-curl -s http://localhost:9090/api/v1/query?query=technician_probe_duration_seconds | jq .
+curl -s http://localhost:9090/api/v1/query?query=technician_check_duration_seconds | jq .
 # Optional: open Grafana and confirm dashboards show data
 docker compose down
 ```

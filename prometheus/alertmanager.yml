@@ -27,7 +27,7 @@ route:
     # Probe failures, BGP hijacks, invalid certs, dropped domains,
     # Prometheus WAL corruption.
     - matchers:
-        - alertname =~ "ProbeFailing|HighErrorRate|HighErrorRateWarn|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered|PrometheusWALCorruptions|PrometheusStorageCritical"
+        - alertname =~ "CheckFailing|HighErrorRate|HighErrorRateWarn|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered|PrometheusWALCorruptions|PrometheusStorageCritical"
       receiver: infrastructure
       repeat_interval: 1h
 
@@ -49,7 +49,7 @@ route:
       repeat_interval: 4h
 
     # ── Catch-all ───────────────────────────────────────────────
-    # Everything else (ProbeInfraError, PrometheusStorageHigh, and
+    # Everything else (CheckInfraError, PrometheusStorageHigh, and
     # any new rules not yet routed above).
     - receiver: chatops
       # Only notify during work hours:
@@ -137,7 +137,7 @@ receivers:
 # an alert while investigating, use Alertmanager silences:
 #
 #   UI:  http://localhost:9093/#/silences  (create silence with matchers)
-#   CLI: amtool silence add alertname=ProbeFailing name=myprobe --duration=2h
+#   CLI: amtool silence add alertname=CheckFailing name=myprobe --duration=2h
 #   API: POST /api/v2/silences (for chatops bot integration)
 #
 # PagerDuty/OpsGenie ACKs stop escalation on their side but do NOT
@@ -161,7 +161,7 @@ inhibit_rules:
   - source_matchers:
       - alertname = HighErrorRateWarn
     target_matchers:
-      - alertname = ProbeFailing
+      - alertname = CheckFailing
     equal: ['name']
 
   # ── Invalid / gone suppression ────────────────────────────────

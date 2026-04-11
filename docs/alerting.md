@@ -160,10 +160,10 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | TLS cert expiry | <30 days | ≤7 days |
 | Domain expiry | <60 days | ≤7 days |
 | BGP / TLS invalid / domain gone | — | Immediate (binary failure) |
-| SMTP / Traceroute / gRPC | ProbeFailing (warn) | HighErrorRate (crit) |
+| SMTP / Traceroute / gRPC | CheckFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
-SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_check_up`, `technician_probe_duration_seconds`). They receive full check health coverage (ProbeFailing, HighErrorRate, ProbeInfraError) but do not have probe-specific threshold alerts.
+SMTP, Traceroute, and gRPC probes emit only universal metrics (`technician_check_up`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have probe-specific threshold alerts.
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same probe, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
@@ -179,10 +179,10 @@ Alertmanager routes alerts using a pager fan-out combined with category-based re
 | Receiver | Alerts | Repeat interval |
 |----------|--------|-----------------|
 | `pager` | All critical alerts (fan-out) | 1h |
-| `infrastructure` | ProbeFailing, HighErrorRate, TLSCertInvalid, BGP alerts, DomainNotRegistered, PrometheusWALCorruptions | 1h |
+| `infrastructure` | CheckFailing, HighErrorRate, TLSCertInvalid, BGP alerts, DomainNotRegistered, PrometheusWALCorruptions | 1h |
 | `expiry` | TLSCertExpiringSoon/Critical, DomainExpiringSoon/Critical | 12h |
 | `performance` | All timing/vitals/resource alerts, BudgetViolation | 4h |
-| `chatops` | Everything else (ProbeInfraError, PrometheusStorageHigh, any new rules) | 4h |
+| `chatops` | Everything else (CheckInfraError, PrometheusStorageHigh, any new rules) | 4h |
 
 Each receiver has commented integration examples in `alertmanager.yml`. A critical infrastructure alert is delivered to both `pager` and `infrastructure`. A warning performance alert goes only to `performance`.
 
@@ -192,7 +192,7 @@ Reusable Go templates in `prometheus/templates/technician.tmpl` provide consiste
 
 | Template | Use with |
 |----------|----------|
-| `technician.title` | Any receiver — `[FIRING:2] ProbeFailing — example.com` |
+| `technician.title` | Any receiver — `[FIRING:2] CheckFailing — example.com` |
 | `technician.text` | Any receiver — lists all alerts with annotations |
 | `technician.slack.title` / `.slack.text` | Slack — mrkdwn formatting with bold and quotes |
 | `technician.email.subject` / `.email.html` | Email — HTML table with Alertmanager link |
@@ -212,7 +212,7 @@ slack_configs:
 To suppress alerts while investigating, use Alertmanager silences:
 
 - **UI**: `http://localhost:9093/#/silences` — create a silence with label matchers and a duration.
-- **CLI**: `amtool silence add alertname=ProbeFailing name=myprobe --duration=2h`
+- **CLI**: `amtool silence add alertname=CheckFailing name=myprobe --duration=2h`
 - **API**: `POST /api/v2/silences` — useful for chatops bot integration (e.g. react-to-silence).
 
 PagerDuty/OpsGenie ACKs stop escalation on their side but do not silence Alertmanager — create an Alertmanager silence as well to stop both. For chatops-driven silencing, see [karma](https://github.com/prymitive/karma) or build a bot that calls the Alertmanager silence API.

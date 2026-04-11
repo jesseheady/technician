@@ -73,7 +73,7 @@
       },
       "options": {
         "mode": "html",
-        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HTTP Timing</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-probes\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
+        "content": "<div style=\"display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px\"><a href=\"/d/technician-uptime-overview\" style=\"color:rgb(110,159,255);text-decoration:none\">Uptime</a><span style=\"color:#999;font-size:11px\">|</span><strong style=\"color:rgb(204,204,220)\">HTTP Timing</strong><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-budget-violations\" style=\"color:rgb(110,159,255);text-decoration:none\">Budgets</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-infrastructure-checks\" style=\"color:rgb(110,159,255);text-decoration:none\">Infrastructure</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-performance-vitals\" style=\"color:rgb(110,159,255);text-decoration:none\">Web Vitals</a><span style=\"color:#999;font-size:11px\">|</span><a href=\"/d/technician-har-analysis\" style=\"color:rgb(110,159,255);text-decoration:none\">HAR Analysis</a></div>"
       }
     },
     {
@@ -92,27 +92,27 @@
       },
       "targets": [
         {
-          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "DNS - {{name}}",
           "refId": "A"
         },
         {
-          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "TLS - {{name}}",
           "refId": "B"
         },
         {
-          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "Connect - {{name}}",
           "refId": "C"
         },
         {
-          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "TTFB - {{name}}",
           "refId": "D"
         },
         {
-          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "Transfer - {{name}}",
           "refId": "E"
         }
@@ -161,7 +161,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_dns_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -208,7 +208,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_tls_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_connect_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -302,7 +302,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_ttfb_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -349,7 +349,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_transfer_seconds{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -396,7 +396,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_response_bytes{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_response_bytes{region=~\"$region\", name=~\"$check\"}",
           "legendFormat": "{{name}} @ {{region}}",
           "refId": "A"
         }
@@ -453,7 +453,7 @@
       },
       "targets": [
         {
-          "expr": "technician_http_response_status{region=~\"$region\", name=~\"$probe\"}",
+          "expr": "technician_http_response_status{region=~\"$region\", name=~\"$check\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -517,7 +517,7 @@
               "job": true
             },
             "renameByName": {
-              "name": "Probe",
+              "name": "Check",
               "region": "Site"
             }
           }
