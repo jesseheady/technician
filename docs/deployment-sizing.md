@@ -4,11 +4,11 @@ Resource requirements, deployment topology, and scaling considerations.
 
 ## Context
 
-Technician is a static Go binary (15 MB, stripped) with no database, no runtime interpreter, and no background job system. Probes run as goroutines inside a single process. The main variable is whether you include **Playwright browser probes**, which require Node.js and Chromium.
+Technician is a static Go binary (15 MB, stripped) with no database, no runtime interpreter, and no background job system. Probes run as goroutines inside a single process. The main variable is whether you include **Playwright browser checks**, which require Node.js and Chromium.
 
 ## Measured resource usage
 
-Numbers below were measured with 31 probes active across all 13 probe types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 38 Prometheus metric families.
+Numbers below were measured with 31 probes active across all 13 check types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 38 Prometheus metric families.
 
 ### Runtime memory
 
@@ -39,13 +39,13 @@ Each Playwright probe launches a separate Chromium instance via Node.js:
 | Chromium per instance | ~150–300 MB |
 | HAR + video artifacts | 1–10 MB per run (disk) |
 | Cold start (first probe) | ~2–3 s |
-| Warm probe execution | ~3–8 s depending on page complexity |
+| Warm check execution | ~3–8 s depending on page complexity |
 
-Chromium instances are not pooled — each probe invocation launches and closes a browser. The `max_browsers` setting (default 2) caps concurrent instances via a semaphore. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. The container **must** run an init process (e.g. `init: true` in Compose) to reap exited Chromium children — without it, zombie processes accumulate and leak kernel memory. See [Playwright scaling](playwright-scaling.md) for detailed resource projections and dedicated runner architecture.
+Chromium instances are not pooled — each check invocation launches and closes a browser. The `max_browsers` setting (default 2) caps concurrent instances via a semaphore. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. The container **must** run an init process (e.g. `init: true` in Compose) to reap exited Chromium children — without it, zombie processes accumulate and leak kernel memory. See [Playwright scaling](playwright-scaling.md) for detailed resource projections and dedicated runner architecture.
 
 ### TLS probe overhead
 
-The TLS probe is minimal: a single outbound TCP connection + TLS handshake per check, with no subprocess or external dependency. Memory overhead is negligible (~1 KB per probe run). Resource usage is comparable to a TCP probe with TLS enabled.
+The TLS probe is minimal: a single outbound TCP connection + TLS handshake per check, with no subprocess or external dependency. Memory overhead is negligible (~1 KB per check run). Resource usage is comparable to a TCP probe with TLS enabled.
 
 ## Performance optimizations
 
@@ -55,9 +55,9 @@ Technician includes several layers of optimization to minimize resource usage an
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **HTTP client pooling** | `internal/probe/http.go` | Shared `http.Client` per TLS/redirect config. `MaxIdleConns=100`, `MaxIdleConnsPerHost=5`, `IdleConnTimeout=90s`. Eliminates per-probe TCP+TLS handshake overhead. |
-| **gRPC connection pooling** | `internal/probe/grpc.go` | Cached connections keyed by `(host, tls, skipTLS)`. Connections reused across probe cycles. |
-| **DNS resolver caching** | `internal/probe/dns.go` | One `net.Resolver` per DNS server, using `PreferGo` mode with custom UDP dialer. Avoids creating a resolver per probe run. |
+| **HTTP client pooling** | `internal/check/http.go` | Shared `http.Client` per TLS/redirect config. `MaxIdleConns=100`, `MaxIdleConnsPerHost=5`, `IdleConnTimeout=90s`. Eliminates per-check TCP+TLS handshake overhead. |
+| **gRPC connection pooling** | `internal/check/grpc.go` | Cached connections keyed by `(host, tls, skipTLS)`. Connections reused across probe cycles. |
+| **DNS resolver caching** | `internal/check/dns.go` | One `net.Resolver` per DNS server, using `PreferGo` mode with custom UDP dialer. Avoids creating a resolver per check run. |
 | **Gzip response compression** | `internal/server/gzip.go` | `sync.Pool`-backed gzip middleware on all responses except `/metrics` and `/health` (which Prometheus and health checks prefer uncompressed). |
 | **ETag / conditional responses** | `internal/status/handler.go` | SHA256-based ETag on `/` and `/api/status`. Returns `304 Not Modified` when content hasn't changed, saving bandwidth on the 10s auto-refresh cycle. |
 | **HTTP server timeouts** | `cmd/worker.go` | `ReadTimeout=15s`, `WriteTimeout=30s`, `IdleTimeout=60s`, `MaxHeaderBytes=1MB`. Prevents slow-client resource exhaustion. |
@@ -66,18 +66,18 @@ Technician includes several layers of optimization to minimize resource usage an
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **Compiled regex cache** | `internal/probe/http.go` | `sync.Map` caches compiled `*regexp.Regexp` for HTTP body/header assertions. Lock-free reads after first compile. |
+| **Compiled regex cache** | `internal/check/http.go` | `sync.Map` caches compiled `*regexp.Regexp` for HTTP body/header assertions. Lock-free reads after first compile. |
 | **Status snapshot caching** | `internal/status/store.go` | 2-second TTL cache on `Snapshot()`. Absorbs rapid page refreshes and the 10s auto-refresh without recomputing percentiles. |
-| **Circular ring buffer** | `internal/status/store.go` | Fixed 90-entry ring per probe with `head`/`full` pointer. No slice reallocation or reslicing on overflow. |
+| **Circular ring buffer** | `internal/status/store.go` | Fixed 90-entry ring per check with `head`/`full` pointer. No slice reallocation or reslicing on overflow. |
 | **Template output buffering** | `internal/status/handler.go` | Status page HTML rendered to buffer before writing to `ResponseWriter`, avoiding partial writes on error. |
-| **TCP read buffer limit** | `internal/probe/tcp.go` | Max read size bounded to prevent memory exhaustion from large responses on banner checks. |
+| **TCP read buffer limit** | `internal/check/tcp.go` | Max read size bounded to prevent memory exhaustion from large responses on banner checks. |
 
 ### Alerting stability
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **Probe-level retries** | `internal/scheduler/scheduler.go` | Configurable `count`, `backoff` (none/linear/exponential), `delay` per probe. Absorbs transient failures before reporting. |
-| **Consecutive-failure threshold** | `internal/notify/notify.go` | 3 consecutive failures required before `probe_down` fires. Single success resets the counter. |
+| **Probe-level retries** | `internal/scheduler/scheduler.go` | Configurable `count`, `backoff` (none/linear/exponential), `delay` per check. Absorbs transient failures before reporting. |
+| **Consecutive-failure threshold** | `internal/notify/notify.go` | 3 consecutive failures required before `check_down` fires. Single success resets the counter. |
 | **InfraError exclusion** | `internal/notify/notify.go` | Infrastructure errors (DNS resolution, connection refused) excluded from failure counting — prevents transient infra blips from triggering alerts. |
 | **Webhook concurrency limit** | `internal/notify/notify.go` | Semaphore caps outbound webhook sends at 4 concurrent goroutines. Prevents thundering herd on mass failure. |
 | **Per-probe cooldown** | `internal/notify/notify.go` | Deduplicates repeated notifications for the same probe+event within the configured cooldown window (default 5m). |
@@ -86,8 +86,8 @@ Technician includes several layers of optimization to minimize resource usage an
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **Cardinality guard** | `internal/metrics/prometheus.go` | `maxProbeCardinality=500` — silently drops new probe names beyond the limit. Prevents label explosion from degrading Prometheus. |
-| **Stagger delay** | `internal/scheduler/stagger.go` | FNV-32a hash-based deterministic delay (0–10s) per probe. Spreads probe execution to avoid metric spikes and network bursts. |
+| **Cardinality guard** | `internal/metrics/prometheus.go` | `maxProbeCardinality=500` — silently drops new check names beyond the limit. Prevents label explosion from degrading Prometheus. |
+| **Stagger delay** | `internal/scheduler/stagger.go` | FNV-32a hash-based deterministic delay (0–10s) per check. Spreads check execution to avoid metric spikes and network bursts. |
 
 ### Docker & CI
 
@@ -134,7 +134,7 @@ graph TD
 
 | Component | Role | Required? | Runs where |
 |-----------|------|-----------|------------|
-| **Technician worker** | Runs probes on a schedule, exposes `/metrics` and status page | Yes (1+ instances) | VPS, EC2, ECS, Kubernetes |
+| **Technician worker** | Runs checks on a schedule, exposes `/metrics` and status page | Yes (1+ instances) | VPS, EC2, ECS, Kubernetes |
 | **Prometheus** | Scrapes workers, stores time-series, evaluates alert rules | Yes (1 instance) | Central host or managed service |
 | **Grafana** | Dashboards, historical views, alert notifications | Recommended (1 instance) | Central host or Grafana Cloud |
 | **Alertmanager** | Routes alerts to Slack, PagerDuty, email, etc. | Optional | Alongside Prometheus |
@@ -172,7 +172,7 @@ One repo produces multiple deployment targets. Here's what ships where and how:
 graph TD
     R["technician repo"] --> B["Go binary<br/>go build<br/>~15 MB, static"]
     R --> D["Docker image<br/>docker build<br/>~1.6 GB full / ~80 MB slim"]
-    R --> J["JS Worker<br/>wrangler<br/>< 1 MB, HTTP probes only"]
+    R --> J["JS Worker<br/>wrangler<br/>< 1 MB, HTTP checks only"]
 
     B --> VPS["VPS / EC2<br/>(systemd)"]
     B --> LAM1["Lambda<br/>(container)"]
@@ -221,7 +221,7 @@ ssh yourserver 'SITE_CODE=us-east-1 technician worker --config /etc/technician/t
 | Native webhook alerts (Discord, Slack, generic) | Yes — fires on probe state transitions, cert expiry, and budget violations with severity routing (warn/crit to different channels) |
 | Blackbox-exporter compat at `/probe` | Yes |
 | Grafana dashboards | No — requires Prometheus + Grafana |
-| Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per probe |
+| Historical data beyond ~45 min | No — the in-memory ring buffer holds 90 entries per check |
 | Alert rules (ProbeFailing, BudgetViolation) | No — requires Prometheus |
 
 This is a valid production deployment for teams that just need uptime monitoring with webhook alerts. The status page and `/api/status` endpoint work independently. Add Prometheus + Grafana later when you want historical trends and dashboards — the worker is already exporting metrics.
@@ -230,7 +230,7 @@ This is a valid production deployment for teams that just need uptime monitoring
 
 ```ini
 [Unit]
-Description=Technician probe runner
+Description=Technician check runner
 After=network-online.target
 Wants=network-online.target
 
@@ -261,7 +261,7 @@ sudo systemctl enable --now technician
 sudo journalctl -u technician -f  # tail logs
 ```
 
-For Playwright probes, you'd also need Node.js and Chromium on the host — in that case, Docker is easier. For traceroute probes, install mtr (`apt install mtr-tiny`) and note that mtr requires root for raw sockets (the systemd unit runs as root by default; add `AmbientCapabilities=CAP_NET_RAW` if you add a `User=` directive). For NTP probes, ensure outbound UDP port 123 is open.
+For Playwright checks, you'd also need Node.js and Chromium on the host — in that case, Docker is easier. For traceroute checks, install mtr (`apt install mtr-tiny`) and note that mtr requires root for raw sockets (the systemd unit runs as root by default; add `AmbientCapabilities=CAP_NET_RAW` if you add a `User=` directive). For NTP checks, ensure outbound UDP port 123 is open.
 
 **Docker / ECS / Kubernetes**
 
@@ -284,8 +284,8 @@ Each instance runs `technician worker` (the Dockerfile default). Prometheus disc
 
 The Go binary runs in Lambda as a container image or zip deploy. Two invocation models:
 
-1. **EventBridge schedule** triggers Lambda every N minutes. Lambda runs all probes once (`technician validate`), pushes results to Pushgateway, exits.
-2. **Per-probe invocation** — EventBridge triggers a separate Lambda per probe. More granular, better cold-start isolation.
+1. **EventBridge schedule** triggers Lambda every N minutes. Lambda runs all checks once (`technician validate`), pushes results to Pushgateway, exits.
+2. **Per-probe invocation** — EventBridge triggers a separate Lambda per check. More granular, better cold-start isolation.
 
 Lambda can't be scraped (no long-lived process), so metrics must be **pushed**:
 
@@ -343,7 +343,7 @@ graph LR
     CFG --> CENTRAL
 ```
 
-All probe results — from VPS workers, ECS tasks, Lambda functions, and Cloudflare Workers — end up in the same central Prometheus. Grafana queries that one Prometheus and shows everything on the same dashboards, filterable by `region` and probe type.
+All check results — from VPS workers, ECS tasks, Lambda functions, and Cloudflare Workers — end up in the same central Prometheus. Grafana queries that one Prometheus and shows everything on the same dashboards, filterable by `region` and check type.
 
 ## Using managed services
 
@@ -391,7 +391,7 @@ A future enhancement would add native Prometheus remote-write to Technician itse
 
 ### AWS Managed Grafana (AMG)
 
-No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`region`, `probe`, and for browser dashboards `network` and `device`) that work identically with AMP.
+No code changes needed. Configure AMG with a Prometheus datasource pointing at your AMP workspace, then import the dashboard JSONs from `dashboards/`. The dashboards use standard PromQL and template variables (`region`, `check`, and for browser dashboards `network` and `device`) that work identically with AMP.
 
 ### Alerting
 
@@ -409,8 +409,8 @@ Technician supports two complementary alerting layers:
 
 | | Central (Prometheus/Grafana) | Native (Technician worker) |
 |--|------------------------------|--------------------------|
-| **Latency** | 30–60s (scrape interval + rule eval) | Immediate (fires in the probe goroutine) |
-| **Deduplication** | Alertmanager groups, deduplicates, silences | Fire on state change only, with per-probe cooldown |
+| **Latency** | 30–60s (scrape interval + rule eval) | Immediate (fires in the check goroutine) |
+| **Deduplication** | Alertmanager groups, deduplicates, silences | Fire on state change only, with per-check cooldown |
 | **Dependency** | Requires Prometheus + Alertmanager/Grafana to be up | Zero — just an outbound HTTP POST |
 | **Escalation** | Routes by severity, time-of-day, team | Not built-in (use central for complex routing) |
 | **Works on Lambda/edge** | Only if metrics reach Prometheus in time | Yes — fires before the function exits |
@@ -437,7 +437,7 @@ Every external dependency Technician touches, and whether it can be swapped:
 
 | Data | Store | Retention | Survives restart? |
 |------|-------|-----------|-------------------|
-| Real-time probe status | In-memory ring buffer (90 results per probe), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | Depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
+| Real-time probe status | In-memory ring buffer (90 results per check), persisted to JSON file every 60s. Daily backups retained 90 days. Snapshot cached 2s. | Depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min | Yes (with Docker named volume or persistent disk). Falls back to most recent backup if main file is missing or corrupt. |
 | Metrics time-series | Prometheus / AMP | Configurable (default 90 days in docker-compose, up to years) | Yes |
 | Dashboards, uptime history, trends | Grafana querying Prometheus | As long as Prometheus retains the data | Yes |
 | HAR files, screenshots, videos | Local disk or S3 | Configurable (`artifacts.retention`) | Yes (if S3) |
@@ -457,7 +457,7 @@ All storage is bounded. No container grows without a configured limit or automat
 | Alertmanager | ~75 MB | None (ephemeral) | Silence + notification log (~100 KB) |
 | **Total** | **~2.5 GB** (with Playwright) | | |
 
-**Steady-state growth (per day, 31 probes, 15s scrape interval)**
+**Steady-state growth (per day, 31 checks, 15s scrape interval)**
 
 | Container | Daily growth | What grows | Pruning mechanism | Steady-state disk |
 |-----------|-------------|------------|-------------------|-------------------|
@@ -471,7 +471,7 @@ All storage is bounded. No container grows without a configured limit or automat
 
 | Data | Default retention | Configurable? | How to change |
 |------|------------------|---------------|---------------|
-| Probe history (ring buffer) | 90 entries per probe (~45 min at 30s, ~3h at 2min, ~7.5h at 5min) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
+| Probe history (ring buffer) | 90 entries per check (~45 min at 30s, ~3h at 2min, ~7.5h at 5min) | No (compile-time) | Change `maxHistory` in `internal/status/store.go` |
 | Status backups | 90 days | No (compile-time) | Change retention in `SaveBackup()` in `internal/status/store.go` |
 | Playwright artifacts | 72h | Yes | `artifacts.retention` in `technician.yml` |
 | Prometheus time-series | 90 days / 5 GB (whichever first) | Yes | `--storage.tsdb.retention.time` and `--storage.tsdb.retention.size` in `docker-compose.yml` Prometheus command |
@@ -486,7 +486,7 @@ All storage is bounded. No container grows without a configured limit or automat
 | 100 | ~40 MB | ~3 GB | ~3 GB |
 | 500 | ~200 MB | ~12 GB | ~12.2 GB |
 
-*Prometheus storage scales linearly with retention — doubling retention doubles disk. Estimates assume ~12 series per probe and 15s scrape interval. Technician estimates include 90 days of daily backups. Artifact storage excluded (depends on Playwright video config).*
+*Prometheus storage scales linearly with retention — doubling retention doubles disk. Estimates assume ~12 series per check and 15s scrape interval. Technician estimates include 90 days of daily backups. Artifact storage excluded (depends on Playwright video config).*
 
 **Recommended minimum disk by deployment**
 
@@ -507,7 +507,7 @@ The `docker-compose.yml` includes guards to prevent Prometheus from exhausting d
 | `--storage.tsdb.retention.size` | `5GB` | Hard cap on total block size — deletes oldest blocks when exceeded, even if younger than 90d |
 | `--storage.tsdb.wal-compression` | (enabled) | Compresses WAL segments (~30–50% smaller), reducing peak disk usage |
 
-When both time and size retention are set, Prometheus deletes data when **either** limit is breached (whichever comes first). Under normal load (31 probes, ~2 GB at 90d), the time limit applies. Under disk pressure, the size limit kicks in and evicts old blocks to stay under 5 GB.
+When both time and size retention are set, Prometheus deletes data when **either** limit is breached (whichever comes first). Under normal load (31 checks, ~2 GB at 90d), the time limit applies. Under disk pressure, the size limit kicks in and evicts old blocks to stay under 5 GB.
 
 **WAL is not bounded by `retention.size`** — the WAL holds the most recent ~2 hours of uncompacted data. For this workload (371 series at 15s scrape), the WAL stays under 200 MB. WAL compression reduces this further.
 
@@ -527,7 +527,7 @@ When both time and size retention are set, Prometheus deletes data when **either
 
 The in-memory status store is persisted to a single JSON file (`status.json`) every 60 seconds. Daily backups are kept for 90 days. Snapshot results are cached in memory (2s TTL) to avoid recomputing percentiles on every page load.
 
-**File size by probe count** (at full 90-entry ring buffer per probe):
+**File size by probe count** (at full 90-entry ring buffer per check):
 
 | Probes | Snapshot size | 90 days of daily backups | Marshal/unmarshal |
 |--------|--------------|------------------------|--------------------|
@@ -539,7 +539,7 @@ The in-memory status store is persisted to a single JSON file (`status.json`) ev
 
 **What to watch at scale:**
 
-- **`Snapshot()` computation** — Sorts each probe's entries for percentile calculation and averages timing data. At 1000 probes × 90 entries = 90K entries per snapshot. The 2s cache absorbs rapid page refreshes and the 10s auto-refresh, but a single computation still takes O(probes × entries). This is the first bottleneck.
+- **`Snapshot()` computation** — Sorts each check's entries for percentile calculation and averages timing data. At 1000 probes × 90 entries = 90K entries per snapshot. The 2s cache absorbs rapid page refreshes and the 10s auto-refresh, but a single computation still takes O(probes × entries). This is the first bottleneck.
 - **`Save()` lock hold** — Copies all data under `RLock` before marshaling. At 1000+ probes the copy phase grows, adding latency to `Push()` calls contending for the write lock.
 - **Full-file rewrite** — Every 60s save rewrites the entire file. At 20 MB+ this creates unnecessary I/O.
 
@@ -556,15 +556,15 @@ All backup storage fits comfortably on a minimal EBS volume at any realistic pro
 
 ### Prometheus metrics cardinality
 
-Each unique probe name creates a set of Prometheus time-series (one per metric × site label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
+Each unique check name creates a set of Prometheus time-series (one per metric × site label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
 
-Technician enforces a default limit of **500 unique probe names** for metrics recording. This is controlled by `maxProbeCardinality` in `internal/metrics/prometheus.go`. When the limit is reached, new probe names are silently dropped from `/metrics` and a warning is logged.
+Technician enforces a default limit of **500 unique check names** for metrics recording. This is controlled by `maxProbeCardinality` in `internal/metrics/prometheus.go`. When the limit is reached, new check names are silently dropped from `/metrics` and a warning is logged.
 
 **What the limit affects and doesn't affect:**
 
 | Feature | Affected by limit? |
 |---------|-------------------|
-| Probe execution (scheduling, retries) | No — all probes run normally |
+| Check execution (scheduling, retries) | No — all checks run normally |
 | Status page and `/api/status` | No — all results appear |
 | Native webhook alerts | No — fire on all probe state changes |
 | Prometheus `/metrics` endpoint | **Yes** — new names beyond the limit are not recorded |
@@ -572,11 +572,11 @@ Technician enforces a default limit of **500 unique probe names** for metrics re
 
 **Scaling strategies if you approach the limit:**
 
-1. **Consolidate probe names** — If many probes target variants of the same endpoint (e.g. per-customer health checks), group them under fewer names using labels or a shared name prefix. The status page still shows individual results.
+1. **Consolidate check names** — If many probes target variants of the same endpoint (e.g. per-customer health checks), group them under fewer names using labels or a shared name prefix. The status page still shows individual results.
 2. **Use recording rules** — Pre-aggregate high-cardinality series in Prometheus with recording rules, then drop the raw series. This reduces storage cost without losing visibility.
-3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each probe name creates up to ~33 series (across all metric types and site labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
-4. **Shard by worker** — Run multiple Technician workers, each responsible for a subset of probes. Each worker has its own cardinality counter, effectively multiplying the limit.
-5. **Use metric relabeling** — Configure Prometheus `metric_relabel_configs` to drop series you don't need (e.g. HAR resource breakdowns for non-browser probes), freeing cardinality budget for more probe names.
+3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each check name creates up to ~33 series (across all metric types and site labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
+4. **Shard by worker** — Run multiple Technician workers, each responsible for a subset of checks. Each worker has its own cardinality counter, effectively multiplying the limit.
+5. **Use metric relabeling** — Configure Prometheus `metric_relabel_configs` to drop series you don't need (e.g. HAR resource breakdowns for non-browser checks), freeing cardinality budget for more check names.
 
 **Recommended limits by Prometheus sizing:**
 
@@ -593,14 +593,14 @@ For most deployments (< 100 probes), the limit is never reached. If you're opera
 Prometheus **is** the time-series database. When Grafana (or the status page) needs "30-day uptime for probe X", it queries:
 
 ```promql
-avg_over_time(technician_probe_up{name="example.com"}[30d])
+avg_over_time(technician_check_up{name="example.com"}[30d])
 ```
 
 This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, retention, and aggregation natively. For AMP, retention is 150 days by default (no configuration needed).
 
 ### Enriching the status page with historical data
 
-The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (90 entries per probe — the visible window depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min). To show 30-day uptime bars like the Grafana dashboards, two approaches:
+The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (90 entries per check — the visible window depends on probe interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min). To show 30-day uptime bars like the Grafana dashboards, two approaches:
 
 **Approach A: Query Prometheus API from the status page (recommended)**
 
@@ -613,7 +613,7 @@ This keeps Technician stateless and avoids introducing a persistence layer. The 
 For environments where the status page should work independently of Prometheus (standalone VPS, edge deploys, or when you want the worker to be fully self-contained):
 
 - Use [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) — a pure-Go SQLite implementation. No CGO, no external dependencies, compiles to the same static binary.
-- Store probe results in a local SQLite file (e.g. `/var/lib/technician/results.db`).
+- Store check results in a local SQLite file (e.g. `/var/lib/technician/results.db`).
 - Schema is simple: one table (`probe_results`) with timestamp, name, type, success, duration, and HTTP timing columns.
 - At 30s probe intervals, 10 probes over 30 days = ~864,000 rows. SQLite handles this trivially — the file stays under 100 MB.
 - Prune rows older than the configured retention on each insert (or via a periodic goroutine).
@@ -622,9 +622,9 @@ SQLite adds ~2 MB to the binary size and negligible runtime overhead. It doesn't
 
 **What you don't need:**
 
-- **RDS / managed Postgres** — Overkill. Technician stores probe results, not relational data. There are no joins, no transactions, no multi-writer contention. SQLite is the right tool if you need local persistence.
+- **RDS / managed Postgres** — Overkill. Technician stores check results, not relational data. There are no joins, no transactions, no multi-writer contention. SQLite is the right tool if you need local persistence.
 - **DynamoDB / Redis** — Same story. The data model is a simple append-only log with TTL pruning. A local file is simpler and faster than a network round-trip to a managed store.
-- **S3 for probe results** — S3 is already used for artifacts (HAR files, screenshots). Probe result metadata belongs in a queryable store (Prometheus or SQLite), not object storage.
+- **S3 for check results** — S3 is already used for artifacts (HAR files, screenshots). Probe result metadata belongs in a queryable store (Prometheus or SQLite), not object storage.
 
 ### Recommended path by deployment
 
@@ -650,7 +650,7 @@ For a public-facing status page with extended history, use Grafana's anonymous v
 
 ## Probe schedule guidance
 
-Not all probes need the same frequency. Shorter intervals increase request volume, Prometheus series churn, and load on third-party targets. Recommended intervals by probe category:
+Not all checks need the same frequency. Shorter intervals increase request volume, Prometheus series churn, and load on third-party targets. Recommended intervals by probe category:
 
 | Category | Interval | Rationale |
 |----------|----------|-----------|
@@ -669,7 +669,7 @@ A typical production deployment with 30 probes using the intervals above generat
 
 ### Probes only, no Playwright
 
-The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, and/or traceroute probes.
+The lightest deployment. Just the Go binary running HTTP, TCP, DNS, ICMP, gRPC, NTP, TLS, SMTP, and/or traceroute checks.
 
 | Resource | Minimum | Notes |
 |----------|---------|-------|
@@ -681,7 +681,7 @@ This fits on a $2.50–5/mo VPS from any provider. Also fine as a sidecar contai
 
 ### Probes with Playwright
 
-Add browser probes for Core Web Vitals (LCP, INP, CLS) and visual testing.
+Add browser checks for Core Web Vitals (LCP, INP, CLS) and visual testing.
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
@@ -689,7 +689,7 @@ Add browser probes for Core Web Vitals (LCP, INP, CLS) and visual testing.
 | RAM | 512 MB | 1 GB |
 | Disk | 2 GB | 3 GB (if saving video artifacts) |
 
-The RAM floor depends on concurrency. One Playwright probe at a time: 512 MB is fine. If you schedule overlapping browser probes or have short intervals, budget 1 GB. Video recording adds disk I/O but minimal RAM.
+The RAM floor depends on concurrency. One Playwright probe at a time: 512 MB is fine. If you schedule overlapping browser checks or have short intervals, budget 1 GB. Video recording adds disk I/O but minimal RAM.
 
 ### Full stack, single box
 
@@ -752,7 +752,7 @@ For HTTP-only probes without Playwright, halve the worker costs. Using Grafana C
 
 ### AWS Lambda
 
-Lambda runs probes on demand (EventBridge schedule → Lambda invocation → push metrics).
+Lambda runs checks on demand (EventBridge schedule → Lambda invocation → push metrics).
 
 | Config | Function memory | Timeout | Image |
 |--------|-----------------|---------|-------|

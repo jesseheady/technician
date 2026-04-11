@@ -1,5 +1,5 @@
 # Relaxed thresholds for mock targets so validate passes
-- probe: "*"
+- check: "*"
   thresholds:
     duration: 15000
   alert_on: exceed

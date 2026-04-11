@@ -10,9 +10,9 @@ Technician's Go binary can run in a Lambda container image (regional Lambda), bu
 
 **What's needed:**
 
-- Lambda handler that wraps the existing probe execution (reuse `internal/probe` and `internal/exporter`) behind a Lambda function URL or API Gateway trigger.
+- Lambda handler that wraps the existing check execution (reuse `internal/check` and `internal/exporter`) behind a Lambda function URL or API Gateway trigger.
 - SAM template or Terraform/CDK for provisioning: function, EventBridge schedule (replaces in-process cron), IAM role, networking (VPC placement if probing internal targets).
-- Decision on invocation model: EventBridge schedule triggers Lambda per-probe, or a single invocation runs all probes and pushes results.
+- Decision on invocation model: EventBridge schedule triggers Lambda per-check, or a single invocation runs all checks and pushes results.
 - Push mechanism for metrics: Prometheus can't scrape a short-lived Lambda. Options are Pushgateway, Prometheus remote-write, or an in-VPC aggregator that Prometheus scrapes. See [central-prometheus-grafana.md](architecture/central-prometheus-grafana.md).
 - Lambda@Edge (Node.js/Python only) would need a separate lightweight HTTP probe adapter, not the Go binary.
 
@@ -24,7 +24,7 @@ Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). 
 
 - Reference Worker implementation (JS/TS) under e.g. `workers/cf/` with Wrangler config.
 - Same `/probe?target=&module=` contract as the existing blackbox handler so Prometheus treats Worker and Technician endpoints identically.
-- Cron Trigger configuration for scheduled probes.
+- Cron Trigger configuration for scheduled checks.
 - Documentation for how Prometheus or an aggregator scrapes/receives Worker results.
 
 ## Metrics and persistence
@@ -37,18 +37,18 @@ Add native Prometheus remote-write support to Technician, configured via `metric
 
 - New config field: `metrics.prometheus.remote_write_url` (and optional `remote_write_sigv4` for AMP auth).
 - Remote-write client using the Prometheus remote-write protocol (protobuf over HTTP).
-- Push after each probe result, or batch on a timer (e.g. every 15s).
+- Push after each check result, or batch on a timer (e.g. every 15s).
 - SigV4 signing for AMP endpoints (AWS SDK is already a dependency).
 
 ### Status page historical data
 
-The built-in status page shows recent results from an in-memory ring buffer (90 entries per probe, ~45 min at 30s intervals), persisted to a JSON file on disk so history survives restarts and container rebuilds. For longer historical views (30-day uptime bars, etc.), two additional paths:
+The built-in status page shows recent results from an in-memory ring buffer (90 entries per check, ~45 min at 30s intervals), persisted to a JSON file on disk so history survives restarts and container rebuilds. For longer historical views (30-day uptime bars, etc.), two additional paths:
 
 **Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker.
 
-**Path B: Embedded SQLite (recommended for public status page)** — Use `modernc.org/sqlite` (pure Go, no CGO) for local probe result persistence. Adds ~2 MB to the binary. Good for standalone workers without Prometheus access, and the key enabler for a public-facing status page with meaningful history.
+**Path B: Embedded SQLite (recommended for public status page)** — Use `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~2 MB to the binary. Good for standalone workers without Prometheus access, and the key enabler for a public-facing status page with meaningful history.
 
-**Sizing estimates (30 probes, recommended production intervals):**
+**Sizing estimates (30 checks, recommended production intervals):**
 
 | Retention | Rows | Disk | Memory |
 |---|---|---|---|
@@ -56,7 +56,7 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 | 90 days | ~2M | 200–400 MB | 2–5 MB |
 | 12 months | ~8.2M | 0.8–1.6 GB | 2–5 MB |
 
-Memory does not scale with retention. SQLite reads pages on demand; the page cache stays at 2–5 MB. At 100 probes and 12 months, disk reaches 2.5–5 GB. At 500 probes, 12–25 GB.
+Memory does not scale with retention. SQLite reads pages on demand; the page cache stays at 2–5 MB. At 100 checks and 12 months, disk reaches 2.5–5 GB. At 500 checks, 12–25 GB.
 
 **Implementation:** Single `probe_results` table, covering index on `(name, timestamp, success)`, configurable retention (`persistence.retention: 90d`), periodic prune with `PRAGMA auto_vacuum=incremental`. The existing ring buffer stays for real-time rendering; SQLite is queried for historical views.
 
@@ -66,14 +66,14 @@ See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-h
 
 ### SLA reporting [#20](https://github.com/m0nkey/technician/issues/20)
 
-Generate periodic SLA reports showing uptime, latency percentiles, and incident counts over configurable windows (30, 90, 365 days). Reports can be scoped to specific probe groups — e.g. report on "Marketing" and "Infrastructure" while omitting "Third Party" probes that aren't covered by your SLA.
+Generate periodic SLA reports showing uptime, latency percentiles, and incident counts over configurable windows (30, 90, 365 days). Reports can be scoped to specific check groups — e.g. report on "Marketing" and "Infrastructure" while omitting "Third Party" checks that aren't covered by your SLA.
 
 **Depends on:** SQLite persistence (see [Status page historical data](#status-page-historical-data)) or Prometheus API access for historical queries.
 
 **What's needed:**
 
 - `technician report` CLI command with flags: `--period 30d|90d|365d`, `--groups "Marketing,Infrastructure"` (default: all), `--format html|json|csv`, `--output report.html`.
-- Report data model: per-probe uptime %, p50/p95/p99 latency, incident count and total downtime, grouped by probe group.
+- Report data model: per-check uptime %, p50/p95/p99 latency, incident count and total downtime, grouped by check group.
 - HTML template for rendered reports: clean, printable layout with uptime bars, latency sparklines, and summary table. Suitable for emailing to stakeholders or attaching to an internal SLA review.
 - JSON/CSV output for programmatic consumption or import into spreadsheets.
 - Optional: scheduled report generation via cron config in `technician.yml`, with delivery via webhook (post the HTML/JSON to Slack, email gateway, or S3).
@@ -127,37 +127,37 @@ Terraform or CloudFormation templates for common deployment patterns:
 
 Features planned for the next development cycle.
 
-### Probe filtering
+### Check filtering
 
-Run a targeted subset of probes per worker based on type, group, or tag. Configured in `technician.yml` via `probe_filter` or CLI flags (`--types`, `--groups`). Enables deploying specialized workers from a single shared probe config repo: HTTP-only on Cloudflare Workers, lightweight probes on Lambda, browser probes on a dedicated runner, etc.
+Run a targeted subset of checks per worker based on type, group, or tag. Configured in `technician.yml` via `check_filter` or CLI flags (`--types`, `--groups`). Enables deploying specialized workers from a single shared check config repo: HTTP-only on Cloudflare Workers, lightweight checks on Lambda, browser checks on a dedicated runner, etc.
 
 **What's needed:**
 
-- `probe_filter` config block with `types`, `groups`, and `tags` fields. Filters are additive.
+- `check_filter` config block with `types`, `groups`, and `tags` fields. Filters are additive.
 - CLI flags `--types` and `--groups` as overrides.
-- New `tags` field on probe configs (types and groups already exist).
+- New `tags` field on check configs (types and groups already exist).
 - Filtering at config load time in `internal/config/`, not at runtime.
 - `technician validate` should respect filters for per-target CI validation.
-- Documentation: multi-target deployment patterns showing how one probe repo serves VPS, Lambda, and Workers targets with different filters.
+- Documentation: multi-target deployment patterns showing how one check repo serves VPS, Lambda, and Workers targets with different filters.
 
-**Current workaround:** Separate `config/probes/` directories per worker with only the desired probe YAML files. Works but duplicates probe definitions. See [#15](https://github.com/m0nkey/technician/issues/15).
+**Current workaround:** Separate `config/checks/` directories per worker with only the desired check YAML files. Works but duplicates check definitions. See [#15](https://github.com/m0nkey/technician/issues/15).
 
 ### Maintenance mode [#22](https://github.com/m0nkey/technician/issues/22)
 
-Suppress alerting and mark probes as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
+Suppress alerting and mark checks as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
 
 **What's needed:**
 
 - Per-probe `maintenance` config: either a boolean `maintenance: true` for manual toggle, or a time window `maintenance_windows` with start/end times.
-- Scheduler skips webhook notifications for probes in maintenance (probes still run to track actual state).
+- Scheduler skips webhook notifications for checks in maintenance (checks still run to track actual state).
 - Status page shows maintenance badge instead of failure state.
-- Prometheus label `maintenance="true"` on probe metrics during active windows so Grafana alerting rules can exclude them.
+- Prometheus label `maintenance="true"` on check metrics during active windows so Grafana alerting rules can exclude them.
 - Optional: `technician maintenance enable <probe-name> --duration 2h` CLI command for ad-hoc maintenance without config edit.
 
 **Config shape:**
 
 ```yaml
-# In probe config
+# In check config
 - name: API Server
   url: https://api.example.com
   maintenance: false                    # manual toggle
@@ -167,15 +167,15 @@ Suppress alerting and mark probes as "maintenance" on the status page during pla
       reason: "Database migration"
 ```
 
-**Status page display:** Maintenance probes show a wrench/tool icon and "Scheduled Maintenance" label with the reason text, replacing the normal up/down indicator.
+**Status page display:** Maintenance checks show a wrench/tool icon and "Scheduled Maintenance" label with the reason text, replacing the normal up/down indicator.
 
 ### WebSocket monitoring [#23](https://github.com/m0nkey/technician/issues/23)
 
-WS/WSS probe type for real-time services. Connect, optionally send a message, assert on the response, measure connection time.
+WS/WSS check type for real-time services. Connect, optionally send a message, assert on the response, measure connection time.
 
 **What's needed:**
 
-- New `WebSocketProbeConfig` struct: `url` (ws:// or wss://), `headers` (map), `send` (message to send after connect), `expect` (expected response substring or regex), `skip_tls` (bool).
+- New `WebSocketCheckConfig` struct: `url` (ws:// or wss://), `headers` (map), `send` (message to send after connect), `expect` (expected response substring or regex), `skip_tls` (bool).
 - WebSocket prober using `golang.org/x/net/websocket` or `nhooyr.io/websocket` (pure Go, no CGO). Connect, optionally write `send` payload, read first message, evaluate `expect` assertion, close.
 - Prometheus gauges: `technician_ws_connect_seconds`, `technician_ws_message_seconds`.
 - Probe result fields: `WSConnDuration`, `WSMessageDuration`, `WSResponse`.
@@ -184,7 +184,7 @@ WS/WSS probe type for real-time services. Connect, optionally send a message, as
 **Config shape:**
 
 ```yaml
-# config/probes/websocket.yml
+# config/checks/websocket.yml
 - name: Live Feed
   url: wss://stream.example.com/feed
   send: '{"type":"ping"}'
@@ -199,10 +199,10 @@ Technician already uses Go's `slog` for structured logging to stdout. Enhance th
 
 **What's needed:**
 
-- **Health log line per probe execution** — After each probe run, emit a structured log with: probe name, type, success, duration, region, degraded flag, retry count (if retried). This gives Loki a complete record of probe execution independent of Prometheus metrics.
+- **Health log line per check execution** — After each check run, emit a structured log with: check name, type, success, duration, region, degraded flag, retry count (if retried). This gives Loki a complete record of check execution independent of Prometheus metrics.
 - **Technician self-health metrics** — Log scheduler loop timing, goroutine count, memory usage, and config reload events. Useful for diagnosing "is Technician itself healthy?" without needing a separate monitoring stack.
 - **Log format config** — `logging.format` in `technician.yml`: `json` (default, Loki-native) or `text` (human-readable for local dev). `logging.level`: `debug`, `info` (default), `warn`, `error`.
-- **Correlation IDs** — Each probe execution gets a trace ID logged alongside the result, linking slog output to OTLP traces when tracing is enabled.
+- **Correlation IDs** — Each check execution gets a trace ID logged alongside the result, linking slog output to OTLP traces when tracing is enabled.
 
 **Config shape:**
 
@@ -241,7 +241,7 @@ Monitors are grouped under collapsible section headers: group name (left), "N/N 
 - **Time window picker** — Allow users to switch the status page view between time windows: Last 24h, Last 7d, Last 30d, Last 90d. This controls both the uptime bar granularity (hourly buckets for 24h, daily for 7d/30d/90d) and the response time chart X-axis. Default: 24h for the ring buffer (no persistence needed), longer windows require [historical data](#status-page-historical-data). Implemented as simple tab/button bar above the monitor list.
 - **Response time line chart** — Per-monitor line chart always visible below the uptime bar. Y-axis auto-scaled per monitor so both fast (200ms) and slow (5s) services are readable. Response time is a key golden signal — this should be prominent, not hidden behind a click. Lightweight JS using inline `<canvas>` or SVG path generation. No chart library dependency.
 - **Monitor grouping with collapse** — Group probes by the existing `group` field with collapsible section headers. Header shows: group name + optional icon (left), "N/N Operational" aggregate count (right), collapse chevron. Group-level status is worst-of-group.
-- **Maintenance banners** — When any probe is in maintenance mode, show a blue/gray banner with the reason text and scheduled end time. Maintenance probes show a wrench icon instead of status dot.
+- **Maintenance banners** — When any probe is in maintenance mode, show a blue/gray banner with the reason text and scheduled end time. Maintenance checks show a wrench icon instead of status dot.
 - **Dark/light mode** — Respect `prefers-color-scheme` media query. Dark mode as default (matches Grafana). CSS-only, no JS framework needed.
 - **Incident timeline** — Below the monitor list, show recent incidents (state transitions) in reverse chronological order with duration and resolution status.
 
@@ -255,11 +255,11 @@ Monitors are grouped under collapsible section headers: group name (left), "N/N 
 
 ## Scope principles
 
-Technician's scope: **probe execution, scheduling, metrics export, status page, and performance budgets — as a single binary.** Visualization, incident management, and complex alerting belong to Grafana and dedicated tools.
+Technician's scope: **check execution, scheduling, metrics export, status page, and performance budgets — as a single binary.** Visualization, incident management, and complex alerting belong to Grafana and dedicated tools.
 
 ### What Technician owns
 
-- **Probe execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright (and planned: WebSocket).
+- **Check execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright (and planned: WebSocket).
 - **Scheduling** — Built-in cron with stagger/jitter. No external scheduler needed.
 - **Status page** — Built-in, no external dependencies.
 - **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
@@ -289,19 +289,19 @@ k6 (Grafana's open-source load testing tool) is a natural companion to Technicia
 
 - **Docker Compose profile** — Add a `loadtest` profile to the existing stack (`docker compose --profile loadtest up`). Includes k6 configured to push metrics to the same Prometheus instance via `K6_PROMETHEUS_RW_SERVER_URL`. Off by default so it doesn't affect the standard monitoring stack.
 - **Grafana dashboard** — Pre-built k6 dashboard (provisioned alongside the existing five) showing request rate, response time distribution, error rate, VU count, and iteration throughput. Sourced from k6's official Prometheus dashboard with adjustments to match Technician's Grafana theme.
-- **Example scripts** — `examples/k6/` directory with sample load test scripts targeting the same services used in the sample probe configs. Includes a basic HTTP load test, a ramping VU scenario, and a threshold-based test that mirrors Technician's performance budgets.
+- **Example scripts** — `examples/k6/` directory with sample load test scripts targeting the same services used in the sample check configs. Includes a basic HTTP load test, a ramping VU scenario, and a threshold-based test that mirrors Technician's performance budgets.
 - **CI workflow example** — GitHub Actions job showing the "load then validate" pattern: run a k6 scenario against a staging target, then run `technician validate` to check if performance budgets still pass under load.
 - **Documentation** — `docs/k6-companion.md` covering setup, the Docker Compose profile, dashboard walkthrough, and the recommended workflow for pairing load tests with synthetic monitoring.
 
 **What this is NOT:**
 
-- Not a new probe type or k6 embedding in the Technician binary.
+- Not a new check type or k6 embedding in the Technician binary.
 - Not a k6 orchestration layer — users author and run k6 scripts with the standard `k6 run` CLI.
 - Not a replacement for k6 Cloud or Grafana Cloud k6 for distributed load testing.
 
 **Cost and sizing considerations:**
 
-k6 load generation is CPU and memory intensive, unlike Technician's lightweight probes. Sizing depends heavily on the protocol, target, and concurrency:
+k6 load generation is CPU and memory intensive, unlike Technician's lightweight checks. Sizing depends heavily on the protocol, target, and concurrency:
 
 | Scenario | VUs | Approx. resources | Notes |
 |---|---|---|---|
@@ -322,7 +322,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Probes and protocol
 
-- **TLS version constraints** [#27](https://github.com/m0nkey/technician/issues/27) — Min/max TLS version for HTTP and TCP probes. Low priority; rarely needed for synthetic monitoring.
+- **TLS version constraints** [#27](https://github.com/m0nkey/technician/issues/27) — Min/max TLS version for HTTP and TCP checks. Low priority; rarely needed for synthetic monitoring.
 
 - **Proxy support** [#28](https://github.com/m0nkey/technician/issues/28) — HTTP proxy configuration for probes running behind corporate proxies. Edge case for most deployments.
 
@@ -336,9 +336,9 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Observability and export
 
-- **Full OTel metrics export** [#33](https://github.com/m0nkey/technician/issues/33) — Push probe metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
+- **Full OTel metrics export** [#33](https://github.com/m0nkey/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
 
-- **Prometheus backfill on startup** [#34](https://github.com/m0nkey/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent probe metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
+- **Prometheus backfill on startup** [#34](https://github.com/m0nkey/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent check metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
 
 ### Status page and UI
 
@@ -346,7 +346,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Per-region latency comparison** [#36](https://github.com/m0nkey/technician/issues/36) — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
 
-- **Latency trend sparklines on status page** [#37](https://github.com/m0nkey/technician/issues/37) — Small inline SVG sparklines per probe row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
+- **Latency trend sparklines on status page** [#37](https://github.com/m0nkey/technician/issues/37) — Small inline SVG sparklines per check row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
 
 - **Tags and filtering** [#38](https://github.com/m0nkey/technician/issues/38) — Arbitrary key-value tags on probes for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
 
@@ -364,7 +364,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Status store backup rotation** [#41](https://github.com/m0nkey/technician/issues/41) — Keep N rotated copies of `status.json` to guard against corrupt writes. Simple, no external dependencies.
 
-- **Incident tracking** — Automatic incident creation/resolution from probe failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
+- **Incident tracking** — Automatic incident creation/resolution from check failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
@@ -372,42 +372,42 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ### Native webhook notifications with severity routing
 
-Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-probe cooldown to prevent notification floods.
+Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-check cooldown to prevent notification floods.
 
 - **Package**: `internal/notify/` — `Manager` with state tracking, `Sender` interface with Discord, Slack, and generic HTTP implementations.
-- **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (probe_down/probe_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m).
-- **Severity levels**: Events carry a severity — `probe_down` = critical, `budget_violation` = warning, `cert_expiring` = warning or critical (based on days remaining vs `warn_days`/`critical_days` thresholds). Multiple webhook entries with different `severities` filters enable routing: e.g. Slack receives all alerts, PagerDuty only receives critical.
-- **Cert expiry notifications**: The `cert_expiring` event fires once when entering the warning window, escalates if it reaches critical, and resets after cert renewal. State tracking prevents duplicate notifications on every probe cycle.
+- **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (check_down/check_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m).
+- **Severity levels**: Events carry a severity — `check_down` = critical, `budget_violation` = warning, `cert_expiring` = warning or critical (based on days remaining vs `warn_days`/`critical_days` thresholds). Multiple webhook entries with different `severities` filters enable routing: e.g. Slack receives all alerts, PagerDuty only receives critical.
+- **Cert expiry notifications**: The `cert_expiring` event fires once when entering the warning window, escalates if it reaches critical, and resets after cert renewal. State tracking prevents duplicate notifications on every check cycle.
 - **CLI**: `technician test-webhook` sends a test notification to all configured webhooks.
 - **Docs**: [alerting.md](alerting.md) covers native webhooks, Grafana alerting (recommended), and Alertmanager.
 
 ### Budget check persistence and escalation
 
-Budget badge state is persisted alongside probe history in `status.json`, surviving container restarts. Badges use a three-state escalation model: **pass** (green) → **warn** (amber, transient violation) → **fail** (red, 3+ consecutive violations). Webhook notifications only fire when crossing the fail threshold, reducing noise from single-run spikes. The persistence format is backwards-compatible with older `status.json` files.
+Budget badge state is persisted alongside check history in `status.json`, surviving container restarts. Badges use a three-state escalation model: **pass** (green) → **warn** (amber, transient violation) → **fail** (red, 3+ consecutive violations). Webhook notifications only fire when crossing the fail threshold, reducing noise from single-run spikes. The persistence format is backwards-compatible with older `status.json` files.
 
 ### Latency percentiles and timing breakdown
 
-Status page now shows P50/P90/P95/P99 latency percentiles per probe (computed from ring buffer) and a color-coded HTTP timing breakdown bar (DNS/TLS/TTFB/transfer) with legend. Both are included in the `/api/status` JSON response.
+Status page now shows P50/P90/P95/P99 latency percentiles per check (computed from ring buffer) and a color-coded HTTP timing breakdown bar (DNS/TLS/TTFB/transfer) with legend. Both are included in the `/api/status` JSON response.
 
 ### HTTP body assertions
 
-HTTP probes support `assertions` for response body validation: `contains`, `not_contains`, and `regex`. Failed assertions mark the probe as failed. Config validation catches invalid types and malformed regex at load time.
+HTTP checks support `assertions` for response body validation: `contains`, `not_contains`, and `regex`. Failed assertions mark the check as failed. Config validation catches invalid types and malformed regex at load time.
 
 ### TCP probe
 
-TCP connectivity probe with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/probes/tcp.yml`.
+TCP connectivity probe with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/checks/tcp.yml`.
 
 ### DNS probe
 
-DNS query probe supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/probes/dns.yml`.
+DNS query probe supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/checks/dns.yml`.
 
 ### ICMP ping probe
 
-ICMP Echo Request probe with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/probes/icmp.yml`.
+ICMP Echo Request probe with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/checks/icmp.yml`.
 
 ### gRPC health check probe
 
-gRPC probe using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/probes/grpc.yml`.
+gRPC probe using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/checks/grpc.yml`.
 
 ### HTTP header assertions
 
@@ -419,23 +419,23 @@ HTTP probes now support `follow_redirects: true` to follow HTTP redirects (defau
 
 ### Retry policy
 
-All probe types support an optional `retry` config with `count`, `backoff` (none/linear/exponential), and `delay`. Retries only trigger on probe failure. Implemented at the scheduler level.
+All check types support an optional `retry` config with `count`, `backoff` (none/linear/exponential), and `delay`. Retries only trigger on check failure. Implemented at the scheduler level.
 
 ### Response time thresholds
 
-All probe types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_probe_degraded` metric). Distinct from failure: the probe passed, but response time indicates degradation.
+All check types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_probe_degraded` metric). Distinct from failure: the check passed, but response time indicates degradation.
 
 ### NTP probe
 
-Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/probes/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
+Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/checks/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
 
 ### TLS certificate monitoring
 
-Dedicated `tls` probe type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/probes/tls.yml`.
+Dedicated `tls` check type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/checks/tls.yml`.
 
 ### Infrastructure Probes dashboard
 
-Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, TLS, UDP, BGP, and domain expiry probe metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry, prefix visibility, origin ASN match, domain days until expiry).
+Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, TLS, UDP, BGP, and domain expiry check metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry, prefix visibility, origin ASN match, domain days until expiry).
 
 ### Browser concurrency limiter
 
@@ -463,7 +463,7 @@ Main branch requires `CI Passed` status check. Admin bypass enabled for maintain
 
 ### Log level flag
 
-`--log-level` CLI flag (debug, info, warn, error) for controlling log verbosity. Default remains INFO. Part of the broader structured logging effort ([#24](https://github.com/m0nkey/technician/issues/24)); remaining work includes JSON format config, per-probe health log lines, self-health metrics, and correlation IDs.
+`--log-level` CLI flag (debug, info, warn, error) for controlling log verbosity. Default remains INFO. Part of the broader structured logging effort ([#24](https://github.com/m0nkey/technician/issues/24)); remaining work includes JSON format config, per-check health log lines, self-health metrics, and correlation IDs.
 
 ### CONTRIBUTING.md and SECURITY.md
 
@@ -471,4 +471,4 @@ Contributing guide with setup, pre-commit hooks, code style, and PR guidelines. 
 
 ### Mermaid architecture diagram
 
-README architecture diagram updated from ASCII art to Mermaid with all 13 probe types. Renders natively on GitHub.
+README architecture diagram updated from ASCII art to Mermaid with all 13 check types. Renders natively on GitHub.

@@ -1,6 +1,6 @@
 # Playwright scaling
 
-Resource analysis, concurrency controls, and architecture for scaling browser probes.
+Resource analysis, concurrency controls, and architecture for scaling browser checks.
 
 ## Current resource profile
 
@@ -15,7 +15,7 @@ Numbers measured with 3 Playwright probes (desktop, mobile 4G, mobile 3G) at 5-m
 | HAR per run | 1-10 MB (disk) |
 | Video per run | 1-10 MB (disk, when enabled) |
 | Cold start (first probe) | ~2-3 s |
-| Warm probe execution | 3-8 s |
+| Warm check execution | 3-8 s |
 | Web Vitals collection | up to 3 s per metric |
 
 ### Docker image impact
@@ -34,7 +34,7 @@ The image size is fixed regardless of probe count -- Chromium is installed once.
 
 Each Playwright probe invocation launches a fresh Chromium instance. There is no browser pooling -- `run.js` calls `chromium.launch()` every time, and the Go process spawns a new `node` subprocess per run.
 
-> **Init process required.** Because each probe spawns Node.js → Chromium child processes, the container must run an init system (e.g. `tini`) as PID 1 to reap exited children. Without it, terminated Chromium processes accumulate as zombies, consuming kernel memory that grows linearly with probe runs. In Docker Compose, add `init: true` to the service. In Kubernetes, set `shareProcessNamespace: true` or use a `tini` entrypoint. In ECS, enable `initProcessEnabled` in the container definition.
+> **Init process required.** Because each check spawns Node.js → Chromium child processes, the container must run an init system (e.g. `tini`) as PID 1 to reap exited children. Without it, terminated Chromium processes accumulate as zombies, consuming kernel memory that grows linearly with probe runs. In Docker Compose, add `init: true` to the service. In Kubernetes, set `shareProcessNamespace: true` or use a `tini` entrypoint. In ECS, enable `initProcessEnabled` in the container definition.
 
 The `max_browsers` setting in `technician.yml` caps concurrent Chromium instances using a channel-based semaphore. Additional probes queue until a slot opens or their timeout expires.
 
@@ -56,9 +56,9 @@ playwright:
 
 ### The three cost drivers
 
-**1. RAM -- concurrent Chromium instances.** Each browser is 150-300 MB depending on page complexity. The `max_browsers` semaphore prevents unbounded stacking. If a probe can't acquire a slot within its timeout, it fails with an infra error rather than OOM-killing the host.
+**1. RAM -- concurrent Chromium instances.** Each browser is 150-300 MB depending on page complexity. The `max_browsers` semaphore prevents unbounded stacking. If a check can't acquire a slot within its timeout, it fails with an infra error rather than OOM-killing the host.
 
-**2. Disk -- HAR + video accumulation.** With `video: true` and full HAR recording, each run produces 2-20 MB of artifacts. At 1-minute intervals across 10 probes that's 20-200 MB/hour. The `artifacts.retention` setting (default 72h) controls cleanup. Without video, roughly half.
+**2. Disk -- HAR + video accumulation.** With `video: true` and full HAR recording, each run produces 2-20 MB of artifacts. At 1-minute intervals across 10 checks that's 20-200 MB/hour. The `artifacts.retention` setting (default 72h) controls cleanup. Without video, roughly half.
 
 **3. CPU -- Chromium rendering.** Each instance uses 1-2 CPU cores during page load. 4+ concurrent browsers will saturate a 2-vCPU host. Complex flows with interactions, screenshots, and Web Vitals collection extend the CPU-busy window.
 
@@ -70,18 +70,18 @@ playwright:
 
 ## Concurrency control
 
-The `max_browsers` config field controls how many Chromium instances can run simultaneously across all Playwright probes on a single worker. This is enforced by a channel-based semaphore in `PlaywrightProber`.
+The `max_browsers` config field controls how many Chromium instances can run simultaneously across all Playwright checks on a single worker. This is enforced by a channel-based semaphore in `PlaywrightProber`.
 
 When all slots are occupied:
 - New probes wait for a slot to open
-- If the probe's timeout expires while waiting, it returns an infra error: `timed out waiting for browser slot (N/N in use)`
+- If the check's timeout expires while waiting, it returns an infra error: `timed out waiting for browser slot (N/N in use)`
 - The probe is logged as a warning so you can tune `max_browsers` or adjust schedules
 
 ### Recommended settings
 
 | Environment | `max_browsers` | Why |
 |-------------|---------------|-----|
-| VPS, 1 vCPU, 1 GB | 1 | Serializes all browser probes; prevents OOM |
+| VPS, 1 vCPU, 1 GB | 1 | Serializes all browser checks; prevents OOM |
 | VPS, 2 vCPU, 2 GB | 2 (default) | Two concurrent browsers fit comfortably |
 | Dedicated runner, 4 vCPU, 4 GB | 4 | One browser per core |
 | CI (GitHub Actions, 7 GB) | 3-4 | Balance parallelism with shared runner limits |
@@ -93,7 +93,7 @@ If you see `timed out waiting for browser slot` in logs:
 1. **Increase `max_browsers`** if the host has RAM headroom
 2. **Spread schedules** -- stagger cron expressions so probes don't all fire at the same second
 3. **Increase probe timeout** -- give more time to wait for a slot
-4. **Move browser probes to a dedicated runner** (see below)
+4. **Move browser checks to a dedicated runner** (see below)
 
 ## CI usage
 
@@ -110,7 +110,7 @@ If you see `timed out waiting for browser slot` in logs:
 
 ### GitHub Actions
 
-The `technician validate` command runs all probes once and evaluates performance budgets. Use it in CI to catch regressions:
+The `technician validate` command runs all checks once and evaluates performance budgets. Use it in CI to catch regressions:
 
 ```yaml
 - name: Validate probes + budgets
@@ -119,7 +119,7 @@ The `technician validate` command runs all probes once and evaluates performance
 
 The `--output gha` flag emits GitHub Actions annotations for budget violations, which appear inline on the PR diff.
 
-For Playwright probes in CI, either:
+For Playwright checks in CI, either:
 - Use the pre-built Docker image (includes Chromium): `container: ghcr.io/your-org/technician:latest`
 - Or install Playwright in the job: `npx playwright install chromium`
 
@@ -133,7 +133,7 @@ For any CI platform, the pattern is the same:
 # Build
 go build -o technician .
 
-# Run all probes and check budgets
+# Run all checks and check budgets
 ./technician validate --config config/technician.yml --budget config/budgets.yml --output json
 
 # Exit code: 0 = pass, 1 = violations
@@ -146,11 +146,11 @@ Output formats:
 
 ## Architecture: dedicated Playwright runners
 
-As Playwright probe count grows, you'll want to separate browser probes from lightweight probes (HTTP, TCP, DNS, etc.). Here's the progression:
+As Playwright probe count grows, you'll want to separate browser checks from lightweight checks (HTTP, TCP, DNS, etc.). Here's the progression:
 
 ### Stage 1: Single worker (current)
 
-All probes on one host. `max_browsers` prevents OOM.
+All checks on one host. `max_browsers` prevents OOM.
 
 ```mermaid
 graph TD
@@ -159,7 +159,7 @@ graph TD
 
 ### Stage 2: Dedicated browser worker
 
-Split into two workers at the same site. One runs lightweight probes, the other runs only Playwright probes with more resources.
+Split into two workers at the same site. One runs lightweight checks, the other runs only Playwright probes with more resources.
 
 ```mermaid
 graph TD
@@ -173,10 +173,10 @@ graph TD
 This already works today with separate config directories:
 
 ```bash
-# Lightweight worker (no Playwright probes in its config)
+# Lightweight worker (no Playwright checks in its config)
 technician worker --config /etc/technician/light/technician.yml --site us-east-1
 
-# Browser worker (only Playwright probes in its config)
+# Browser worker (only Playwright checks in its config)
 technician worker --config /etc/technician/browser/technician.yml --site us-east-1
 ```
 
@@ -184,7 +184,7 @@ Prometheus scrapes both on different ports. Grafana sees all metrics with the sa
 
 ### Stage 3: Remote browser service (future)
 
-For teams running many browser probes across regions, a dedicated Playwright server that workers connect to over the network:
+For teams running many browser checks across regions, a dedicated Playwright server that workers connect to over the network:
 
 ```mermaid
 graph LR
@@ -201,10 +201,10 @@ playwright:
   max_browsers: 10
 ```
 
-In `managed` mode, the worker sends probe configs to the remote server instead of launching local Chromium instances. The server maintains a browser pool and handles concurrency internally. This decouples browser resource usage from the probe worker entirely.
+In `managed` mode, the worker sends check configs to the remote server instead of launching local Chromium instances. The server maintains a browser pool and handles concurrency internally. This decouples browser resource usage from the check worker entirely.
 
 **When to move to managed mode:**
-- 10+ Playwright probes per region
+- 10+ Playwright checks per region
 - Multiple workers sharing the same browser pool
 - Browser probes are the bottleneck and you want to scale them independently
 - You want to use Playwright's built-in server (`npx playwright run-server`) or a custom gRPC service
@@ -231,11 +231,11 @@ This scales to hundreds of concurrent browsers with no long-running infrastructu
 
 ## Browser reuse (planned optimization)
 
-Currently each probe invocation launches and closes a fresh Chromium instance. A future optimization would maintain a browser pool:
+Currently each check invocation launches and closes a fresh Chromium instance. A future optimization would maintain a browser pool:
 
 1. Launch N Chromium instances at startup
 2. Each probe gets a fresh `BrowserContext` (isolated cookies, storage) from the pool
-3. Contexts are destroyed after each probe; browsers persist
-4. Eliminates the 2-3s cold-start per probe
+3. Contexts are destroyed after each check; browsers persist
+4. Eliminates the 2-3s cold-start per check
 
-This reduces per-probe overhead from ~40 MB (Node.js) + 150-300 MB (Chromium launch) to just a new context (~10-20 MB). It's the logical next step before moving to managed mode.
+This reduces per-check overhead from ~40 MB (Node.js) + 150-300 MB (Chromium launch) to just a new context (~10-20 MB). It's the logical next step before moving to managed mode.

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/m0nkey/technician/internal/config"
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 )
 
 // mockSender records events sent to it.
@@ -44,11 +44,11 @@ func newTestManager(mock *mockSender, cooldown time.Duration) *Manager {
 	return &Manager{
 		webhooks: []webhook{{
 			sender:   mock,
-			events:   map[EventType]bool{EventProbeDown: true, EventProbeUp: true, EventBudgetViolation: true, EventCertExpiring: true},
+			events:   map[EventType]bool{EventCheckDown: true, EventCheckUp: true, EventBudgetViolation: true, EventCertExpiring: true},
 			cooldown: cooldown,
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -64,10 +64,10 @@ func sendFailures(m *Manager, ctx context.Context, name string, n int) {
 	}
 }
 
-func makeResult(name string, success bool) *probe.Result {
-	return &probe.Result{
+func makeResult(name string, success bool) *check.Result {
+	return &check.Result{
 		Name:      name,
-		Type:      config.ProbeTypeHTTP,
+		Type:      config.CheckTypeHTTP,
 		Success:   success,
 		Timestamp: time.Now(),
 	}
@@ -111,7 +111,7 @@ func TestFirstResultEstablishesBaseline(t *testing.T) {
 	}
 }
 
-func TestProbeDownTransition(t *testing.T) {
+func TestCheckDownTransition(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
@@ -126,15 +126,15 @@ func TestProbeDownTransition(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Type != EventProbeDown {
-		t.Fatalf("expected probe_down, got %s", events[0].Type)
+	if events[0].Type != EventCheckDown {
+		t.Fatalf("expected check_down, got %s", events[0].Type)
 	}
-	if events[0].Probe != "test" {
-		t.Fatalf("expected probe name 'test', got %s", events[0].Probe)
+	if events[0].Check != "test" {
+		t.Fatalf("expected check name 'test', got %s", events[0].Check)
 	}
 }
 
-func TestProbeDownNotFiredBeforeThreshold(t *testing.T) {
+func TestCheckDownNotFiredBeforeThreshold(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
@@ -168,7 +168,7 @@ func TestTransientFailureResetsCounter(t *testing.T) {
 	}
 }
 
-func TestProbeUpTransition(t *testing.T) {
+func TestCheckUpTransition(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
@@ -178,8 +178,8 @@ func TestProbeUpTransition(t *testing.T) {
 	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
-	if len(mock.sent()) != 1 || mock.sent()[0].Type != EventProbeDown {
-		t.Fatalf("expected probe_down event, got %v", mock.sent())
+	if len(mock.sent()) != 1 || mock.sent()[0].Type != EventCheckDown {
+		t.Fatalf("expected check_down event, got %v", mock.sent())
 	}
 
 	// Recover
@@ -190,8 +190,8 @@ func TestProbeUpTransition(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("expected 2 events (down + up), got %d", len(events))
 	}
-	if events[1].Type != EventProbeUp {
-		t.Fatalf("expected probe_up, got %s", events[1].Type)
+	if events[1].Type != EventCheckUp {
+		t.Fatalf("expected check_up, got %s", events[1].Type)
 	}
 }
 
@@ -254,12 +254,12 @@ func TestInfraErrorsIgnored(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event after threshold failures, got %d", len(events))
 	}
-	if events[0].Type != EventProbeDown {
-		t.Fatalf("expected probe_down, got %s", events[0].Type)
+	if events[0].Type != EventCheckDown {
+		t.Fatalf("expected check_down, got %s", events[0].Type)
 	}
 }
 
-func TestProbeDownIncludesDetails(t *testing.T) {
+func TestCheckDownIncludesDetails(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
@@ -307,7 +307,7 @@ func TestCooldownSuppressesDuplicates(t *testing.T) {
 	m.HandleResult(ctx, makeResult("test", true))
 	waitForDispatch()
 
-	// probe_up should fire since it's a different event type
+	// check_up should fire since it's a different event type
 	if len(mock.sent()) != 2 {
 		t.Fatalf("expected 2 events (down + up), got %d", len(mock.sent()))
 	}
@@ -315,7 +315,7 @@ func TestCooldownSuppressesDuplicates(t *testing.T) {
 	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
-	// probe_down again — should be suppressed by cooldown
+	// check_down again — should be suppressed by cooldown
 	if len(mock.sent()) != 2 {
 		t.Fatalf("expected 2 events (second down suppressed), got %d", len(mock.sent()))
 	}
@@ -351,15 +351,15 @@ func TestCooldownExpiresAllowsRetrigger(t *testing.T) {
 
 func TestEventFiltering(t *testing.T) {
 	mock := &mockSender{}
-	// Only subscribe to probe_down events
+	// Only subscribe to check_down events
 	m := &Manager{
 		webhooks: []webhook{{
 			sender:   mock,
-			events:   map[EventType]bool{EventProbeDown: true},
+			events:   map[EventType]bool{EventCheckDown: true},
 			cooldown: 0,
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -456,12 +456,12 @@ func TestBudgetNotViolatedNeverFires(t *testing.T) {
 	}
 }
 
-func TestMultipleProbesIndependent(t *testing.T) {
+func TestMultipleChecksIndependent(t *testing.T) {
 	mock := &mockSender{}
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
 
-	// Establish baselines for two probes
+	// Establish baselines for two checks
 	m.HandleResult(ctx, makeResult("a", true))
 	m.HandleResult(ctx, makeResult("b", true))
 
@@ -473,8 +473,8 @@ func TestMultipleProbesIndependent(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Probe != "a" {
-		t.Fatalf("expected probe 'a', got %s", events[0].Probe)
+	if events[0].Check != "a" {
+		t.Fatalf("expected check 'a', got %s", events[0].Check)
 	}
 }
 
@@ -483,11 +483,11 @@ func TestMultipleWebhooks(t *testing.T) {
 	mock2 := &mockSender{}
 	m := &Manager{
 		webhooks: []webhook{
-			{sender: mock1, events: map[EventType]bool{EventProbeDown: true}, cooldown: 0},
-			{sender: mock2, events: map[EventType]bool{EventProbeDown: true, EventProbeUp: true}, cooldown: 0},
+			{sender: mock1, events: map[EventType]bool{EventCheckDown: true}, cooldown: 0},
+			{sender: mock2, events: map[EventType]bool{EventCheckDown: true, EventCheckUp: true}, cooldown: 0},
 		},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -500,7 +500,7 @@ func TestMultipleWebhooks(t *testing.T) {
 	sendFailures(m, ctx, "test", consecutiveFailThreshold)
 	waitForDispatch()
 
-	// Both should get probe_down
+	// Both should get check_down
 	if len(mock1.sent()) != 1 {
 		t.Fatalf("webhook 1: expected 1 event, got %d", len(mock1.sent()))
 	}
@@ -508,7 +508,7 @@ func TestMultipleWebhooks(t *testing.T) {
 		t.Fatalf("webhook 2: expected 1 event, got %d", len(mock2.sent()))
 	}
 
-	// Recover — only mock2 subscribes to probe_up
+	// Recover — only mock2 subscribes to check_up
 	m.HandleResult(ctx, makeResult("test", true))
 	waitForDispatch()
 
@@ -528,12 +528,12 @@ func TestSeverityFilterBlocksWarnings(t *testing.T) {
 	m := &Manager{
 		webhooks: []webhook{{
 			sender:     mock,
-			events:     map[EventType]bool{EventProbeDown: true, EventCertExpiring: true, EventBudgetViolation: true},
+			events:     map[EventType]bool{EventCheckDown: true, EventCertExpiring: true, EventBudgetViolation: true},
 			severities: map[Severity]bool{SeverityCritical: true},
 			cooldown:   0,
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -569,12 +569,12 @@ func TestSeverityFilterAllowsWarnings(t *testing.T) {
 	m := &Manager{
 		webhooks: []webhook{{
 			sender:     mock,
-			events:     map[EventType]bool{EventProbeDown: true, EventBudgetViolation: true},
+			events:     map[EventType]bool{EventCheckDown: true, EventBudgetViolation: true},
 			severities: map[Severity]bool{SeverityWarning: true},
 			cooldown:   0,
 		}},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),
@@ -619,10 +619,10 @@ func TestNoSeverityFilterPassesAll(t *testing.T) {
 
 // --- Cert expiring notification tests ---
 
-func makeTLSResult(name string, daysRemaining, warnDays, critDays int) *probe.Result {
-	return &probe.Result{
+func makeTLSResult(name string, daysRemaining, warnDays, critDays int) *check.Result {
+	return &check.Result{
 		Name:              name,
-		Type:              config.ProbeTypeTLS,
+		Type:              config.CheckTypeTLS,
 		Success:           true,
 		CertDaysRemaining: daysRemaining,
 		CertValid:         true,
@@ -762,13 +762,13 @@ func TestCertExpiringNonTLSIgnored(t *testing.T) {
 	m := newTestManager(mock, 0)
 	ctx := context.Background()
 
-	// HTTP probe result — should be ignored by HandleCertResult
+	// HTTP check result — should be ignored by HandleCertResult
 	httpResult := makeResult("test", true)
 	m.HandleCertResult(ctx, httpResult)
 	waitForDispatch()
 
 	if len(mock.sent()) != 0 {
-		t.Fatalf("expected 0 events for non-TLS probe, got %d", len(mock.sent()))
+		t.Fatalf("expected 0 events for non-TLS check, got %d", len(mock.sent()))
 	}
 }
 
@@ -788,7 +788,7 @@ func TestSeverityFilterWithCertExpiring(t *testing.T) {
 			{sender: mockCrit, events: map[EventType]bool{EventCertExpiring: true}, severities: map[Severity]bool{SeverityCritical: true}, cooldown: 0},
 		},
 		sem:          make(chan struct{}, maxConcurrentSends),
-		probeStates:  make(map[string]bool),
+		checkStates:  make(map[string]bool),
 		failCounts:   make(map[string]int),
 		notifiedDown: make(map[string]bool),
 		budgetStates: make(map[string]bool),

@@ -1,4 +1,4 @@
-# Core Web Vitals (browser probes)
+# Core Web Vitals (browser checks)
 
 Technician’s Playwright probes collect the **Core Web Vitals** for synthetic monitoring. As of March 2024, the three official metrics are:
 
@@ -17,11 +17,11 @@ Technician’s Playwright probes collect the **Core Web Vitals** for synthetic m
 
 ## Network throttling and device emulation
 
-Playwright probes support mobile network simulation and device emulation to measure performance under realistic mobile conditions.
+Playwright checks support mobile network simulation and device emulation to measure performance under realistic mobile conditions.
 
 ### Network profiles
 
-Set `network` in a Playwright probe config to throttle via Chrome DevTools Protocol (CDP):
+Set `network` in a Playwright check config to throttle via Chrome DevTools Protocol (CDP):
 
 | Profile | Download | Upload | RTT |
 |---------|----------|--------|-----|

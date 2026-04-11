@@ -6,7 +6,7 @@ services:
       - "9590:9590"
     volumes:
       - ./config/technician.yml:/etc/technician/technician.yml:ro
-      - ./config/probes:/etc/technician/probes:ro
+      - ./config/checks:/etc/technician/checks:ro
       - ./config/budgets.yml:/etc/technician/budgets.yml:ro
       - technician_data:/var/lib/technician
     environment:

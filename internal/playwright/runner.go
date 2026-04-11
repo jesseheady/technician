@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/m0nkey/technician/internal/probe"
+	"github.com/m0nkey/technician/internal/check"
 )
 
 //go:embed scripts/*
@@ -61,8 +61,8 @@ type RunResult struct {
 	Success       bool             `json:"success"`
 	DurationMs    float64          `json:"duration_ms"`
 	Error         string           `json:"error,omitempty"`
-	Vitals        *probe.WebVitals `json:"vitals,omitempty"`
-	HAR           *probe.HARData   `json:"har,omitempty"`
+	Vitals        *check.WebVitals `json:"vitals,omitempty"`
+	HAR           *check.HARData   `json:"har,omitempty"`
 	VideoPath     string           `json:"video_path,omitempty"`
 	ResourceCount int              `json:"resource_count"`
 	Logs          []string         `json:"logs,omitempty"`
