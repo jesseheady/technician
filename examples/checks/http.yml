@@ -1,5 +1,5 @@
 # Example HTTP checks.
-# Copy to config/probes/http.yml and customise for your targets.
+# Copy to config/checks/http.yml and customise for your targets.
 #
 # degraded_after guidance:
 #   Static / CDN:  500ms (cloud) / 3s (residential)

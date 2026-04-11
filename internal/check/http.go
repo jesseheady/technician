@@ -213,7 +213,7 @@ func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *co
 }
 
 // regexCache caches compiled regular expressions used in assertions to avoid
-// recompiling the same pattern on every probe run.
+// recompiling the same pattern on every check run.
 var regexCache sync.Map // map[string]*regexp.Regexp
 
 func cachedCompile(pattern string) (*regexp.Regexp, error) {

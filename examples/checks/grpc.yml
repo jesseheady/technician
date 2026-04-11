@@ -6,7 +6,7 @@
 #   Cloud VPS (cross-region):    1s
 #   Residential / Docker:        2s
 # gRPC includes TCP connection setup + TLS handshake (if enabled) + the health
-# check RPC. Connection pooling reuses established connections, so first-probe
+# check RPC. Connection pooling reuses established connections, so first-check
 # latency is higher than steady-state.
 
 - name: API Health

@@ -33,7 +33,7 @@ Tracking performance improvements identified during review (2026-03-13).
 - [x] Docker Compose: add health checks, restart policies, pin image versions
 - [x] Add security scanning to CI (govulncheck)
 
-## New Probe Types
+## New Check Types
 
 - [x] BGP route checks (origin AS validation, prefix hijack detection, path monitoring)
 - [x] Domain expiration checks (WHOIS/RDAP lookup, days-until-expiry metric + alerting)
@@ -41,6 +41,6 @@ Tracking performance improvements identified during review (2026-03-13).
 ## Status Page & Dashboards
 
 - [x] Tab-based category navigation (Network, Web, Services, Security) with search and issues-only filter
-- [ ] Prune stale checks from status store on startup (remove entries for probes no longer in config)
+- [ ] Prune stale checks from status store on startup (remove entries for checks no longer in config)
 - [ ] Status page: show flapping/unstable indicator based on ring buffer history (e.g. frequent up/down transitions)
 - [ ] Review Grafana community dashboards for inspiration on dashboard design patterns

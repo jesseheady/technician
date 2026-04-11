@@ -5,7 +5,7 @@
 #   Cloud VPS (same region):    50ms
 #   Cloud VPS (cross-region):  100ms
 #   Residential / Docker:      200ms
-# ICMP is the most environment-sensitive probe type. A cloud VPS in the same
+# ICMP is the most environment-sensitive check type. A cloud VPS in the same
 # region as 8.8.8.8 gets 1-5ms pings; residential WiFi + Docker adds 100-160ms.
 
 - name: Ping Google DNS

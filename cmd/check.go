@@ -20,7 +20,7 @@ var (
 )
 
 var checkCmd = &cobra.Command{
-	Use:   "probe",
+	Use:   "check",
 	Short: "Run checks",
 }
 
@@ -31,7 +31,7 @@ var checkRunCmd = &cobra.Command{
 }
 
 func init() {
-	checkRunCmd.Flags().StringVar(&checkName, "probe", "", "check name to run (runs all if empty)")
+	checkRunCmd.Flags().StringVar(&checkName, "check", "", "check name to run (runs all if empty)")
 	checkRunCmd.Flags().StringVarP(&checkOutput, "output", "o", "text", "output format: text, json")
 	checkCmd.AddCommand(checkRunCmd)
 	rootCmd.AddCommand(checkCmd)
@@ -66,13 +66,13 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	site := cfg.ResolveSite(siteCode)
 
-	probers := newCheckers(cfg)
+	checkers := newCheckers(cfg)
 
 	var toRun []config.CheckConfig
 	if checkName != "" {
 		p := config.FindCheckByName(checks, checkName)
 		if p == nil {
-			return fmt.Errorf("probe %q not found", checkName)
+			return fmt.Errorf("check %q not found", checkName)
 		}
 		toRun = append(toRun, *p)
 	} else {
@@ -84,9 +84,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	for i := range toRun {
 		pc := &toRun[i]
-		checker, ok := probers[pc.Type]
+		checker, ok := checkers[pc.Type]
 		if !ok {
-			slog.Warn("No prober for type", "type", pc.Type, "name", pc.Name)
+			slog.Warn("No checker for type", "type", pc.Type, "name", pc.Name)
 			continue
 		}
 		result := checker.Run(ctx, pc, site)

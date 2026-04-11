@@ -31,7 +31,7 @@ The project includes `.github/workflows/ci.yml` which runs on push to `main` and
 When you use `--output gha`, budget violations appear as GitHub Actions annotations -- inline on the PR diff at the relevant location:
 
 ```yaml
-- name: Validate probes + budgets
+- name: Validate checks + budgets
   run: ./technician validate --config config/technician.yml --budget config/budgets.yml --output gha
 ```
 
@@ -46,26 +46,26 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: "URL to probe"
+        description: "URL to check"
 ```
 
 It uses the pre-built Docker image with Chromium included and uploads HAR artifacts.
 
 ### Artifacts
 
-Both workflows upload probe artifacts (HAR files, videos) so you can debug failures:
+Both workflows upload check artifacts (HAR files, videos) so you can debug failures:
 
 ```yaml
 - uses: actions/upload-artifact@v7
   with:
-    name: probe-results
+    name: check-results
     path: /tmp/technician/artifacts/
     retention-days: 7
 ```
 
 ### Playwright in CI
 
-Browser probes need Node.js + Chromium. Two approaches:
+Browser checks need Node.js + Chromium. Two approaches:
 
 **Option A: Install in the job** (used in `ci.yml`)
 
@@ -93,7 +93,7 @@ The Docker image includes Chromium, so no extra setup is needed.
 
 ### Resource considerations
 
-GitHub Actions standard runners have 7 GB RAM and 2 CPUs. With `max_browsers: 2` (the default), you can run 3-4 concurrent Playwright probes comfortably. If you have more browser checks, set `max_browsers: 1` in your CI config to serialize them:
+GitHub Actions standard runners have 7 GB RAM and 2 CPUs. With `max_browsers: 2` (the default), you can run 3-4 concurrent Playwright checks comfortably. If you have more browser checks, set `max_browsers: 1` in your CI config to serialize them:
 
 ```yaml
 # ci-config/technician.yml
@@ -119,7 +119,7 @@ go test -race ./...
 # 3. Lint
 go vet ./...
 
-# 4. Validate probes against budgets
+# 4. Validate checks against budgets
 ./technician validate \
   --config config/technician.yml \
   --budget config/budgets.yml \
@@ -259,7 +259,7 @@ Or keep a dedicated CI config directory checked in with the right subset of chec
 
 ## Environment variables
 
-Probe configs support `${ENV_VAR}` expansion, useful for CI secrets:
+Check configs support `${ENV_VAR}` expansion, useful for CI secrets:
 
 ```yaml
 # checks/http.yml

@@ -135,7 +135,7 @@ type Store struct {
 	path    string // file path for persistence; empty = no persistence
 
 	budgetMu     sync.RWMutex
-	budgetChecks map[string]budgetState // keyed by "probe:metric"
+	budgetChecks map[string]budgetState // keyed by "check:metric"
 
 	snapMu    sync.Mutex
 	snapCache *Snapshot
@@ -237,7 +237,7 @@ func (s *Store) Reconcile(checks []config.CheckConfig) {
 	}
 }
 
-// Push adds a probe result to the store.
+// Push adds a check result to the store.
 func (s *Store) Push(r *check.Result) {
 	e := Entry{
 		Success:           r.Success,
@@ -288,7 +288,7 @@ func (s *Store) Push(r *check.Result) {
 
 // RecordBudgetCheck updates the per-check budget state for the status page summary.
 // Returns true when the check has just crossed the fail threshold (for alerting).
-func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) bool {
+func (s *Store) RecordBudgetCheck(check, metric string, violated bool) bool {
 	s.budgetMu.Lock()
 	defer s.budgetMu.Unlock()
 
@@ -296,7 +296,7 @@ func (s *Store) RecordBudgetCheck(probe, metric string, violated bool) bool {
 		s.budgetChecks = make(map[string]budgetState)
 	}
 
-	key := probe + ":" + metric
+	key := check + ":" + metric
 	prev := s.budgetChecks[key]
 
 	var bs budgetState
@@ -427,7 +427,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 
 	s.budgetMu.RLock()
 	budgetViolations := 0
-	probeBudgets := make(map[string][]BudgetCheck) // keyed by probe name
+	probeBudgets := make(map[string][]BudgetCheck) // keyed by check name
 	for key, bs := range s.budgetChecks {
 		if bs.violated {
 			budgetViolations++
@@ -604,7 +604,7 @@ type persistedBudget struct {
 type persistedStore struct {
 	Order        []string                   `json:"order"`
 	Rings        map[string]persistedRing   `json:"rings"`
-	BudgetChecks map[string]persistedBudget `json:"budget_checks,omitempty"` // "probe:metric" -> state
+	BudgetChecks map[string]persistedBudget `json:"budget_checks,omitempty"` // "check:metric" -> state
 }
 
 // persistedStoreRaw is used for backwards-compatible loading: budget_checks
@@ -778,7 +778,7 @@ func (s *Store) load() {
 // tryLoadData attempts to parse and load store data. Returns true on success.
 func (s *Store) tryLoadData(data []byte) bool {
 	// Use raw struct so budget_checks field type mismatch doesn't block
-	// loading the rest of the store (probe rings, order, etc.).
+	// loading the rest of the store (check rings, order, etc.).
 	var raw persistedStoreRaw
 	if err := json.Unmarshal(data, &raw); err != nil {
 		slog.Warn("Failed to parse status store", "error", err)

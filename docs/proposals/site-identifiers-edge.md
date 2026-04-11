@@ -1,7 +1,7 @@
 # Site identifiers for edge and serverless
 
 **Status:** Proposal  
-**Goal:** Define how we identify "site" (check execution location) when probes run on Cloudflare Workers, AWS Lambda, or Lambda@Edge, so metrics and dashboards stay consistent with the current fixed-infrastructure model.
+**Goal:** Define how we identify "site" (check execution location) when checks run on Cloudflare Workers, AWS Lambda, or Lambda@Edge, so metrics and dashboards stay consistent with the current fixed-infrastructure model.
 
 ## Current model
 
@@ -63,7 +63,7 @@ Keep **static sites** for fixed infrastructure (current behavior). For **edge/se
 1. **Standardize on a composite label** in metrics (and optionally in config later):
    - `infra_provider` – `technician` | `cloudflare` | `aws` (and maybe `aws-edge` to distinguish Edge from regional Lambda).
    - `region` – For static: config `code`. For Cloudflare: colo (IATA). For AWS regional: `AWS_REGION`. For Lambda@Edge: pop prefix or full pop code.
-   So edge probes would set e.g. `infra_provider=cloudflare`, `region=IAD`; no need for a pre-defined `sites` entry for every colo.
+   So edge checks would set e.g. `infra_provider=cloudflare`, `region=IAD`; no need for a pre-defined `sites` entry for every colo.
 
 2. **Optional mapping layer:** If we want human-friendly names in dashboards (city, country) for edge sites, we can:
    - Maintain a small **lookup table** (e.g. IATA → city/country, AWS region → city/country) used only for display, or
@@ -71,7 +71,7 @@ Keep **static sites** for fixed infrastructure (current behavior). For **edge/se
 
 3. **Uniqueness:** For aggregation and alerting, `(infra_provider, region)` should uniquely identify the execution location. So `region` alone is enough if we always set `infra_provider`; or we can encode provider in the code (e.g. `cf:IAD`) and keep a single `region` label.
 
-4. **Contract for Worker/Lambda adapters:** When implementing the blackbox-style probe endpoint in a Worker or Lambda, the adapter must:
+4. **Contract for Worker/Lambda adapters:** When implementing the blackbox-style check endpoint in a Worker or Lambda, the adapter must:
    - **Read** the execution location from the platform (e.g. `request.cf.colo`, `process.env.AWS_REGION`, or response header for Edge).
    - **Emit** metrics (e.g. Prometheus exposition) with `region` (and optionally `infra_provider`) set to that value, so scrapers and Grafana see a consistent notion of "site" across Technician binary, Cloudflare, and AWS.
 

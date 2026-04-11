@@ -98,7 +98,7 @@ func (p *UDPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 		// Fire-and-forget: success if send completed without error.
 		result.Duration = time.Since(start)
 		result.Success = true
-		slog.Debug("UDP probe completed (no response expected)",
+		slog.Debug("UDP check completed (no response expected)",
 			"name", cfg.Name,
 			"host", addr,
 			"duration", result.Duration,
@@ -147,7 +147,7 @@ func (p *UDPChecker) Run(ctx context.Context, cfg *config.CheckConfig, site *con
 	result.Duration = time.Since(start)
 	result.Success = true
 
-	slog.Debug("UDP probe completed",
+	slog.Debug("UDP check completed",
 		"name", cfg.Name,
 		"host", addr,
 		"duration", result.Duration,

@@ -14,11 +14,11 @@ Technician's Go binary can run in a Lambda container image (regional Lambda), bu
 - SAM template or Terraform/CDK for provisioning: function, EventBridge schedule (replaces in-process cron), IAM role, networking (VPC placement if probing internal targets).
 - Decision on invocation model: EventBridge schedule triggers Lambda per-check, or a single invocation runs all checks and pushes results.
 - Push mechanism for metrics: Prometheus can't scrape a short-lived Lambda. Options are Pushgateway, Prometheus remote-write, or an in-VPC aggregator that Prometheus scrapes. See [central-prometheus-grafana.md](architecture/central-prometheus-grafana.md).
-- Lambda@Edge (Node.js/Python only) would need a separate lightweight HTTP probe adapter, not the Go binary.
+- Lambda@Edge (Node.js/Python only) would need a separate lightweight HTTP check adapter, not the Go binary.
 
 ### Cloudflare Workers adapter [#18](https://github.com/m0nkey/technician/issues/18)
 
-Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). The proposal recommends "Path A" — a small JS/TS Worker that performs one HTTP probe per request and returns Prometheus text or JSON.
+Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). The proposal recommends "Path A" — a small JS/TS Worker that performs one HTTP check per request and returns Prometheus text or JSON.
 
 **What's needed:**
 
@@ -148,11 +148,11 @@ Suppress alerting and mark checks as "maintenance" on the status page during pla
 
 **What's needed:**
 
-- Per-probe `maintenance` config: either a boolean `maintenance: true` for manual toggle, or a time window `maintenance_windows` with start/end times.
+- Per-check `maintenance` config: either a boolean `maintenance: true` for manual toggle, or a time window `maintenance_windows` with start/end times.
 - Scheduler skips webhook notifications for checks in maintenance (checks still run to track actual state).
 - Status page shows maintenance badge instead of failure state.
 - Prometheus label `maintenance="true"` on check metrics during active windows so Grafana alerting rules can exclude them.
-- Optional: `technician maintenance enable <probe-name> --duration 2h` CLI command for ad-hoc maintenance without config edit.
+- Optional: `technician maintenance enable <check-name> --duration 2h` CLI command for ad-hoc maintenance without config edit.
 
 **Config shape:**
 
@@ -176,9 +176,9 @@ WS/WSS check type for real-time services. Connect, optionally send a message, as
 **What's needed:**
 
 - New `WebSocketCheckConfig` struct: `url` (ws:// or wss://), `headers` (map), `send` (message to send after connect), `expect` (expected response substring or regex), `skip_tls` (bool).
-- WebSocket prober using `golang.org/x/net/websocket` or `nhooyr.io/websocket` (pure Go, no CGO). Connect, optionally write `send` payload, read first message, evaluate `expect` assertion, close.
+- WebSocket checker using `golang.org/x/net/websocket` or `nhooyr.io/websocket` (pure Go, no CGO). Connect, optionally write `send` payload, read first message, evaluate `expect` assertion, close.
 - Prometheus gauges: `technician_ws_connect_seconds`, `technician_ws_message_seconds`.
-- Probe result fields: `WSConnDuration`, `WSMessageDuration`, `WSResponse`.
+- Check result fields: `WSConnDuration`, `WSMessageDuration`, `WSResponse`.
 - Blackbox `/probe` handler: `module=websocket`.
 
 **Config shape:**
@@ -215,7 +215,7 @@ logging:
 **Example log output (JSON):**
 
 ```json
-{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"probe_complete","probe":"API Health","type":"http","success":true,"duration_ms":142,"region":"us-east-1","degraded":false,"retries":0}
+{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"check_complete","check":"API Health","type":"http","success":true,"duration_ms":142,"region":"us-east-1","degraded":false,"retries":0}
 {"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"scheduler_tick","active_probes":12,"goroutines":28,"heap_mb":8.2}
 ```
 
@@ -223,7 +223,7 @@ logging:
 
 Redesign the built-in status page. Reference layout based on Upptime, Cachet, and Gatus.
 
-**Current state:** Minimal HTML template with probe rows, history bars, timing breakdown, and budget badges.
+**Current state:** Minimal HTML template with check rows, history bars, timing breakdown, and budget badges.
 
 **Reference layout:**
 
@@ -240,8 +240,8 @@ Monitors are grouped under collapsible section headers: group name (left), "N/N 
 - **Dense uptime bars with hover tooltips** — Replace the current short history bars with a dense segmented bar where each segment represents one time bucket. Hover tooltip shows: segment date/time, uptime %, downtime duration, and error summary for that bucket. Color: green (100% up), amber (partial failures or degraded), red (majority down). Shows overall uptime % right-aligned on the header row.
 - **Time window picker** — Allow users to switch the status page view between time windows: Last 24h, Last 7d, Last 30d, Last 90d. This controls both the uptime bar granularity (hourly buckets for 24h, daily for 7d/30d/90d) and the response time chart X-axis. Default: 24h for the ring buffer (no persistence needed), longer windows require [historical data](#status-page-historical-data). Implemented as simple tab/button bar above the monitor list.
 - **Response time line chart** — Per-monitor line chart always visible below the uptime bar. Y-axis auto-scaled per monitor so both fast (200ms) and slow (5s) services are readable. Response time is a key golden signal — this should be prominent, not hidden behind a click. Lightweight JS using inline `<canvas>` or SVG path generation. No chart library dependency.
-- **Monitor grouping with collapse** — Group probes by the existing `group` field with collapsible section headers. Header shows: group name + optional icon (left), "N/N Operational" aggregate count (right), collapse chevron. Group-level status is worst-of-group.
-- **Maintenance banners** — When any probe is in maintenance mode, show a blue/gray banner with the reason text and scheduled end time. Maintenance checks show a wrench icon instead of status dot.
+- **Monitor grouping with collapse** — Group checks by the existing `group` field with collapsible section headers. Header shows: group name + optional icon (left), "N/N Operational" aggregate count (right), collapse chevron. Group-level status is worst-of-group.
+- **Maintenance banners** — When any check is in maintenance mode, show a blue/gray banner with the reason text and scheduled end time. Maintenance checks show a wrench icon instead of status dot.
 - **Dark/light mode** — Respect `prefers-color-scheme` media query. Dark mode as default (matches Grafana). CSS-only, no JS framework needed.
 - **Incident timeline** — Below the monitor list, show recent incidents (state transitions) in reverse chronological order with duration and resolution status.
 
@@ -262,7 +262,7 @@ Technician's scope: **check execution, scheduling, metrics export, status page, 
 - **Check execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright (and planned: WebSocket).
 - **Scheduling** — Built-in cron with stagger/jitter. No external scheduler needed.
 - **Status page** — Built-in, no external dependencies.
-- **Notifications** — Webhook-based alerting for probe state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
+- **Notifications** — Webhook-based alerting for check state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
 - **Performance budgets** — Threshold-based degradation tracking with three-state escalation.
 - **Prometheus metrics** — Native exposition on `/metrics`.
 - **Structured logs** — slog to stdout for Loki/log aggregation. How operators observe Technician itself.
@@ -281,7 +281,7 @@ Technician's scope: **check execution, scheduling, metrics export, status page, 
 
 ### k6 load testing integration [#26](https://github.com/m0nkey/technician/issues/26)
 
-k6 (Grafana's open-source load testing tool) is a natural companion to Technician. Technician answers "is my service healthy?"; k6 answers "how does it behave under load?" Running both together lets you generate traffic with k6 and watch Technician's probes reflect the degradation in real-time.
+k6 (Grafana's open-source load testing tool) is a natural companion to Technician. Technician answers "is my service healthy?"; k6 answers "how does it behave under load?" Running both together lets you generate traffic with k6 and watch Technician's checks reflect the degradation in real-time.
 
 **Approach:** "Works well alongside" — no changes to the Technician Go binary. k6 remains a standalone tool; Technician provides infrastructure, dashboards, and documentation to make the pairing seamless. This mirrors how Technician already defers dashboarding to Grafana and incident management to external tools.
 
@@ -310,7 +310,7 @@ k6 load generation is CPU and memory intensive, unlike Technician's lightweight 
 | HTTP high concurrency | 1,000+ VUs | 4+ vCPU, 4+ GB | May need distributed execution |
 | Browser (k6 browser module) | 5–10 VUs | 2+ vCPU, 2–4 GB | Each VU runs a Chromium instance |
 
-- **Do not co-locate with Technician workers in production.** k6 load generation will saturate CPU and network, skewing Technician's probe latency measurements. Run k6 on a separate host, container, or CI runner.
+- **Do not co-locate with Technician workers in production.** k6 load generation will saturate CPU and network, skewing Technician's check latency measurements. Run k6 on a separate host, container, or CI runner.
 - **Lambda/Workers targets are not suitable** for load generation. k6 needs sustained compute; serverless invocation models don't fit.
 - **Network egress costs** can be significant for high-throughput tests against cloud-hosted targets. A 500 VU test at 100 req/s for 10 minutes generates meaningful egress depending on response payload sizes.
 - **Distributed execution** — For tests exceeding a single machine's capacity, k6 supports distributed mode via `k6 operator` (Kubernetes) or Grafana Cloud k6. This is outside Technician's scope but should be documented as the scaling path.
@@ -320,19 +320,19 @@ k6 load generation is CPU and memory intensive, unlike Technician's lightweight 
 
 Items here are either partially covered by Grafana dashboards, low priority, or would add complexity that isn't justified yet. Each item includes a rationale for deferral.
 
-### Probes and protocol
+### Checks and protocol
 
 - **TLS version constraints** [#27](https://github.com/m0nkey/technician/issues/27) — Min/max TLS version for HTTP and TCP checks. Low priority; rarely needed for synthetic monitoring.
 
-- **Proxy support** [#28](https://github.com/m0nkey/technician/issues/28) — HTTP proxy configuration for probes running behind corporate proxies. Edge case for most deployments.
+- **Proxy support** [#28](https://github.com/m0nkey/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
 
-- **IP protocol preference for HTTP** [#29](https://github.com/m0nkey/technician/issues/29) — Force IPv4 or IPv6 for HTTP probes (TCP/DNS/ICMP already support this). Low priority.
+- **IP protocol preference for HTTP** [#29](https://github.com/m0nkey/technician/issues/29) — Force IPv4 or IPv6 for HTTP checks (TCP/DNS/ICMP already support this). Low priority.
 
-- **Full SOA record support** [#30](https://github.com/m0nkey/technician/issues/30) — DNS probe SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
+- **Full SOA record support** [#30](https://github.com/m0nkey/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
 - **Native HTTP Basic/Bearer auth fields** [#31](https://github.com/m0nkey/technician/issues/31) — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
 
-- **SMTP STARTTLS and auth** [#32](https://github.com/m0nkey/technician/issues/32) — The SMTP probe currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
+- **SMTP STARTTLS and auth** [#32](https://github.com/m0nkey/technician/issues/32) — The SMTP check currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
 
 ### Observability and export
 
@@ -348,9 +348,9 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Latency trend sparklines on status page** [#37](https://github.com/m0nkey/technician/issues/37) — Small inline SVG sparklines per check row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
 
-- **Tags and filtering** [#38](https://github.com/m0nkey/technician/issues/38) — Arbitrary key-value tags on probes for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
+- **Tags and filtering** [#38](https://github.com/m0nkey/technician/issues/38) — Arbitrary key-value tags on checks for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
 
-- **Public/private visibility toggle** [#39](https://github.com/m0nkey/technician/issues/39) — Control which probes are visible on the public status page vs internal-only.
+- **Public/private visibility toggle** [#39](https://github.com/m0nkey/technician/issues/39) — Control which checks are visible on the public status page vs internal-only.
 
 ### Notifications and alerting
 
@@ -372,7 +372,7 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ### Native webhook notifications with severity routing
 
-Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on probe state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-check cooldown to prevent notification floods.
+Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on check state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-check cooldown to prevent notification floods.
 
 - **Package**: `internal/notify/` — `Manager` with state tracking, `Sender` interface with Discord, Slack, and generic HTTP implementations.
 - **Config**: `webhooks` list in `technician.yml` with `url`, `type` (discord/slack/generic), `events` (check_down/check_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m).
@@ -393,21 +393,21 @@ Status page now shows P50/P90/P95/P99 latency percentiles per check (computed fr
 
 HTTP checks support `assertions` for response body validation: `contains`, `not_contains`, and `regex`. Failed assertions mark the check as failed. Config validation catches invalid types and malformed regex at load time.
 
-### TCP probe
+### TCP check
 
-TCP connectivity probe with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/checks/tcp.yml`.
+TCP connectivity check with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/checks/tcp.yml`.
 
-### DNS probe
+### DNS check
 
-DNS query probe supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/checks/dns.yml`.
+DNS query check supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/checks/dns.yml`.
 
-### ICMP ping probe
+### ICMP ping check
 
-ICMP Echo Request probe with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/checks/icmp.yml`.
+ICMP Echo Request check with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/checks/icmp.yml`.
 
-### gRPC health check probe
+### gRPC health check
 
-gRPC probe using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/checks/grpc.yml`.
+gRPC check using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/checks/grpc.yml`.
 
 ### HTTP header assertions
 
@@ -415,7 +415,7 @@ HTTP assertions extended with `header_contains`, `header_not_contains`, and `hea
 
 ### Follow redirects toggle
 
-HTTP probes now support `follow_redirects: true` to follow HTTP redirects (default: false, matching previous behavior).
+HTTP checks now support `follow_redirects: true` to follow HTTP redirects (default: false, matching previous behavior).
 
 ### Retry policy
 
@@ -423,9 +423,9 @@ All check types support an optional `retry` config with `count`, `backoff` (none
 
 ### Response time thresholds
 
-All check types support `degraded_after` — a duration threshold. When a successful probe exceeds this duration, it's flagged as degraded (`technician_check_degraded` metric). Distinct from failure: the check passed, but response time indicates degradation.
+All check types support `degraded_after` — a duration threshold. When a successful check exceeds this duration, it's flagged as degraded (`technician_check_degraded` metric). Distinct from failure: the check passed, but response time indicates degradation.
 
-### NTP probe
+### NTP check
 
 Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/checks/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
 
@@ -433,13 +433,13 @@ Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, s
 
 Dedicated `tls` check type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/checks/tls.yml`.
 
-### Infrastructure Probes dashboard
+### Infrastructure Checks dashboard
 
 Grafana dashboard combining TCP, DNS, ICMP, gRPC, NTP, TLS, UDP, BGP, and domain expiry check metrics in a single view. Includes per-type rows with relevant panels (connect/TLS time, query time, packet loss, health status, clock offset, certificate expiry, prefix visibility, origin ASN match, domain days until expiry).
 
 ### Browser concurrency limiter
 
-`max_browsers` config field (default 2) caps concurrent Chromium instances via a channel-based semaphore. Prevents OOM when multiple Playwright probes overlap. Probes queue for a slot and fail with an infra error if their timeout expires while waiting. See [Playwright scaling](playwright-scaling.md).
+`max_browsers` config field (default 2) caps concurrent Chromium instances via a channel-based semaphore. Prevents OOM when multiple Playwright checks overlap. Checks queue for a slot and fail with an infra error if their timeout expires while waiting. See [Playwright scaling](playwright-scaling.md).
 
 ### CI workflow
 
