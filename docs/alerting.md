@@ -128,9 +128,24 @@ Alertmanager provides rule-based routing, grouping, inhibition, and silencing. T
 
 ### Setup
 
-Alertmanager is included in `docker-compose.yml`. Configure receivers in `prometheus/alertmanager.yml`. Alertmanager natively supports Slack, PagerDuty, OpsGenie, Email, Telegram, and generic webhooks.
+Alertmanager is included in `docker-compose.yml`. Receiver configuration lives in `prometheus/alertmanager.yml`, where all notification channels ship commented out. To enable channels:
 
-**Discord note**: Alertmanager's Slack attachment format is not compatible with Discord's `/slack` endpoint. To use Alertmanager with Discord, you need the [alertmanager-discord](https://github.com/benjojo/alertmanager-discord) bridge container (commented out in `docker-compose.yml`). For simpler Discord delivery, use native webhooks or Grafana alerting instead.
+1. Copy to your local config: `cp prometheus/alertmanager.yml config/alertmanager.yml`
+2. Uncomment the `*_configs` blocks you need in `config/alertmanager.yml`.
+3. Set the corresponding env vars in `.env` (see `.env.example` for setup instructions).
+4. Create `docker-compose.override.yml` to mount your local config:
+   ```yaml
+   services:
+     alertmanager:
+       volumes:
+         - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+         - ./prometheus/templates:/etc/alertmanager/templates:ro
+   ```
+5. Restart: `docker compose restart alertmanager`
+
+Environment variables in `config/alertmanager.yml` use `${VAR}` syntax and are substituted automatically at container start — adding new channels requires no changes to `docker-compose.yml`.
+
+Pre-configured receiver blocks are available for Discord, Slack, Pushover, PagerDuty, OpsGenie, VictorOps, Telegram, Microsoft Teams, Email, and generic webhooks.
 
 ### Alert rules
 
@@ -167,7 +182,7 @@ SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
-A `TestAlert` rule (commented out) can be uncommented to validate the full pipeline.
+Commented-out `TestAlertWarn` and `TestAlertCritical` rules can be uncommented to validate the full pipeline. Alternatively, `scripts/test-alerts.sh` posts test alerts directly to the Alertmanager API, bypassing Prometheus evaluation timing. See the inline comments in `prometheus/rules.yml` for step-by-step instructions.
 
 ### Route structure
 
@@ -192,7 +207,7 @@ Reusable Go templates in `prometheus/templates/technician.tmpl` provide consiste
 
 | Template | Use with |
 |----------|----------|
-| `technician.title` | Any receiver — `[FIRING:2] CheckFailing — example.com` |
+| `technician.title` | Any receiver — `ALERT - CheckFailing / example.com` |
 | `technician.text` | Any receiver — lists all alerts with annotations |
 | `technician.slack.title` / `.slack.text` | Slack — mrkdwn formatting with bold and quotes |
 | `technician.email.subject` / `.email.html` | Email — HTML table with Alertmanager link |
@@ -213,6 +228,7 @@ To suppress alerts while investigating, use Alertmanager silences:
 
 - **UI**: `http://localhost:9093/#/silences` — create a silence with label matchers and a duration.
 - **CLI**: `amtool silence add alertname=CheckFailing name=myprobe --duration=2h`
+- **Script**: `scripts/silence.sh "alertname=CheckFailing" 2h` — create silences by pattern and duration.
 - **API**: `POST /api/v2/silences` — useful for chatops bot integration (e.g. react-to-silence).
 
 PagerDuty/OpsGenie ACKs stop escalation on their side but do not silence Alertmanager — create an Alertmanager silence as well to stop both. For chatops-driven silencing, see [karma](https://github.com/prymitive/karma) or build a bot that calls the Alertmanager silence API.
@@ -247,7 +263,7 @@ Adjust days and times to match your schedule. All times are UTC.
 | Setup complexity | Minimal (config only) | Low (UI or YAML) | Moderate (YAML + containers) |
 | Severity routing | Yes (`severities` filter) | Yes (notification policies) | Yes (pager fan-out) |
 | Category routing | No | Yes (file or UI) | Yes (named receivers) |
-| Discord support | Native | Native | Requires bridge container |
+| Discord support | Native | Native | Native |
 | Slack support | Native | Native | Native |
 | Grouping / dedup | Per-check cooldown | Full | Full |
 | Inhibit rules | No | No | Yes (4 pre-configured) |

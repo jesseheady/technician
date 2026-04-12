@@ -65,7 +65,7 @@ docker compose up
 
 - **Technician**: metrics on port 9590 (inside the compose network).
 - **Prometheus**: [http://localhost:9090](http://localhost:9090) – scrapes Technician, evaluates alert rules.
-- **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Slack, Discord, PagerDuty, etc. Configure receivers in `prometheus/alertmanager.yml`.
+- **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Discord, Slack, Pushover, PagerDuty, etc. See [alerting docs](alerting.md#3-prometheus-alertmanager) for setup.
 - **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
 
 Config and checks are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose uses `ORIGIN_ID=local` so the config's "local" site is used and labels stay distinct from real regions.
