@@ -35,9 +35,9 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 ## Configuration
 
 - **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
-- **Checks**: Loaded from directory next to config: `<config_dir>/checks/`:
+- **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
-  - Playwright: `checks/playwright/playwright.yml` (or `checks/playwright.yml`) + script files.
+  - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.
   - All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold).
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
 - **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (check_down/check_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m). Notifications fire on state transitions, not every check run. Events carry severity: check_down=critical, budget_violation=warning, cert_expiring=warning or critical based on days vs thresholds. Multiple webhook entries with different `severities` filters enable routing warnings to Slack and critical to PagerDuty.

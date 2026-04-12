@@ -1,0 +1,593 @@
+# Example check definitions for Technician.
+# Copy to config/checks.yml and customise for your targets.
+# All check types can coexist in a single file.
+# Alternatively, split into multiple files under config/checks/ — Technician
+# merges all .yml files in the directory automatically.
+
+# Example HTTP checks.
+# Copy to config/checks/http.yml and customise for your targets.
+# degraded_after guidance:
+#   Static / CDN:  500ms (cloud) / 3s (residential)
+#   API / dynamic:   1s (cloud) / 5s (residential)
+# HTTP latency varies widely by what's behind the URL. A static site on a CDN
+# responds in 50-100ms from cloud; a dynamic API may take 500ms-2s legitimately.
+# Residential adds ISP latency + Docker overhead.
+
+- name: example.com
+  type: http
+  group: Marketing
+  url: https://example.com
+  expected_status: 200
+  schedule: "*/60 * * * * *"
+  degraded_after: 3s
+  retry:
+    count: 2
+    backoff: exponential
+    delay: 1s
+
+- name: example.com/api
+  type: http
+  group: API
+  url: https://jsonplaceholder.typicode.com/posts/1
+  expected_status: 200
+  timeout: 5s
+  schedule: "0 */5 * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# Custom method/headers example:
+# - name: example.com/graphql
+#   url: https://example.com/graphql
+#   method: POST
+#   headers:
+#     Content-Type: application/json
+#     Authorization: "Bearer ${API_TOKEN}"
+#   body: '{"query":"{ __typename }"}'
+#   expected_status: 200
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+
+# Response body assertions:
+# - name: api-health
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   assertions:
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+
+# ── API health check with header + body assertions ──────────────────
+# Validates status code, response body, content type, and security headers.
+# - name: api-full-check
+#   group: API
+#   url: https://api.example.com/health
+#   expected_status: 200
+#   timeout: 10s
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+#   assertions:
+#     # Body assertions
+#     - type: contains
+#       target: '"status":"ok"'
+#     - type: not_contains
+#       target: '"error"'
+#     - type: regex
+#       target: '"version":"\d+\.\d+\.\d+"'
+#     # Content-Type
+#     - type: header_contains
+#       header: Content-Type
+#       target: application/json
+#     # Security headers
+#     - type: header_contains
+#       header: Strict-Transport-Security
+#       target: max-age=
+#     - type: header_contains
+#       header: X-Content-Type-Options
+#       target: nosniff
+#     - type: header_contains
+#       header: X-Frame-Options
+#       target: DENY
+#     - type: header_regex
+#       header: Content-Security-Policy
+#       target: "default-src"
+
+# Follow redirects (e.g. HTTP→HTTPS):
+# - name: example.com (follow)
+#   url: http://example.com
+#   expected_status: 200
+#   follow_redirects: true
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 3s
+
+# Skip TLS verification (self-signed certs):
+# - name: internal-service
+#   url: https://internal.example.com
+#   skip_tls: true
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
+# Example TCP checks.
+# Tests that the target accepts TCP connections on the given port.
+# degraded_after guidance:
+#   Cloud VPS (same region):   500ms (plain) / 1s (TLS)
+#   Cloud VPS (cross-region):    1s (plain) / 2s (TLS)
+#   Residential / Docker:        2s (plain) / 3s (TLS)
+# TCP includes connection setup; TLS adds a handshake on top. Thresholds should
+# be higher than raw ICMP/DNS for the same target.
+
+- name: Redis
+  type: tcp
+  group: Infrastructure
+  host: redis.example.com
+  port: 6379
+  timeout: 5s
+  schedule: "0 */2 * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# TLS connection with IPv4:
+# - name: HTTPS Port
+#   host: example.com
+#   port: 443
+#   tls: true
+#   ip_version: "4"
+#   timeout: 5s
+#   schedule: "0 */2 * * * *"
+#   degraded_after: 3s
+
+# Send/expect pattern (e.g. protocol banner check):
+# - name: SMTP Banner
+#   host: smtp.example.com
+#   port: 25
+#   send: "EHLO monitor\r\n"
+#   expect_recv: "250"
+#   timeout: 10s
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
+# UDP check examples.
+# send or send_hex is required — UDP is connectionless, so there is nothing
+# to check without sending a datagram.
+# expect_response defaults to true.  Set it to false for fire-and-forget
+# protocols (syslog, StatsD) where no reply is expected.
+# degraded_after guidance:
+#   Cloud VPS (same region):   100ms
+#   Cloud VPS (cross-region):  200ms
+#   Residential / Docker:      500ms
+# UDP latency is similar to DNS — fast in cloud, slower through residential ISPs.
+
+# - name: DNS over UDP
+#   host: 8.8.8.8
+#   port: 53
+#   send_hex: "002a01000001000000000000076578616d706c6503636f6d0000010001"
+#   expect_response: true
+#   schedule: "*/30 * * * * *"
+#   timeout: 5s
+#   degraded_after: 500ms
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# - name: StatsD fire-and-forget
+#   host: statsd.internal
+#   port: 8125
+#   send: "test.metric:1|c"
+#   expect_response: false
+#   schedule: "*/30 * * * * *"
+#   timeout: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Example DNS checks.
+# Queries a DNS server and optionally asserts on the response.
+# degraded_after guidance:
+#   Cloud VPS (same region):   100ms
+#   Cloud VPS (cross-region):  200ms
+#   Residential / Docker:      500ms
+# DNS latency depends on proximity to the resolver. Public resolvers (8.8.8.8,
+# 1.1.1.1) are anycast and fast from cloud, but add ISP + Docker overhead locally.
+
+- name: Google DNS A Record
+  type: dns
+  group: Infrastructure
+  domain: example.com
+  server: "8.8.8.8:53"
+  record_type: A
+  timeout: 10s
+  schedule: "0 */5 * * * *"
+  degraded_after: 500ms
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# Assert expected DNS answers:
+# - name: CDN CNAME Check
+#   domain: www.example.com
+#   server: "8.8.8.8:53"
+#   record_type: CNAME
+#   expected:
+#     - "cdn.example.com."
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 500ms
+
+# MX record check:
+# - name: Mail Exchange
+#   domain: example.com
+#   record_type: MX
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 500ms
+
+# Supported record types: A, AAAA, MX, TXT, CNAME, NS, SRV
+# Default server: 8.8.8.8:53
+
+# Example ICMP (ping) checks.
+# May require root/CAP_NET_RAW for raw sockets; falls back to unprivileged UDP mode.
+# degraded_after guidance:
+#   Cloud VPS (same region):    50ms
+#   Cloud VPS (cross-region):  100ms
+#   Residential / Docker:      200ms
+# ICMP is the most environment-sensitive check type. A cloud VPS in the same
+# region as 8.8.8.8 gets 1-5ms pings; residential WiFi + Docker adds 100-160ms.
+
+- name: Ping Google DNS
+  type: icmp
+  group: Infrastructure
+  host: 8.8.8.8
+  count: 5
+  ip_version: "4"
+  timeout: 10s
+  schedule: "0 */2 * * * *"
+  degraded_after: 200ms
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# IPv6 ping:
+# - name: Ping Cloudflare v6
+#   host: 2606:4700:4700::1111
+#   count: 5
+#   ip_version: "6"
+#   timeout: 10s
+#   schedule: "0 */2 * * * *"
+#   degraded_after: 200ms
+
+# Example gRPC health checks.
+# Uses the standard grpc.health.v1.Health/Check protocol.
+# degraded_after guidance:
+#   Cloud VPS (same region):   500ms
+#   Cloud VPS (cross-region):    1s
+#   Residential / Docker:        2s
+# gRPC includes TCP connection setup + TLS handshake (if enabled) + the health
+# check RPC. Connection pooling reuses established connections, so first-check
+# latency is higher than steady-state.
+
+- name: API Health
+  type: grpc
+  group: API
+  host: api.example.com:443
+  service: myapp
+  tls: true
+  timeout: 5s
+  schedule: "*/60 * * * * *"
+  degraded_after: 2s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s
+
+# Skip TLS verification (self-signed certs):
+# - name: Internal gRPC
+#   host: grpc.internal:9090
+#   tls: true
+#   skip_tls: true
+#   timeout: 5s
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
+# Plaintext (no TLS):
+# - name: Local gRPC
+#   host: localhost:50051
+#   service: ""
+#   timeout: 5s
+#   schedule: "*/30 * * * * *"
+#   degraded_after: 500ms
+
+# Example NTP checks.
+# Queries an NTP server over UDP and reports clock offset, stratum, and RTT.
+# degraded_after guidance:
+#   Dedicated servers (time.google.com, time.cloudflare.com):
+#     Cloud VPS:              50-100ms
+#     Residential / Docker:      200ms
+#   Pool servers (pool.ntp.org):
+#     Cloud VPS:             100-200ms
+#     Residential / Docker:      500ms
+# Dedicated NTP servers are anycast and fast (20-40ms). pool.ntp.org round-robins
+# to volunteer servers that may be geographically distant, with p90 latencies
+# 5-10x higher than dedicated servers. Consider a regional zone
+# (e.g. us.pool.ntp.org, europe.pool.ntp.org) for more consistent results.
+
+- name: Pool NTP
+  type: ntp
+  group: Infrastructure
+  server: pool.ntp.org
+  timeout: 5s
+  schedule: "0 */10 * * * *"
+  degraded_after: 500ms
+  retry:
+    count: 2
+    backoff: none
+    delay: 2s
+
+# Google's public NTP with degraded threshold:
+# - name: Google NTP
+#   server: time.google.com
+#   timeout: 5s
+#   degraded_after: 200ms
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Cloudflare NTP:
+# - name: Cloudflare NTP
+#   server: time.cloudflare.com
+#   timeout: 5s
+#   degraded_after: 200ms
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Custom port (default is 123):
+# - name: Internal NTP
+#   server: ntp.internal.example.com
+#   port: 1123
+#   timeout: 5s
+#   schedule: "0 */10 * * * *"
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
+
+# Example TLS certificate checks.
+# Connects to host:port, inspects the certificate chain, and reports
+# subject, issuer, expiry, days remaining, and chain validity.
+
+- name: Google TLS
+  type: tls
+  group: Infrastructure
+  host: google.com:443
+  warn_days: 30
+  critical_days: 7
+  timeout: 10s
+  schedule: "0 0 */6 * * *"
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+# Check API endpoint certificate:
+# - name: API Cert
+#   host: api.example.com:443
+#   warn_days: 30
+#   critical_days: 14
+#   timeout: 10s
+#   schedule: "0 0 */6 * * *"
+
+# Without expiry checking (just chain validation):
+# - name: Internal Service
+#   host: internal.example.com:443
+#   check_expiry: false
+#   timeout: 10s
+#   schedule: "0 0 */12 * * *"
+
+# Non-standard port:
+# - name: Custom TLS Service
+#   host: service.example.com:8443
+#   warn_days: 14
+#   critical_days: 3
+#   timeout: 10s
+#   schedule: "0 0 * * * *"
+
+# Example SMTP checks.
+# Tests that the SMTP server accepts connections on the given port.
+# degraded_after guidance:
+#   Cloud VPS:              2-3s
+#   Residential / Docker:     5s
+# SMTP servers are often slow to respond to EHLO, especially with greylisting
+# or rate limiting. Set thresholds higher than HTTP/TCP for the same host.
+
+- name: Gmail SMTP
+  type: smtp
+  group: Infrastructure
+  host: smtp.gmail.com
+  port: 587
+  schedule: "0 */15 * * * *"
+  degraded_after: 5s
+  retry:
+    count: 1
+    backoff: none
+    delay: 3s
+
+# - name: Company Mail
+#   group: Infrastructure
+#   host: smtp.example.com
+#   port: 25
+#   schedule: "0 */15 * * * *"
+#   degraded_after: 5s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 3s
+
+# Example traceroute checks.
+# Requires mtr (brew install mtr on macOS). May need root for raw sockets.
+# degraded_after guidance:
+#   Cloud VPS:             10s
+#   Residential / Docker:  15s
+# Traceroute spawns an mtr subprocess that sends multiple check packets across
+# many hops. 5-10s is normal even from fast networks. Only flag as degraded if
+# the trace is taking significantly longer than usual.
+
+- name: "example.com (traceroute)"
+  type: traceroute
+  group: Infrastructure
+  host: example.com
+  max_hops: 30
+  count: 3
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  degraded_after: 15s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+- name: "Google DNS"
+  type: traceroute
+  group: Infrastructure
+  host: 8.8.8.8
+  max_hops: 30
+  count: 3
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  degraded_after: 15s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+- name: "Cloudflare DNS"
+  type: traceroute
+  group: Infrastructure
+  host: 1.1.1.1
+  max_hops: 30
+  count: 3
+  schedule: "0 */30 * * * *"
+  timeout: 30s
+  degraded_after: 15s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+# ── BGP route checks ─────────────────────────────────────────────
+# Validates that a prefix is visible in the global routing table and
+# originated by the expected ASN. Useful for detecting route hijacks.
+- name: "cloudflare-1.1.1.1"
+  type: bgp
+  group: Infrastructure
+  prefix: "1.1.1.0/24"
+  expected_origin: 13335
+  schedule: "0 */15 * * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+- name: "google-dns"
+  type: bgp
+  group: Infrastructure
+  prefix: "8.8.8.0/24"
+  expected_origin: 15169
+  schedule: "0 */15 * * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+# ── Domain expiration checks ──────────────────────────────────────
+# Queries RDAP for domain registration expiry. Alerts when days remaining
+# drops below warn_days or critical_days thresholds.
+- name: "example.com"
+  type: domain_expiry
+  group: Infrastructure
+  domain: example.com
+  warn_days: 30
+  critical_days: 7
+  schedule: "0 0 */6 * * *"
+  timeout: 30s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+
+# Example Playwright (browser) checks.
+# Requires Node.js 18+ and Playwright Chromium browser.
+#
+# degraded_after guidance:
+#   Cloud VPS:              5-8s
+#   Residential / Docker:  10-15s
+# Playwright launches a full Chromium browser, loads the page, and collects Web
+# Vitals. Baseline is 3-5s for a simple page; complex flows with interactions,
+# throttled networks, and video recording take longer. Mobile 3G profiles add
+# significant latency by design — set thresholds accordingly.
+
+- name: "example.com (desktop)"
+  type: playwright
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://example.com"
+  schedule: "0 */5 * * * *"
+  timeout: 120s
+  degraded_after: 10s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+- name: "example.com (mobile 4g)"
+  type: playwright
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://example.com"
+  network: "4g"
+  device: "iPhone 14"
+  schedule: "0 */5 * * * *"
+  timeout: 120s
+  degraded_after: 15s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+
+- name: "example.com (mobile 3g)"
+  type: playwright
+  group: Marketing
+  script: playwright/example_flow.js
+  base_url: "https://example.com"
+  network: "3g"
+  device: "iPhone 14"
+  schedule: "0 */10 * * * *"
+  timeout: 180s
+  degraded_after: 20s
+  retry:
+    count: 1
+    backoff: none
+    delay: 5s
+

@@ -36,8 +36,8 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksDir := config.ResolveChecksDir(cfgFile)
-	checks, err := config.LoadChecks(checksDir)
+	checksPath := config.ResolveChecksPath(cfgFile)
+	checks, err := config.LoadChecks(checksPath)
 	if err != nil {
 		return fmt.Errorf("loading checks: %w", err)
 	}
