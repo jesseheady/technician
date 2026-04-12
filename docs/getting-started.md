@@ -34,7 +34,7 @@ To get started, copy the examples to `config/` and customise:
 
 ```bash
 cp -r examples/ config/
-# Edit config/checks/http.yml, config/technician.yml, etc.
+# Edit config/checks.yml, config/technician.yml, etc.
 ```
 
 ## Run the worker (minimal)

@@ -249,7 +249,7 @@ If your CI environment can't run Chromium (no graphical dependencies, limited RA
 ```bash
 # Copy only non-browser checks
 mkdir -p ci-config/checks
-cp config/checks/http.yml config/checks/tcp.yml config/checks/dns.yml ci-config/checks/
+cp config/checks.yml ci-config/
 cp config/technician.yml ci-config/
 
 ./technician validate --config ci-config/technician.yml --budget config/budgets.yml
@@ -262,7 +262,7 @@ Or keep a dedicated CI config directory checked in with the right subset of chec
 Check configs support `${ENV_VAR}` expansion, useful for CI secrets:
 
 ```yaml
-# checks/http.yml
+# checks.yml
 - name: staging API
   url: ${STAGING_URL}/health
   headers:

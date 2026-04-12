@@ -37,8 +37,8 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksDir := config.ResolveChecksDir(cfgFile)
-	checks, err := config.LoadChecks(checksDir)
+	checksPath := config.ResolveChecksPath(cfgFile)
+	checks, err := config.LoadChecks(checksPath)
 	if err != nil {
 		slog.Warn("No checks loaded", "error", err)
 		checks = nil
