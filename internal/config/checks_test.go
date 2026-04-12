@@ -11,6 +11,7 @@ import (
 func TestLoadHTTPChecks(t *testing.T) {
 	content := `
 - name: Test Site
+  type: http
   url: https://example.com
   expected_status: 200
   schedule: "*/30 * * * * *"
@@ -18,6 +19,7 @@ func TestLoadHTTPChecks(t *testing.T) {
   headers:
     X-Custom: value
 - name: Test API
+  type: http
   url: https://api.example.com/health
   expected_status: 204
   method: HEAD
@@ -65,10 +67,18 @@ func TestLoadHTTPChecks(t *testing.T) {
 	}
 }
 
-func TestLoadChecksNoDir(t *testing.T) {
-	checks, err := LoadChecks("/nonexistent/path")
+func TestLoadChecksMissingPath(t *testing.T) {
+	_, err := LoadChecks("/nonexistent/path")
+	if err == nil {
+		t.Fatal("expected error for missing checks path")
+	}
+}
+
+func TestLoadChecksEmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	checks, err := LoadChecks(dir)
 	if err != nil {
-		t.Fatal("expected no error for missing checks dir")
+		t.Fatal(err)
 	}
 	if len(checks) != 0 {
 		t.Errorf("expected 0 checks, got %d", len(checks))
@@ -101,6 +111,7 @@ func TestLoadHTTPChecksEnvExpansion(t *testing.T) {
 
 	content := `
 - name: Authed API
+  type: http
   url: https://api.example.com
   expected_status: 200
   headers:
@@ -127,12 +138,14 @@ func TestLoadHTTPChecksEnvExpansion(t *testing.T) {
 func TestLoadTCPChecks(t *testing.T) {
 	content := `
 - name: Redis
+  type: tcp
   host: redis.example.com
   port: 6379
   ip_version: "4"
   schedule: "*/60 * * * * *"
   timeout: 5s
 - name: HTTPS Port
+  type: tcp
   host: example.com
   port: 443
   tls: true
@@ -180,6 +193,7 @@ func TestLoadTCPChecks(t *testing.T) {
 func TestLoadDNSChecks(t *testing.T) {
 	content := `
 - name: Google DNS
+  type: dns
   domain: google.com
   server: "8.8.8.8:53"
   record_type: A
@@ -187,6 +201,7 @@ func TestLoadDNSChecks(t *testing.T) {
     - "142.250.80.46"
   timeout: 10s
 - name: MX Check
+  type: dns
   domain: example.com
   record_type: MX
 `
@@ -239,6 +254,7 @@ func TestLoadDNSChecks(t *testing.T) {
 func TestLoadICMPChecks(t *testing.T) {
 	content := `
 - name: Ping Google
+  type: icmp
   host: 8.8.8.8
   count: 5
   ip_version: "4"
@@ -281,6 +297,7 @@ func TestLoadICMPChecks(t *testing.T) {
 func TestLoadGRPCChecks(t *testing.T) {
 	content := `
 - name: API Health
+  type: grpc
   host: api.example.com:443
   service: myapp
   tls: true
@@ -328,6 +345,7 @@ func TestLoadGRPCChecks(t *testing.T) {
 func TestLoadHTTPChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Retried API
+  type: http
   url: https://api.example.com
   expected_status: 200
   follow_redirects: true
@@ -394,6 +412,7 @@ func TestLoadHTTPChecksWithRetryAndDegraded(t *testing.T) {
 func TestLoadSMTPChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Mail Server
+  type: smtp
   host: smtp.example.com
   port: 587
   timeout: 5s
@@ -441,6 +460,7 @@ func TestLoadSMTPChecksWithRetryAndDegraded(t *testing.T) {
 func TestLoadTracerouteChecksWithRetryAndDegraded(t *testing.T) {
 	content := `
 - name: Trace Route
+  type: traceroute
   host: example.com
   max_hops: 20
   degraded_after: 10s
@@ -492,6 +512,7 @@ func TestEnvExpansionAllCheckTypes(t *testing.T) {
 	// TCP
 	os.WriteFile(filepath.Join(checksDir, "tcp.yml"), []byte(`
 - name: TCP Test
+  type: tcp
   host: ${TEST_HOST}
   port: 6379
 `), 0o644)
@@ -499,18 +520,21 @@ func TestEnvExpansionAllCheckTypes(t *testing.T) {
 	// DNS
 	os.WriteFile(filepath.Join(checksDir, "dns.yml"), []byte(`
 - name: DNS Test
+  type: dns
   domain: ${TEST_HOST}
 `), 0o644)
 
 	// ICMP
 	os.WriteFile(filepath.Join(checksDir, "icmp.yml"), []byte(`
 - name: ICMP Test
+  type: icmp
   host: ${TEST_HOST}
 `), 0o644)
 
 	// gRPC
 	os.WriteFile(filepath.Join(checksDir, "grpc.yml"), []byte(`
 - name: gRPC Test
+  type: grpc
   host: ${TEST_HOST}:443
   tls: true
 `), 0o644)
@@ -518,6 +542,7 @@ func TestEnvExpansionAllCheckTypes(t *testing.T) {
 	// SMTP
 	os.WriteFile(filepath.Join(checksDir, "smtp.yml"), []byte(`
 - name: SMTP Test
+  type: smtp
   host: ${TEST_HOST}
   port: 25
 `), 0o644)
@@ -525,18 +550,21 @@ func TestEnvExpansionAllCheckTypes(t *testing.T) {
 	// Traceroute
 	os.WriteFile(filepath.Join(checksDir, "traceroute.yml"), []byte(`
 - name: Trace Test
+  type: traceroute
   host: ${TEST_HOST}
 `), 0o644)
 
 	// NTP
 	os.WriteFile(filepath.Join(checksDir, "ntp.yml"), []byte(`
 - name: NTP Test
+  type: ntp
   server: ${TEST_HOST}
 `), 0o644)
 
 	// UDP
 	os.WriteFile(filepath.Join(checksDir, "udp.yml"), []byte(`
 - name: UDP Test
+  type: udp
   host: ${TEST_HOST}
   port: 5000
   send: PING
@@ -588,11 +616,13 @@ func TestEnvExpansionAllCheckTypes(t *testing.T) {
 func TestLoadNTPChecks(t *testing.T) {
 	content := `
 - name: Pool NTP
+  type: ntp
   server: pool.ntp.org
   schedule: "0 */5 * * * *"
   timeout: 5s
   degraded_after: 100ms
 - name: Google NTP
+  type: ntp
   server: time.google.com
   port: 123
 `
@@ -645,6 +675,7 @@ func TestLoadNTPChecksWithRetryAndEnvExpansion(t *testing.T) {
 
 	content := `
 - name: NTP Retry Test
+  type: ntp
   server: ${TEST_NTP_SERVER}
   degraded_after: 200ms
   retry:
@@ -690,6 +721,7 @@ func TestLoadNTPChecksWithRetryAndEnvExpansion(t *testing.T) {
 func TestLoadHTTPCheckHeaderAssertionValidation(t *testing.T) {
 	content := `
 - name: Bad Header Assert
+  type: http
   url: https://example.com
   assertions:
     - type: header_contains
@@ -715,12 +747,14 @@ func TestLoadHTTPCheckHeaderAssertionValidation(t *testing.T) {
 func TestLoadTLSChecks(t *testing.T) {
 	content := `
 - name: API Cert
+  type: tls
   host: api.example.com:443
   schedule: "0 0 */6 * * *"
   timeout: 10s
   warn_days: 30
   critical_days: 7
 - name: Web Cert
+  type: tls
   host: www.example.com
   check_expiry: false
 `
@@ -783,12 +817,14 @@ func TestLoadTLSChecks(t *testing.T) {
 func TestLoadUDPChecks(t *testing.T) {
 	content := `
 - name: DNS over UDP
+  type: udp
   host: 8.8.8.8
   port: 53
   send_hex: "002a0100"
   schedule: "*/30 * * * * *"
   timeout: 5s
 - name: StatsD
+  type: udp
   host: statsd.internal
   port: 8125
   send: "test.metric:1|c"

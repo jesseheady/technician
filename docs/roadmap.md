@@ -395,19 +395,19 @@ HTTP checks support `assertions` for response body validation: `contains`, `not_
 
 ### TCP check
 
-TCP connectivity check with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/checks/tcp.yml`.
+TCP connectivity check with IPv4/IPv6 selection, optional TLS handshake, and send/expect pattern matching. Records connection and TLS durations separately. Config: `config/checks.yml`.
 
 ### DNS check
 
-DNS query check supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/checks/dns.yml`.
+DNS query check supporting A, AAAA, MX, TXT, CNAME, NS, and SRV record types. Configurable DNS server, with assertion support for expected answer values. Uses Go standard library `net.Resolver`. Config: `config/checks.yml`.
 
 ### ICMP ping check
 
-ICMP Echo Request check with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/checks/icmp.yml`.
+ICMP Echo Request check with IPv4/IPv6 selection, configurable ping count, and packet loss/RTT statistics (min/avg/max). Falls back to unprivileged UDP mode when raw socket access is unavailable. Config: `config/checks.yml`.
 
 ### gRPC health check
 
-gRPC check using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/checks/grpc.yml`.
+gRPC check using the standard health check protocol (`grpc.health.v1.Health/Check`). Supports TLS with optional certificate verification skip. Reports serving status. Config: `config/checks.yml`.
 
 ### HTTP header assertions
 
@@ -427,11 +427,11 @@ All check types support `degraded_after` — a duration threshold. When a succes
 
 ### NTP check
 
-Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/checks/ntp.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
+Pure-Go NTPv4 client for querying time servers over UDP. Reports clock offset, stratum, and round-trip time. No external dependencies. Config: `config/checks.yml`. Prometheus gauges: `technician_ntp_offset_ms`, `technician_ntp_stratum`, `technician_ntp_rtt_seconds`.
 
 ### TLS certificate monitoring
 
-Dedicated `tls` check type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/checks/tls.yml`.
+Dedicated `tls` check type for monitoring certificate expiry, chain validity, and issuer details. Connects to host:port, performs TLS handshake, and inspects the certificate chain. Config struct `TLSProbeConfig` with fields: `host` (host:port), `check_expiry` (bool, default true), `warn_days` (int, default 30), `critical_days` (int, default 7). Reports subject, issuer, SANs, expiry, days remaining, and chain validity. Prometheus gauges: `technician_tls_cert_expiry_days`, `technician_tls_cert_valid`. Config: `config/checks.yml`.
 
 ### Infrastructure Checks dashboard
 

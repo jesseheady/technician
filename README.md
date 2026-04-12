@@ -67,7 +67,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID` 
 ## Configuration
 
 - **Main config** — `technician.yml`: service name, sites (code, city, country, geohash, platform), metrics listen address, artifact storage, Playwright mode.
-- **Checks** — `checks/http.yml`, `checks/tcp.yml`, `checks/udp.yml`, `checks/dns.yml`, `checks/icmp.yml`, `checks/grpc.yml`, `checks/ntp.yml`, `checks/tls.yml`, `checks/smtp.yml`, `checks/traceroute.yml`, `checks/bgp.yml`, `checks/domain_expiry.yml`, `checks/playwright/playwright.yml`. Each file is a list of check definitions with name, target, schedule (cron), timeout, and retry policy.
+- **Checks** — `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`, `checks.yml`. Each file is a list of check definitions with name, target, schedule (cron), timeout, and retry policy.
 - **Budgets** — Optional `budgets.yml` with per-check thresholds for `validate`.
 - **Stability** — All checks support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `check_down`. See [alerting](docs/alerting.md) for details.
 - All YAML files support `${ENV_VAR}` expansion.

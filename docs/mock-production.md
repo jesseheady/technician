@@ -43,7 +43,7 @@ Create a config set used only for local development runs.
 The repo includes a ready-made local config under `examples/local/`:
 
 - `technician.yml` – single site `local`, metrics and local artifacts.
-- `checks/http.yml` – one HTTP check to `http://localhost:8080/`.
+- `checks.yml` – one HTTP check to `http://localhost:8080/`.
 - `budgets.yml` – relaxed thresholds so `validate` passes.
 
 Copy to your config directory and run:
@@ -118,7 +118,7 @@ Expect exit 0 when thresholds are relaxed and the mock server is up.
 
 For SMTP checks without hitting real mail servers:
 
-- Run a local SMTP server that accepts connections (e.g. [inbucket](https://www.inbucket.org/), or a minimal `smtpd` in Python). Point `checks/smtp.yml` at `localhost:25` (or the chosen port).
+- Run a local SMTP server that accepts connections (e.g. [inbucket](https://www.inbucket.org/), or a minimal `smtpd` in Python). Point `checks.yml` at `localhost:25` (or the chosen port).
 - Or leave SMTP checks out of the local config so only HTTP runs.
 
 ## 6. Summary

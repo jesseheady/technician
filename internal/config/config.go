@@ -173,7 +173,16 @@ func (o Origin) MetricLabels() map[string]string {
 	return m
 }
 
-func ResolveChecksDir(configPath string) string {
+// ResolveChecksPath returns the path to check definitions. It looks for a
+// checks.yml file first, then falls back to a checks/ directory. LoadChecks
+// handles both files and directories.
+func ResolveChecksPath(configPath string) string {
 	dir := filepath.Dir(configPath)
+	// Prefer single file
+	filePath := filepath.Join(dir, "checks.yml")
+	if _, err := os.Stat(filePath); err == nil {
+		return filePath
+	}
+	// Fall back to directory
 	return filepath.Join(dir, "checks")
 }
