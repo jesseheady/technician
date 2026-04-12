@@ -321,6 +321,11 @@ groups:
           description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
 
   # ── TCP ───────────────────────────────────────────────────────────
+  # Note: network/timing rules (TCP, DNS, ICMP, NTP, UDP) may produce
+  # false alerts after data gaps (process restart, connectivity loss,
+  # host downtime) as rolling averages include post-resume spikes.
+  # Consider raising `for` durations or adding a staleness grace
+  # period if this becomes noisy in your environment.
   - name: technician_tcp
     rules:
       - alert: HighTCPConnect
