@@ -60,7 +60,7 @@ Start a mock HTTP server on port 8080 first (see [Mock HTTP target](#1-mock-http
 Keep using `config/technician.yml` and `config/checks/`, but add env var expansion and a mock URL:
 
 ```yaml
-# In config/checks/http.yml (or a copy)
+# In config/checks.yml (or a copy)
 - name: Mock Website
   url: ${MOCK_HTTP_URL}
   expected_status: 200
