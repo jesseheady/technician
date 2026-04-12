@@ -4,17 +4,17 @@ Resource requirements, deployment topology, and scaling considerations.
 
 ## Context
 
-Technician is a static Go binary (15 MB, stripped) with no database, no runtime interpreter, and no background job system. Checks run as goroutines inside a single process. The main variable is whether you include **Playwright browser checks**, which require Node.js and Chromium.
+Technician is a static Go binary (28 MB, stripped) with no database, no runtime interpreter, and no background job system. Checks run as goroutines inside a single process. The main variable is whether you include **Playwright browser checks**, which require Node.js and Chromium.
 
 ## Measured resource usage
 
-Numbers below were measured with 31 checks active across all 13 check types (7 HTTP, 3 TCP, 1 UDP, 4 DNS, 3 ICMP, 3 NTP, 1 TLS, 1 SMTP, 4 traceroute, 1 BGP, 1 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 38 Prometheus metric families.
+Numbers below were measured with 34 checks active across all 13 check types (6 HTTP, 3 TCP, 2 UDP, 4 DNS, 2 ICMP, 3 NTP, 4 TLS, 1 SMTP, 2 traceroute, 2 BGP, 2 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 35 Prometheus metric families.
 
 ### Runtime memory
 
 | Component | RSS | Notes |
 |-----------|-----|-------|
-| Technician (Go process) | ~18 MB | 31 checks (13 types), status store, Prometheus registry |
+| Technician (Go process) | ~35 MB | 34 checks (13 types), status store, Prometheus registry |
 | Prometheus | ~150 MB | 90-day retention, scraping one target |
 | Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~472 MB** | |
@@ -23,8 +23,8 @@ Numbers below were measured with 31 checks active across all 13 check types (7 H
 
 | Component | Size | Breakdown |
 |-----------|------|-----------|
-| Go binary | 15 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
-| Docker image (with Playwright) | 1.62 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
+| Go binary | 28 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
+| Docker image (with Playwright) | 1.63 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
 | Docker image (without Playwright) | ~80 MB | Alpine or distroless base + Go binary + mtr + ca-certificates |
 | Prometheus image | ~300 MB | |
 | Grafana image | ~550 MB | |
@@ -170,7 +170,7 @@ One repo produces multiple deployment targets. Here's what ships where and how:
 
 ```mermaid
 graph TD
-    R["technician repo"] --> B["Go binary<br/>go build<br/>~15 MB, static"]
+    R["technician repo"] --> B["Go binary<br/>go build<br/>~28 MB, static"]
     R --> D["Docker image<br/>docker build<br/>~1.6 GB full / ~80 MB slim"]
     R --> J["JS Worker<br/>wrangler<br/>< 1 MB, HTTP checks only"]
 
