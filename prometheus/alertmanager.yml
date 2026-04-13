@@ -86,52 +86,119 @@ time_intervals:
             end_time: '18:00'
 
 # ── Receivers ─────────────────────────────────────────────────────
-# Discord for every receiver; Pushover on the pager for critical alerts.
-# Secrets are injected via .env → sed at container start (see docker-compose).
+# All channels ship commented out. To enable:
+#   1. Copy this file to config/alertmanager.yml.
+#   2. Uncomment the *_configs blocks you need.
+#   3. Set the env vars in .env (see .env.example for details).
+#   4. Mount via docker-compose.override.yml and restart.
+# ${VAR} values are substituted automatically at container start.
 receivers:
   - name: chatops
-    discord_configs:
-      - webhook_url: '__DISCORD_WEBHOOK_CHATOPS__'
-        title: '{{ template "technician.discord.title" . }}'
-        message: '{{ template "technician.discord.message" . }}'
-        send_resolved: true
+    # discord_configs:
+    #   - webhook_url: '${DISCORD_WEBHOOK_CHATOPS}'
+    #     title: '{{ template "technician.discord.title" . }}'
+    #     message: '{{ template "technician.discord.message" . }}'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_CHATOPS}'
+    #     channel: '${SLACK_CHANNEL_CHATOPS}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
+    #     send_resolved: true
+    # telegram_configs:
+    #   - bot_token: '${TELEGRAM_BOT_TOKEN}'
+    #     chat_id: ${TELEGRAM_CHAT_ID}
+    #     parse_mode: HTML
+    #     send_resolved: true
+    # msteams_configs:
+    #   - webhook_url: '${MSTEAMS_WEBHOOK_URL}'
+    #     send_resolved: true
+    # email_configs:
+    #   - to: '${SMTP_TO}'
+    #     from: '${SMTP_FROM}'
+    #     smarthost: '${SMTP_SMARTHOST}'
+    #     auth_username: '${SMTP_AUTH_USERNAME}'
+    #     auth_password: '${SMTP_PASSWORD}'
+    #     headers:
+    #       Subject: '{{ template "technician.email.subject" . }}'
+    #     html: '{{ template "technician.email.html" . }}'
+    #     send_resolved: true
+    # webhook_configs:
+    #   - url: '${WEBHOOK_URL}'
+    #     send_resolved: true
 
   - name: pager
-    pushover_configs:
-      - user_key: '__PUSHOVER_USER_KEY__'
-        token: '__PUSHOVER_API_TOKEN__'
-        title: '{{ template "technician.pushover.title" . }}'
-        message: '{{ template "technician.pushover.message" . }}'
-        priority: '{{ if eq .Status "firing" }}2{{ else }}0{{ end }}'
-        retry: 30s
-        expire: 1h
-        send_resolved: true
-    discord_configs:
-      - webhook_url: '__DISCORD_WEBHOOK_INCIDENTS__'
-        title: '{{ template "technician.discord.title" . }}'
-        message: '{{ template "technician.discord.message" . }}'
-        send_resolved: true
+    # pushover_configs:
+    #   - user_key: '${PUSHOVER_USER_KEY}'
+    #     token: '${PUSHOVER_API_TOKEN}'
+    #     title: '{{ template "technician.pushover.title" . }}'
+    #     message: '{{ template "technician.pushover.message" . }}'
+    #     priority: '{{ if eq .Status "firing" }}2{{ else }}0{{ end }}'
+    #     retry: 30s
+    #     expire: 1h
+    #     send_resolved: true
+    # discord_configs:
+    #   - webhook_url: '${DISCORD_WEBHOOK_INCIDENTS}'
+    #     title: '{{ template "technician.discord.title" . }}'
+    #     message: '{{ template "technician.discord.message" . }}'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_INCIDENTS}'
+    #     channel: '${SLACK_CHANNEL_INCIDENTS}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
+    #     send_resolved: true
+    # pagerduty_configs:
+    #   - service_key: '${PAGERDUTY_SERVICE_KEY}'
+    #     severity: '{{ if eq .Status "firing" }}critical{{ else }}info{{ end }}'
+    #     send_resolved: true
+    # opsgenie_configs:
+    #   - api_key: '${OPSGENIE_API_KEY}'
+    #     priority: '{{ if eq .Status "firing" }}P1{{ else }}P5{{ end }}'
+    #     send_resolved: true
+    # victorops_configs:
+    #   - api_key: '${VICTOROPS_API_KEY}'
+    #     routing_key: 'technician'
+    #     send_resolved: true
 
   - name: infrastructure
-    discord_configs:
-      - webhook_url: '__DISCORD_WEBHOOK_INFRA__'
-        title: '{{ template "technician.discord.title" . }}'
-        message: '{{ template "technician.discord.message" . }}'
-        send_resolved: true
+    # discord_configs:
+    #   - webhook_url: '${DISCORD_WEBHOOK_INFRA}'
+    #     title: '{{ template "technician.discord.title" . }}'
+    #     message: '{{ template "technician.discord.message" . }}'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_INFRA}'
+    #     channel: '${SLACK_CHANNEL_INFRA}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
+    #     send_resolved: true
 
   - name: expiry
-    discord_configs:
-      - webhook_url: '__DISCORD_WEBHOOK_EXPIRY__'
-        title: '{{ template "technician.discord.title" . }}'
-        message: '{{ template "technician.discord.message" . }}'
-        send_resolved: true
+    # discord_configs:
+    #   - webhook_url: '${DISCORD_WEBHOOK_EXPIRY}'
+    #     title: '{{ template "technician.discord.title" . }}'
+    #     message: '{{ template "technician.discord.message" . }}'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_EXPIRY}'
+    #     channel: '${SLACK_CHANNEL_EXPIRY}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
+    #     send_resolved: true
 
   - name: performance
-    discord_configs:
-      - webhook_url: '__DISCORD_WEBHOOK_PERF__'
-        title: '{{ template "technician.discord.title" . }}'
-        message: '{{ template "technician.discord.message" . }}'
-        send_resolved: true
+    # discord_configs:
+    #   - webhook_url: '${DISCORD_WEBHOOK_PERF}'
+    #     title: '{{ template "technician.discord.title" . }}'
+    #     message: '{{ template "technician.discord.message" . }}'
+    #     send_resolved: true
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_PERF}'
+    #     channel: '${SLACK_CHANNEL_PERF}'
+    #     title: '{{ template "technician.slack.title" . }}'
+    #     text: '{{ template "technician.slack.text" . }}'
+    #     send_resolved: true
 
 # ── Acknowledging / silencing alerts ─────────────────────────────
 #
