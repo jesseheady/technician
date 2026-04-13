@@ -321,6 +321,11 @@ groups:
           description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
 
   # ── TCP ───────────────────────────────────────────────────────────
+  # Note: network/timing rules (TCP, DNS, ICMP, NTP, UDP) may produce
+  # false alerts after data gaps (process restart, connectivity loss,
+  # host downtime) as rolling averages include post-resume spikes.
+  # Consider raising `for` durations or adding a staleness grace
+  # period if this becomes noisy in your environment.
   - name: technician_tcp
     rules:
       - alert: HighTCPConnect
@@ -511,15 +516,52 @@ groups:
           summary: "Prometheus WAL corruption detected"
           description: "WAL corruption events detected in the last hour. This often indicates disk I/O failures (full disk, failing storage)."
 
-      # ── Test alert ──────────────────────────────────────────────
-      # Uncomment to validate the full alert pipeline:
-      #   Prometheus rule → Alertmanager → receiver (Discord, Slack, etc.)
-      # Fires immediately with no conditions. Re-comment after testing.
-      # - alert: TestAlert
+      # ── Test alerts ─────────────────────────────────────────────
+      # Validates the full pipeline end to end:
+      #   Prometheus rule → Alertmanager routing → Discord / Pushover
+      #
+      # Fires immediately (expr: vector(1), for: 0m) with no real
+      # condition — uncomment the alert you want to test, reload
+      # Prometheus, then re-comment when done.
+      #
+      # How to run:
+      #   1. Uncomment ONE test alert below.
+      #   2. Reload Prometheus:
+      #      docker compose restart prometheus
+      #   3. Wait ~30-60s (group_wait) for Alertmanager to fire.
+      #   4. Verify the expected channels received the notification.
+      #   5. Re-comment the alert and reload again to resolve it.
+      #      The receivers should get a green "resolved" notification.
+      #
+      # Expected routing:
+      #   TestAlertWarn    (severity=warning)
+      #     → no category matcher hit → catch-all "chatops" receiver
+      #     → Discord chatops channel only
+      #
+      #   TestAlertCritical (severity=critical)
+      #     → severity=critical route → "pager" receiver (continue: true)
+      #       → Discord incidents channel + Pushover (emergency priority)
+      #     → falls through to catch-all → "chatops" receiver
+      #       → Discord chatops channel
+      #
+      # Suggested order: warn first (verify Discord), then critical
+      # (verify Discord + Pushover). This confirms the WARN → CRIT
+      # escalation path without risking a missed misconfiguration.
+      #
+      # - alert: TestAlertWarn
       #   expr: vector(1)
       #   for: 0m
       #   labels:
       #     severity: warning
       #   annotations:
-      #     summary: "Test alert - pipeline validation"
-      #     description: "This is a test alert to verify Alertmanager routing. Safe to ignore."
+      #     summary: "Test alert (warning) - pipeline validation"
+      #     description: "This is a test warning alert to verify Alertmanager routing. Safe to ignore."
+      #
+      # - alert: TestAlertCritical
+      #   expr: vector(1)
+      #   for: 0m
+      #   labels:
+      #     severity: critical
+      #   annotations:
+      #     summary: "Test alert (critical) - pipeline validation"
+      #     description: "This is a test critical alert to verify Alertmanager routing and Pushover paging. Safe to ignore."

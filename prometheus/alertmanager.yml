@@ -8,7 +8,7 @@ route:
   group_by: ['alertname', 'name']
   group_wait: 30s
   group_interval: 5m
-  repeat_interval: 4h
+  repeat_interval: 1h
   receiver: chatops
   routes:
     # ── Pager fan-out ───────────────────────────────────────────
@@ -18,7 +18,8 @@ route:
     - matchers:
         - severity = critical
       receiver: pager
-      repeat_interval: 1h
+      repeat_interval: 15m
+      group_interval: 30s
       continue: true
       # Silence pager during deploys:
       # mute_time_intervals: ['maintenance']
@@ -29,7 +30,7 @@ route:
     - matchers:
         - alertname =~ "CheckFailing|HighErrorRate|HighErrorRateWarn|TLSCertInvalid|BGPPrefixNotVisible|BGPOriginMismatch|DomainNotRegistered|PrometheusWALCorruptions|PrometheusStorageCritical"
       receiver: infrastructure
-      repeat_interval: 1h
+      repeat_interval: 30m
 
     # ── Expiry ──────────────────────────────────────────────────
     # TLS certificate and domain expiry warnings/criticals.
@@ -52,6 +53,7 @@ route:
     # Everything else (CheckInfraError, PrometheusStorageHigh, and
     # any new rules not yet routed above).
     - receiver: chatops
+      group_interval: 30s
       # Only notify during work hours:
       # active_time_intervals: ['business-hours']
 

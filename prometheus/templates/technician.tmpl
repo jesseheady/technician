@@ -1,8 +1,8 @@
 {{/* ── Generic templates ──────────────────────────────────────── */}}
 
 {{ define "technician.title" -}}
-[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
-{{- if .GroupLabels.name }} — {{ .GroupLabels.name }}{{ end }}
+{{ if eq .Status "firing" }}ALERT{{ else }}RESOLVED{{ end }} — {{ .GroupLabels.alertname }}
+{{- if .GroupLabels.name }} / {{ .GroupLabels.name }}{{ end }}
 {{- end }}
 
 {{ define "technician.text" -}}
@@ -43,11 +43,12 @@
 
 {{ define "technician.discord.message" -}}
 {{ range .Alerts -}}
-**{{ .Labels.alertname }}** — {{ .Labels.name }}
+{{ if eq .Labels.severity "critical" }}🔴 **CRITICAL**{{ else }}🟡 **WARNING**{{ end }} | {{ .StartsAt.Local.Format "2006-01-02 15:04 MST" }}
 > {{ .Annotations.summary }}
 {{ if .Annotations.description }}_{{ .Annotations.description }}_
 {{ end }}
 {{- end -}}
+{{ if .ExternalURL }}[View in Alertmanager]({{ .ExternalURL }}){{ end }}
 {{- end }}
 
 {{/* ── Pushover (plain text) ─────────────────────────────────
