@@ -28,6 +28,9 @@ Thumbs.db
 # Playwright local install (npm artifacts)
 internal/playwright/scripts/node_modules/
 
+# Docker Compose local overrides
+docker-compose.override.yml
+
 # Environment
 .env
 .env.*
