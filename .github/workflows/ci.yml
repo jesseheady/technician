@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'dashboards/**'
-      - 'examples/**'
       - 'scripts/**'
       - '**.md'
       - 'LICENSE'
@@ -16,7 +15,6 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'dashboards/**'
-      - 'examples/**'
       - 'scripts/**'
       - '**.md'
       - 'LICENSE'
@@ -96,7 +94,7 @@ jobs:
         run: chmod +x technician
 
       - name: Validate (non-browser checks)
-        run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha
+        run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha --exclude-type playwright --fail-on-error --fail-on-budget=false
 
   validate-playwright:
     name: Validate Playwright checks
@@ -128,7 +126,7 @@ jobs:
         run: chmod +x technician
 
       - name: Validate Playwright checks
-        run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha
+        run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output gha --check-type playwright --fail-on-error --fail-on-budget=false
         env:
           NODE_PATH: internal/playwright/scripts/node_modules
 
