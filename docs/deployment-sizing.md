@@ -16,8 +16,8 @@ Numbers below were measured with 34 checks active across all 13 check types (6 H
 |-----------|-----|-------|
 | Technician (Go process) | ~35 MB | 34 checks (13 types), status store, Prometheus registry |
 | Prometheus | ~150 MB | 90-day retention, scraping one target |
-| Grafana | ~304 MB | 6 provisioned dashboards, anonymous viewer |
-| **Full stack total** | **~472 MB** | |
+| Grafana | ~215 MB | 6 provisioned dashboards, anonymous viewer |
+| **Full stack total** | **~425 MB** | |
 
 ### Image / disk sizes
 
@@ -26,8 +26,8 @@ Numbers below were measured with 34 checks active across all 13 check types (6 H
 | Go binary | 28 MB | `CGO_ENABLED=0`, `-ldflags="-s -w"` |
 | Docker image (with Playwright) | 1.63 GB | Chromium 602 MB + headless shell 323 MB + Node.js base + system deps |
 | Docker image (without Playwright) | ~80 MB | Alpine or distroless base + Go binary + mtr + ca-certificates |
-| Prometheus image | ~300 MB | |
-| Grafana image | ~550 MB | |
+| Prometheus image | ~390 MB | |
+| Grafana image | ~1.0 GB | |
 
 ### Playwright overhead
 
@@ -452,10 +452,10 @@ All storage is bounded. No container grows without a configured limit or automat
 | Container | Docker image | Named volume | Data at first boot |
 |-----------|-------------|-------------|-------------------|
 | Technician | 1.62 GB (with Playwright) / 80 MB (without) | `technician_data` | Empty `status.json` (~1 KB) |
-| Prometheus | ~300 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
-| Grafana | ~550 MB | `grafana_data` | SQLite database (~5 MB) |
-| Alertmanager | ~75 MB | None (ephemeral) | Silence + notification log (~100 KB) |
-| **Total** | **~2.5 GB** (with Playwright) | | |
+| Prometheus | ~390 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
+| Grafana | ~1.0 GB | `grafana_data` | SQLite database (~5 MB) |
+| Alertmanager | ~70 MB | None (ephemeral) | Silence + notification log (~100 KB) |
+| **Total** | **~3.1 GB** (with Playwright) | | |
 
 **Steady-state growth (per day, 31 checks, 15s scrape interval)**
 
@@ -701,7 +701,7 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 | RAM | 1 GB (no Playwright) | 2 GB (with Playwright) |
 | Disk | 5 GB | 10 GB (90d Prometheus retention + Grafana + artifacts) |
 
-A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest component (~300 MB RSS). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~700 MB of image + ~300 MB of RAM.
+A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest image (~1.0 GB); Technician is the heaviest process (~500 MB RSS with Playwright idle). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~1 GB of image + ~215 MB of RAM.
 
 ### Full spread, multi-region
 
