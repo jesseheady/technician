@@ -127,18 +127,18 @@
 # TCP includes connection setup; TLS adds a handshake on top. Thresholds should
 # be higher than raw ICMP/DNS for the same target.
 
-- name: Redis
-  type: tcp
-  group: Infrastructure
-  host: redis.example.com
-  port: 6379
-  timeout: 5s
-  schedule: "0 */2 * * * *"
-  degraded_after: 2s
-  retry:
-    count: 1
-    backoff: none
-    delay: 2s
+# - name: Redis
+#   type: tcp
+#   group: Infrastructure
+#   host: redis.example.com
+#   port: 6379
+#   timeout: 5s
+#   schedule: "0 */2 * * * *"
+#   degraded_after: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
 
 # TLS connection with IPv4:
 # - name: HTTPS Port
@@ -281,19 +281,19 @@
 # check RPC. Connection pooling reuses established connections, so first-check
 # latency is higher than steady-state.
 
-- name: API Health
-  type: grpc
-  group: API
-  host: api.example.com:443
-  service: myapp
-  tls: true
-  timeout: 5s
-  schedule: "*/60 * * * * *"
-  degraded_after: 2s
-  retry:
-    count: 1
-    backoff: none
-    delay: 2s
+# - name: API Health
+#   type: grpc
+#   group: API
+#   host: api.example.com:443
+#   service: myapp
+#   tls: true
+#   timeout: 5s
+#   schedule: "*/60 * * * * *"
+#   degraded_after: 2s
+#   retry:
+#     count: 1
+#     backoff: none
+#     delay: 2s
 
 # Skip TLS verification (self-signed certs):
 # - name: Internal gRPC
