@@ -12,17 +12,30 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     mtr-tiny \
     ca-certificates \
+    libcap2-bin \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system --gid 1001 technician && \
+    useradd --system --uid 1001 --gid technician --home-dir /home/technician --create-home --shell /usr/sbin/nologin technician
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+
 COPY internal/playwright/scripts/ /opt/technician/playwright/
-RUN cd /opt/technician/playwright && npm ci && npx playwright install --with-deps chromium
+RUN cd /opt/technician/playwright && \
+    npm ci && \
+    npx playwright install --with-deps chromium && \
+    chown -R technician:technician /opt/technician/playwright "$PLAYWRIGHT_BROWSERS_PATH"
 ENV NODE_PATH=/opt/technician/playwright/node_modules
 
 COPY --from=builder /technician /usr/local/bin/technician
+RUN setcap cap_net_raw+ep /usr/local/bin/technician
+
+RUN mkdir -p /var/lib/technician /tmp/technician/artifacts /tmp/technician-videos && \
+    chown -R technician:technician /var/lib/technician /tmp/technician /tmp/technician-videos
 
 WORKDIR /
-RUN mkdir -p /tmp/technician/artifacts /tmp/technician-videos
+USER technician
 
 EXPOSE 9590
 
