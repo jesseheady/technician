@@ -28,7 +28,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
 
-      - name: Run Trivy misconfig and secret scan (advisory)
+      - name: Run Trivy misconfig and secret scan
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: fs
@@ -36,7 +36,7 @@ jobs:
           scanners: misconfig,secret
           format: table
           severity: CRITICAL,HIGH
-          exit-code: '0'
+          exit-code: '1'
 
   container:
     name: Scan container image
