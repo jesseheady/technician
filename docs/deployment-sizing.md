@@ -454,7 +454,7 @@ All storage is bounded. No container grows without a configured limit or automat
 | Technician | 1.62 GB (with Playwright) / 80 MB (without) | `technician_data` | Empty `status.json` (~1 KB) |
 | Prometheus | ~390 MB | `prometheus_data` | Empty TSDB WAL (~1 MB) |
 | Grafana | ~1.0 GB | `grafana_data` | SQLite database (~5 MB) |
-| Alertmanager | ~70 MB | None (ephemeral) | Silence + notification log (~100 KB) |
+| Alertmanager | ~70 MB | `alertmanager_data` | Silence + notification log (~100 KB) |
 | **Total** | **~3.1 GB** (with Playwright) | | |
 
 **Steady-state growth (per day, 31 checks, 15s scrape interval)**
@@ -465,7 +465,7 @@ All storage is bounded. No container grows without a configured limit or automat
 | Technician (artifacts) | 0 MB (no video) – 500 MB/day (video on all Playwright checks) | HAR, video, screenshots | `artifacts.retention` (default 72h) | 0 – 1.5 GB |
 | Prometheus | ~15–25 MB/day | TSDB blocks (371 series × 15s samples) | TSDB compaction + retention | ~1.4–2.3 GB at 90d retention |
 | Grafana | < 1 MB/day | Alert state, session data | Internal SQLite vacuum | < 10 MB |
-| Alertmanager | 0 (ephemeral) | Silence/nflog state | Lost on restart | < 1 MB |
+| Alertmanager | < 1 MB/day | Silence/nflog state | Internal compaction | < 5 MB |
 
 **Maximum retention by data type**
 
