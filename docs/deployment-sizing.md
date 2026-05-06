@@ -703,6 +703,21 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 
 A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest image (~1.0 GB); Technician is the heaviest process (~500 MB RSS with Playwright idle). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~1 GB of image + ~215 MB of RAM.
 
+#### Per-container memory budget (Docker Compose)
+
+The default `docker-compose.yml` ships with `deploy.resources` set on each service so a runaway browser instance can't pressure the rest of the stack. Reservations are soft floors honored under contention; limits are hard ceilings enforced by the kernel.
+
+| Container | Reservation | Limit | Why |
+|---|---|---|---|
+| technician | 512 MB | 1 GB | Go process (~18 MB) + up to 2 concurrent Chromium (~300 MB each); peak ~505 MB observed under three concurrent browser checks |
+| prometheus | 256 MB | 512 MB | ~145 MB observed at 90-day retention; headroom for query bursts |
+| grafana | 768 MB | 1 GB | p50 ~560 MB / p90 ~712 MB observed during dashboard activity; reservation covers steady state, limit absorbs transient peaks |
+| alertmanager | 64 MB | 128 MB | ~49 MB observed |
+
+Sum: ~1.6 GB reserved, ~2.6 GB ceiling. Fits inside the 2 GB recommended host RAM under normal load, with the limits absorbing transient spikes (Chromium launches, Grafana dashboard renders, Prometheus query fan-out) before the OOM killer would fire.
+
+To run with tighter host RAM (e.g. 1 GB box, no Playwright), drop the technician limit to 256 MB and disable browser checks in your config — the reservations on the other services already total ~1.1 GB.
+
 ### Full spread, multi-region
 
 The "all in" deployment: one Technician worker per region, one central Prometheus + Grafana instance. Each worker is independently provisioned — providers can be mixed freely since Prometheus just scrapes each worker's public IP.
