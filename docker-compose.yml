@@ -61,6 +61,7 @@ services:
     volumes:
       - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
       - ./prometheus/templates:/etc/alertmanager/templates:ro
+      - alertmanager_data:/alertmanager
     env_file:
       - path: .env
         required: false
@@ -123,4 +124,5 @@ services:
 volumes:
   technician_data:
   prometheus_data:
+  alertmanager_data:
   grafana_data:
