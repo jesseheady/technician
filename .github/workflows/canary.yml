@@ -16,7 +16,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository }}/technician:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run canary checks
         run: technician validate --config examples/canary/technician.yml --budget examples/budgets.yml --output gha
@@ -25,7 +25,7 @@ jobs:
 
       - name: Upload HAR artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: check-results
           path: /tmp/technician/artifacts/
