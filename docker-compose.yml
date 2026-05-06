@@ -108,7 +108,7 @@ services:
         limits:
           memory: 1G
         reservations:
-          memory: 512M
+          memory: 768M
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
