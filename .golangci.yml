@@ -1,0 +1,32 @@
+version: "2"
+
+linters:
+  default: standard
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net.Conn).Close
+        - (net.Conn).SetDeadline
+        - (net.Conn).SetReadDeadline
+        - (net.Conn).SetWriteDeadline
+        - (*net.UDPConn).Close
+        - (*net.UDPConn).SetDeadline
+        - (*net.TCPConn).Close
+        - (*net.TCPConn).SetReadDeadline
+        - (*os.File).Close
+        - (*os.File).Write
+        - (*golang.org/x/net/icmp.PacketConn).Close
+        - (*net/smtp.Client).Close
+        - (io.Closer).Close
+        - (net/http.ResponseWriter).Write
+        - fmt.Fprint
+        - fmt.Fprintln
+        - fmt.Fprintf
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - linters:
+          - staticcheck
+        text: "QF1003:"

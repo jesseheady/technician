@@ -45,6 +45,7 @@ func (p *GRPCChecker) getConn(host string, useTLS, skipTLS bool) (*grpc.ClientCo
 	if !useTLS {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else if skipTLS {
+		// #nosec G402 -- skipTLS is an opt-in check option for self-signed/internal endpoints
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))

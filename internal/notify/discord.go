@@ -46,9 +46,9 @@ type discordEmbedFooter struct {
 }
 
 const (
-	colorRed    = 0xFF0000 // critical: check down, cert expiry critical
-	colorAmber  = 0xF5A623 // warning: budget violation, cert expiry warning
-	colorGreen  = 0x00FF00 // recovery: check up
+	colorRed   = 0xFF0000 // critical: check down, cert expiry critical
+	colorAmber = 0xF5A623 // warning: budget violation, cert expiry warning
+	colorGreen = 0x00FF00 // recovery: check up
 )
 
 func (d *DiscordSender) Send(ctx context.Context, event Event) error {
@@ -62,9 +62,9 @@ func (d *DiscordSender) Send(ctx context.Context, event Event) error {
 		embed.Title = fmt.Sprintf("Check Down: %s", event.Check)
 		embed.Color = colorRed
 		var desc strings.Builder
-		desc.WriteString(fmt.Sprintf("Check **%s**", event.Check))
+		fmt.Fprintf(&desc, "Check **%s**", event.Check)
 		if event.CheckType != "" {
-			desc.WriteString(fmt.Sprintf(" (%s)", event.CheckType))
+			fmt.Fprintf(&desc, " (%s)", event.CheckType)
 		}
 		desc.WriteString(" is down.")
 		embed.Description = desc.String()

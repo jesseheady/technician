@@ -292,7 +292,7 @@ func Handler(store *Store) http.Handler {
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
-		json.NewEncoder(&buf).Encode(store.Snapshot())
+		_ = json.NewEncoder(&buf).Encode(store.Snapshot())
 		serveWithETag(w, r, buf.Bytes(), "application/json")
 	})
 

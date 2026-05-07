@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/m0nkey/technician/internal/config"
 	"github.com/m0nkey/technician/internal/check"
+	"github.com/m0nkey/technician/internal/config"
 )
 
 // mockSender records events sent to it.
@@ -31,12 +31,6 @@ func (m *mockSender) sent() []Event {
 	cp := make([]Event, len(m.events))
 	copy(cp, m.events)
 	return cp
-}
-
-func (m *mockSender) reset() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.events = nil
 }
 
 // newTestManager creates a Manager with a single mock sender subscribed to all events.
