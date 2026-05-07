@@ -17,8 +17,6 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()   { echo -e "${RED}[ERR]${NC} $*"; }
 
 # --- Checks ---
-need_go=1
-need_node=0
 start_stack=0
 for arg in "$@"; do
   case "$arg" in
@@ -30,7 +28,6 @@ if ! command -v go &>/dev/null; then
   err "Go is required. Install from https://go.dev/dl/"
   exit 1
 fi
-go_version=$(go version 2>/dev/null | sed -n 's/.*go\([0-9]*\.[0-9]*\).*/\1/p')
 info "Go: $(go version)"
 
 if ! go list -m github.com/m0nkey/technician &>/dev/null; then

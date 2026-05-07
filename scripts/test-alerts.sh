@@ -13,6 +13,9 @@ URL="http://${AM}/api/v2/alerts"
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 post_alert() {
+  # status arg ($2) is documentation for the caller; alertmanager infers
+  # firing vs resolved from presence of endsAt.
+  # shellcheck disable=SC2034
   local severity="$1" status="$2" end_time="${3:-}"
   local end_field=""
   [ -n "$end_time" ] && end_field="\"endsAt\": \"${end_time}\","

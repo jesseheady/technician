@@ -1,0 +1,49 @@
+#!/bin/sh
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if [ "${SKIP_HOOKS:-}" = "1" ]; then
+    echo "==> SKIP_HOOKS=1 — pre-push checks skipped"
+    exit 0
+fi
+
+require_docker() {
+    if ! docker info >/dev/null 2>&1; then
+        echo "    error: Docker daemon is not running"
+        echo "    Start Docker Desktop and retry, or SKIP_HOOKS=1 to bypass."
+        exit 1
+    fi
+}
+
+echo "==> trivy fs (vuln)"
+require_docker
+mkdir -p "$HOME/.cache/trivy"
+docker run --rm \
+    -v "$REPO_ROOT:/work" \
+    -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+    -w /work aquasec/trivy:latest \
+    fs --scanners vuln --severity CRITICAL,HIGH \
+       --exit-code 1 --quiet --skip-dirs node_modules .
+
+echo "==> technician validate"
+go run . validate \
+    --config examples/technician.yml \
+    --budget examples/budgets.yml \
+    --exclude-type playwright \
+    --fail-on-error \
+    --fail-on-budget=false
+
+echo "==> promtool check config"
+require_docker
+docker run --rm --entrypoint promtool \
+    -v "$REPO_ROOT/prometheus:/work" -w /work \
+    prom/prometheus:latest check config prometheus.yml
+
+echo "==> amtool check-config"
+docker run --rm --entrypoint amtool \
+    -v "$REPO_ROOT/prometheus:/work" -w /work \
+    prom/alertmanager:latest check-config alertmanager.yml
+
+echo "==> All checks passed"
