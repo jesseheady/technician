@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -81,6 +82,12 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	mux.Handle("/metrics", metrics.Handler())
 	mux.Handle("/probe", exporter.NewBlackboxHandler()) // Blackbox Exporter API contract
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		if !store.WriteHealthy() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintf(w, "status store writes failing: %d consecutive failures\n", store.ConsecutiveWriteFailures())
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
@@ -156,7 +163,9 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		for {
 			select {
 			case <-saveTicker.C:
-				store.Save()
+				if err := store.Save(); err != nil {
+					metrics.RecordStatusStoreWriteError()
+				}
 			case <-backupTicker.C:
 				store.SaveBackup()
 			case <-ctx.Done():
@@ -171,7 +180,9 @@ func runWorker(cmd *cobra.Command, args []string) error {
 
 	slog.Info("Shutting down")
 	notifier.Wait()
-	store.Save()
+	if err := store.Save(); err != nil {
+		metrics.RecordStatusStoreWriteError()
+	}
 	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
