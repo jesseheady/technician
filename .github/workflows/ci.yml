@@ -78,6 +78,12 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+
+      - name: golangci-lint
+        run: golangci-lint run --timeout=5m ./...
+
   validate:
     name: Validate checks + budgets
     runs-on: ubuntu-latest
