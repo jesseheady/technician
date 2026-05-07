@@ -61,6 +61,7 @@ func (p *TLSChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	// or otherwise invalid certificates. We inspect and validate the chain
 	// manually afterward — a cert monitoring check needs to see the cert
 	// even when the chain is broken.
+	// #nosec G402 -- cert monitor must complete handshake to inspect chain; chain is validated manually below
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         hostname,
 		InsecureSkipVerify: true,

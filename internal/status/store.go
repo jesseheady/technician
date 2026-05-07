@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 const backupRetention = 90 * 24 * time.Hour
@@ -116,7 +116,7 @@ type Summary struct {
 // Snapshot is the full status payload returned by the API.
 type Snapshot struct {
 	Service   string       `json:"service"`
-	Origin    *OriginInfo    `json:"origin,omitempty"`
+	Origin    *OriginInfo  `json:"origin,omitempty"`
 	Overall   string       `json:"overall"` // "operational", "degraded", "down"
 	Summary   Summary      `json:"summary"`
 	Types     []string     `json:"types"` // distinct check types present
@@ -749,6 +749,7 @@ func (s *Store) SaveBackup() {
 	if _, err := os.Stat(backup); err == nil {
 		return // today's backup already exists
 	}
+	// #nosec G703 G306 -- backup path derives from operator-supplied s.path; suffix is time.Format-generated
 	if err := os.WriteFile(backup, src, 0o644); err != nil {
 		slog.Warn("Failed to write status backup", "error", err)
 		return
@@ -776,7 +777,10 @@ func (s *Store) pruneBackups() {
 			continue
 		}
 		if t.Before(cutoff) {
-			os.Remove(filepath.Join(dir, name))
+			if err := os.Remove(filepath.Join(dir, name)); err != nil {
+				slog.Warn("Failed to prune old status backup", "file", name, "error", err)
+				continue
+			}
 			slog.Info("Pruned old status backup", "file", name)
 		}
 	}
