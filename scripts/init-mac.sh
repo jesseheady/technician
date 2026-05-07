@@ -63,7 +63,22 @@ fi
 # --- Git hooks ---
 if [ -d .githooks ]; then
   git config core.hooksPath .githooks
-  info "Git hooks configured (.githooks/pre-commit)"
+  info "Git hooks configured (.githooks/pre-commit, .githooks/pre-push)"
+
+  # Pre-pull images used by the hooks so the first commit/push doesn't
+  # silently stall on lazy pulls. Skipped if Docker isn't running.
+  if command -v docker &>/dev/null && docker info &>/dev/null; then
+    info "Pre-pulling Docker images used by git hooks (one-time)..."
+    for image in aquasec/trivy:latest prom/prometheus:latest prom/alertmanager:latest koalaman/shellcheck:stable; do
+      if docker pull --quiet "$image" >/dev/null; then
+        info "  pulled $image"
+      else
+        warn "  failed to pull $image"
+      fi
+    done
+  else
+    warn "Docker not running — git hooks will lazy-pull images on first commit (slow)."
+  fi
 fi
 
 # --- Optional: create local dev dirs ---
