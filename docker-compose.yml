@@ -34,6 +34,7 @@ services:
       - "--storage.tsdb.retention.time=90d"
       - "--storage.tsdb.retention.size=5GB"
       - "--storage.tsdb.wal-compression"
+      - "--web.external-url=${PROMETHEUS_EXTERNAL_URL:-http://localhost:9090}"
     ports:
       - "9090:9090"
     volumes:
@@ -76,7 +77,9 @@ services:
           }
           print
         }' /etc/alertmanager/alertmanager.yml.tmpl > /etc/alertmanager/alertmanager.yml
-        exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
+        exec /bin/alertmanager \
+          --config.file=/etc/alertmanager/alertmanager.yml \
+          --web.external-url="${ALERTMANAGER_EXTERNAL_URL:-http://localhost:9093}"
     deploy:
       resources:
         limits:
