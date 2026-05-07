@@ -77,6 +77,15 @@ groups:
           summary: "{{ $labels.name }} has infrastructure errors"
           description: "Check {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The check is not testing its target — check logs for details (missing dependencies, network access, permissions)."
 
+      - alert: StatusStoreWriteFailing
+        expr: increase(technician_status_store_write_errors_total[10m]) >= 5
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Status store persistence failing"
+          description: "Technician has logged 5+ status-store write errors in the last 10 minutes. The /api/status page will be empty after the next restart and daily backups are not being produced. Most common cause: data volume owned by root after upgrading from a root-running image — fix with `docker compose exec --user root technician chown -R technician:technician /var/lib/technician`."
+
   # ── Web Vitals ───────────────────────────────────────────────────
   - name: technician_web_vitals
     rules:

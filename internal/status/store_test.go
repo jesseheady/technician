@@ -593,6 +593,76 @@ func TestBackupFallbackMissingMain(t *testing.T) {
 	}
 }
 
+func TestSaveReturnsErrorWhenDirUnwritable(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root can write anywhere; skipping permission test")
+	}
+	dir := t.TempDir()
+	// Create a read-only subdirectory that MkdirAll will succeed on but
+	// WriteFile will fail in. Use a path under a 0500 parent so the file
+	// create is rejected.
+	roDir := filepath.Join(dir, "ro")
+	if err := os.Mkdir(roDir, 0o500); err != nil {
+		t.Fatalf("mkdir ro: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(roDir, 0o700) })
+
+	s := NewStore("test", nil, "")
+	s.path = filepath.Join(roDir, "status.json")
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
+
+	if err := s.Save(); err == nil {
+		t.Fatal("expected Save to return an error on unwritable directory")
+	}
+	if got := s.ConsecutiveWriteFailures(); got != 1 {
+		t.Fatalf("expected 1 consecutive failure, got %d", got)
+	}
+	if !s.WriteHealthy() {
+		t.Fatal("expected store to remain healthy after a single failure")
+	}
+}
+
+func TestWriteHealthDegradesAndRecovers(t *testing.T) {
+	s := NewStore("test", nil, "")
+	s.path = "/nonexistent-dir-that-cannot-be-created/\x00invalid/status.json"
+	s.Push(makeResult("a", config.CheckTypeHTTP, true))
+
+	for i := 1; i <= writeFailureThreshold; i++ {
+		if err := s.Save(); err == nil {
+			t.Fatalf("attempt %d: expected error", i)
+		}
+	}
+	if s.WriteHealthy() {
+		t.Fatalf("expected unhealthy after %d consecutive failures", writeFailureThreshold)
+	}
+	if got := s.ConsecutiveWriteFailures(); got != writeFailureThreshold {
+		t.Fatalf("expected %d consecutive failures, got %d", writeFailureThreshold, got)
+	}
+
+	// Recover by pointing at a writable path.
+	dir := t.TempDir()
+	s.path = filepath.Join(dir, "status.json")
+	if err := s.Save(); err != nil {
+		t.Fatalf("expected recovery save to succeed, got %v", err)
+	}
+	if !s.WriteHealthy() {
+		t.Fatal("expected store to be healthy after recovery")
+	}
+	if got := s.ConsecutiveWriteFailures(); got != 0 {
+		t.Fatalf("expected counter reset on recovery, got %d", got)
+	}
+}
+
+func TestEmptyPathStoreAlwaysHealthy(t *testing.T) {
+	s := NewStore("test", nil, "")
+	if err := s.Save(); err != nil {
+		t.Fatalf("expected nil error from no-path Save, got %v", err)
+	}
+	if !s.WriteHealthy() {
+		t.Fatal("no-path store should report healthy")
+	}
+}
+
 func TestFmtDuration(t *testing.T) {
 	tests := []struct {
 		d    time.Duration

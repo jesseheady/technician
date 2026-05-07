@@ -19,6 +19,14 @@ const backupRetention = 90 * 24 * time.Hour
 
 const maxHistory = 90
 
+// writeFailureThreshold is the number of consecutive Save() failures
+// after which WriteHealthy() flips false. At the worker's 60s save
+// cadence this is roughly five minutes — long enough to ride out a
+// transient disk hiccup, short enough that a permission-denied loop
+// (e.g. volume owned by root after a non-root image upgrade) surfaces
+// on /health well before backups start being lost.
+const writeFailureThreshold = 5
+
 // Entry is a compact snapshot of a single check result.
 type Entry struct {
 	Success    bool      `json:"success"`
@@ -140,6 +148,9 @@ type Store struct {
 	snapMu    sync.Mutex
 	snapCache *Snapshot
 	snapTime  time.Time
+
+	writeMu              sync.Mutex
+	consecutiveWriteFail int
 }
 
 type budgetState struct {
@@ -616,11 +627,20 @@ type persistedStoreRaw struct {
 }
 
 // Save writes the current store state to disk. Safe to call concurrently.
-func (s *Store) Save() {
+// Returns the underlying error on failure so callers can surface it as
+// a metric. Repeated failures eventually flip WriteHealthy() to false.
+// A store with no persistence path always succeeds.
+func (s *Store) Save() error {
 	if s.path == "" {
-		return
+		return nil
 	}
 
+	err := s.save()
+	s.recordWriteResult(err)
+	return err
+}
+
+func (s *Store) save() error {
 	s.mu.RLock()
 	ps := persistedStore{
 		Order: s.order,
@@ -652,23 +672,67 @@ func (s *Store) Save() {
 
 	data, err := json.Marshal(ps)
 	if err != nil {
-		slog.Warn("Failed to marshal status store", "error", err)
-		return
+		return fmt.Errorf("marshal status store: %w", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		slog.Warn("Failed to create status store directory", "error", err)
-		return
+		return fmt.Errorf("create status store directory: %w", err)
 	}
 
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		slog.Warn("Failed to write status store", "error", err)
-		return
+		return fmt.Errorf("write status store: %w", err)
 	}
 	if err := os.Rename(tmp, s.path); err != nil {
-		slog.Warn("Failed to rename status store", "error", err)
+		return fmt.Errorf("rename status store: %w", err)
 	}
+	return nil
+}
+
+func (s *Store) recordWriteResult(err error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if err == nil {
+		if s.consecutiveWriteFail > 0 {
+			slog.Info("Status store writes recovered", "previous_failures", s.consecutiveWriteFail)
+		}
+		s.consecutiveWriteFail = 0
+		return
+	}
+	s.consecutiveWriteFail++
+	// Escalate to ERROR once we cross the health threshold so a
+	// silently-failing volume (e.g. root-owned after an image upgrade)
+	// is hard to miss in log review.
+	if s.consecutiveWriteFail >= writeFailureThreshold {
+		slog.Error("Status store write failed",
+			"error", err,
+			"consecutive_failures", s.consecutiveWriteFail,
+			"threshold", writeFailureThreshold,
+		)
+	} else {
+		slog.Warn("Status store write failed",
+			"error", err,
+			"consecutive_failures", s.consecutiveWriteFail,
+			"threshold", writeFailureThreshold,
+		)
+	}
+}
+
+// WriteHealthy reports whether the store is keeping up with disk
+// writes. Returns false after writeFailureThreshold consecutive Save()
+// failures. Stores with no persistence path are always healthy.
+func (s *Store) WriteHealthy() bool {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.consecutiveWriteFail < writeFailureThreshold
+}
+
+// ConsecutiveWriteFailures returns the number of Save() calls that
+// have failed since the last success.
+func (s *Store) ConsecutiveWriteFailures() int {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.consecutiveWriteFail
 }
 
 // SaveBackup creates a daily timestamped backup of the current status file
