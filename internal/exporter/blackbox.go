@@ -11,8 +11,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 // BlackboxHandler implements a /probe endpoint compatible with
@@ -207,6 +207,8 @@ func DebugHandler() http.HandlerFunc {
 
 		cfg := buildCheckConfig(target, module)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cfg)
+		if err := json.NewEncoder(w).Encode(cfg); err != nil {
+			slog.Warn("Failed to encode blackbox debug response", "error", err)
+		}
 	}
 }
