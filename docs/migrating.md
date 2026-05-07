@@ -77,6 +77,27 @@ If a Prometheus alert name changes (e.g., `ProbeDown` → `CheckFailing`), updat
 
 In-flight alerts under the old name will auto-resolve once Prometheus evaluates the updated rules (the old alert expression no longer exists, so it stops firing).
 
+## Volume ownership after upgrading from a root-running image
+
+Older images ran the container as root, which left the `technician_data` named volume owned by `root:root`. Docker copies an image's filesystem into a named volume only on first attach, so rebuilding to an image that runs as the `technician` user does not re-apply ownership — the existing volume keeps its original permissions and writes start failing silently.
+
+The current entrypoint handles this on its own: it runs as root, chowns the data directory to `technician`, then drops privileges via `gosu`. Most upgrades are self-healing on the next container start.
+
+If you are on a build without that entrypoint, or the data directory is bind-mounted from a host path the container cannot chown, fix ownership manually:
+
+```sh
+docker compose exec --user root technician chown -R technician:technician /var/lib/technician
+```
+
+Or, if you do not need to preserve historical status data, recreate the volume:
+
+```sh
+docker compose down -v
+docker compose up
+```
+
+You will know you are hitting this when the `StatusStoreWriteFailing` alert fires, the logs show repeated `Status store write failed`, or `/health` starts returning 503. The container healthcheck will eventually mark the container unhealthy on its own once the consecutive-failure threshold is crossed.
+
 ## Version-specific migrations
 
 ### v0.2.0 → v0.3.0

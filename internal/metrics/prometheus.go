@@ -230,6 +230,16 @@ var (
 		Name: "technician_check_degraded",
 		Help: "Whether the check response time exceeds the degraded threshold (1=degraded, 0=ok)",
 	}, []string{"type", "name", "region", "city", "country"})
+
+	// Status store persistence — counts every Save() that returned an
+	// error. A persistent non-zero rate means the in-memory ring is no
+	// longer being persisted; on container restart the status page will
+	// be empty until check cycles refill it. The most common cause is a
+	// data volume initialized under a previous root-running image.
+	statusStoreWriteErrors = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "technician_status_store_write_errors_total",
+		Help: "Total status store persistence write failures since process start",
+	})
 )
 
 func init() {
@@ -273,7 +283,14 @@ func init() {
 		domainRegistered,
 		checkInfraError,
 		checkDegraded,
+		statusStoreWriteErrors,
 	)
+}
+
+// RecordStatusStoreWriteError increments the status store write-error
+// counter. Call from every Save() call site that observed an error.
+func RecordStatusStoreWriteError() {
+	statusStoreWriteErrors.Inc()
 }
 
 func Handler() http.Handler {
