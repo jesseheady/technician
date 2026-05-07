@@ -1,6 +1,26 @@
 #!/bin/sh
 set -e
 
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+require_docker() {
+    if ! docker info >/dev/null 2>&1; then
+        echo "    error: Docker daemon is not running"
+        echo "    Start Docker Desktop and retry."
+        echo "    SKIP_HOOKS=1 skips most checks but never the secret/misconfig scan."
+        exit 1
+    fi
+}
+
+staged() {
+    git diff --cached --name-only --diff-filter=ACMR
+}
+
+skip_slow() {
+    [ "${SKIP_HOOKS:-}" = "1" ]
+}
+
 echo "==> go build"
 go build ./...
 
@@ -15,6 +35,59 @@ if command -v govulncheck >/dev/null 2>&1; then
     govulncheck ./...
 else
     echo "    govulncheck not installed, skipping (go install golang.org/x/vuln/cmd/govulncheck@latest)"
+fi
+
+echo "==> gofmt"
+GO_FILES=$(staged | grep '\.go$' || true)
+if [ -n "$GO_FILES" ]; then
+    UNFORMATTED=$(echo "$GO_FILES" | xargs gofmt -l)
+    if [ -n "$UNFORMATTED" ]; then
+        echo "    unformatted files:"
+        echo "$UNFORMATTED" | sed 's/^/      /'
+        echo "    run: gofmt -w $UNFORMATTED"
+        exit 1
+    fi
+fi
+
+echo "==> promtool check rules"
+if staged | grep -q '^prometheus/.*\.yml$'; then
+    if skip_slow; then
+        echo "    SKIP_HOOKS=1 — skipped"
+    else
+        require_docker
+        docker run --rm --entrypoint promtool \
+            -v "$REPO_ROOT/prometheus:/work" -w /work \
+            prom/prometheus:latest check rules rules.yml
+    fi
+fi
+
+# Secret + misconfig scan: never skipped, even with SKIP_HOOKS=1.
+echo "==> trivy fs (misconfig + secret)"
+require_docker
+mkdir -p "$HOME/.cache/trivy"
+docker run --rm \
+    -v "$REPO_ROOT:/work" \
+    -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+    -w /work aquasec/trivy:latest \
+    fs --scanners misconfig,secret --severity CRITICAL,HIGH \
+       --exit-code 1 --quiet --skip-dirs node_modules .
+
+echo "==> docker compose config"
+if staged | grep -qE '^(docker-compose.*\.yml|\.dockerignore|Dockerfile.*)$'; then
+    docker compose config -q
+fi
+
+echo "==> shellcheck"
+SH_FILES=$(staged | grep -E '(\.sh$|^\.githooks/)' || true)
+if [ -n "$SH_FILES" ]; then
+    if skip_slow; then
+        echo "    SKIP_HOOKS=1 — skipped"
+    else
+        require_docker
+        # shellcheck disable=SC2086  # intentional word-splitting on file list
+        docker run --rm -v "$REPO_ROOT:/work" -w /work \
+            koalaman/shellcheck:stable $SH_FILES
+    fi
 fi
 
 echo "==> All checks passed"
