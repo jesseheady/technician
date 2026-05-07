@@ -5,7 +5,6 @@
 docs
 dashboards
 scripts
-!scripts/docker-entrypoint.sh
 config
 examples
 *.md

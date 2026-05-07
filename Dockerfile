@@ -13,7 +13,6 @@ RUN apt-get update && \
     mtr-tiny \
     ca-certificates \
     libcap2-bin \
-    gosu \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,16 +34,10 @@ RUN setcap cap_net_raw+ep /usr/local/bin/technician
 RUN mkdir -p /var/lib/technician /tmp/technician/artifacts /tmp/technician-videos && \
     chown -R technician:technician /var/lib/technician /tmp/technician /tmp/technician-videos
 
-COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
 WORKDIR /
+USER technician
 
 EXPOSE 9590
 
-# Runs as root so the entrypoint can chown the data volume on first boot
-# after upgrades from pre-non-root images, then drops to the technician
-# user via gosu. CAP_NET_RAW is preserved as a file capability on the
-# binary, so unprivileged ICMP keeps working.
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["technician"]
 CMD ["worker", "--config", "/etc/technician/technician.yml"]

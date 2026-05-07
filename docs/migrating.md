@@ -79,11 +79,11 @@ In-flight alerts under the old name will auto-resolve once Prometheus evaluates 
 
 ## Volume ownership after upgrading from a root-running image
 
-Older images ran the container as root, which left the `technician_data` named volume owned by `root:root`. Docker copies an image's filesystem into a named volume only on first attach, so rebuilding to an image that runs as the `technician` user does not re-apply ownership — the existing volume keeps its original permissions and writes start failing silently.
+Older images ran the container as root, which left the `technician_data` named volume owned by `root:root`. Docker copies an image's filesystem into a named volume only on first attach, so rebuilding to an image that runs as the `technician` user does not re-apply ownership — the existing volume keeps its original permissions and writes start failing.
 
-The current entrypoint handles this on its own: it runs as root, chowns the data directory to `technician`, then drops privileges via `gosu`. Most upgrades are self-healing on the next container start.
+The worker now surfaces this loudly: `Status store write failed` is logged on every save tick (escalating to ERROR after 5 consecutive failures), the `technician_status_store_write_errors_total` counter ticks up, `/health` returns 503 once the threshold is crossed, the Docker healthcheck flips unhealthy, and the `StatusStoreWriteFailing` Prometheus alert fires.
 
-If you are on a build without that entrypoint, or the data directory is bind-mounted from a host path the container cannot chown, fix ownership manually:
+Recovery — fix ownership in place without losing history:
 
 ```sh
 docker compose exec --user root technician chown -R technician:technician /var/lib/technician
@@ -95,8 +95,6 @@ Or, if you do not need to preserve historical status data, recreate the volume:
 docker compose down -v
 docker compose up
 ```
-
-You will know you are hitting this when the `StatusStoreWriteFailing` alert fires, the logs show repeated `Status store write failed`, or `/health` starts returning 503. The container healthcheck will eventually mark the container unhealthy on its own once the consecutive-failure threshold is crossed.
 
 ## Version-specific migrations
 
