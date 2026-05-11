@@ -1,6 +1,6 @@
 module github.com/m0nkey/technician
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
