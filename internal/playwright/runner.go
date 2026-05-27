@@ -28,16 +28,16 @@ func NewRunner() (*Runner, error) {
 		return nil, fmt.Errorf("creating scripts dir: %w", err)
 	}
 
-	// Write run.js if not already present
+	// Always (re)write run.js so it matches this binary's embedded copy. Writing
+	// only when absent would reuse a stale runner from a previous version after
+	// an upgrade.
 	runJS := filepath.Join(tmpDir, "run.js")
-	if _, err := os.Stat(runJS); os.IsNotExist(err) {
-		data, err := embeddedScripts.ReadFile("scripts/run.js")
-		if err != nil {
-			return nil, fmt.Errorf("reading embedded run.js: %w", err)
-		}
-		if err := os.WriteFile(runJS, data, 0o644); err != nil {
-			return nil, fmt.Errorf("writing run.js: %w", err)
-		}
+	data, err := embeddedScripts.ReadFile("scripts/run.js")
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded run.js: %w", err)
+	}
+	if err := os.WriteFile(runJS, data, 0o644); err != nil {
+		return nil, fmt.Errorf("writing run.js: %w", err)
 	}
 
 	return &Runner{scriptsDir: tmpDir}, nil
