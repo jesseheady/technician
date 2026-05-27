@@ -39,6 +39,7 @@ func (p *PlaywrightChecker) Type() config.CheckType {
 
 type playwrightOutput struct {
 	Success       bool       `json:"success"`
+	Infra         bool       `json:"infra,omitempty"`
 	Duration      float64    `json:"duration_ms"`
 	Error         string     `json:"error,omitempty"`
 	Vitals        *WebVitals `json:"vitals,omitempty"`
@@ -128,6 +129,13 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, or
 	}
 
 	result.Success = pwOutput.Success
+	// A setup-stage failure (browser launch, context, or probe load) means the
+	// runner itself is broken — treat it as an infra error so --fail-on-error
+	// catches it. Probe/navigation failures against the target are not infra.
+	if pwOutput.Infra {
+		result.InfraError = true
+		slog.Warn("Playwright check infra error", "name", cfg.Name, "error", pwOutput.Error)
+	}
 	result.WebVitals = pwOutput.Vitals
 	result.HARData = pwOutput.HAR
 	result.VideoPath = pwOutput.VideoPath

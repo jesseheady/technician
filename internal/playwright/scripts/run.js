@@ -43,6 +43,10 @@ async function main() {
   let browser;
   let context;
   let page;
+  // Failure stage: "setup" (browser launch, context, probe load) is an
+  // infrastructure failure that should fail CI; "probe" (navigation and
+  // assertions against the target) is a normal check failure, not infra.
+  let stage = 'setup';
 
   try {
     // Launch browser
@@ -110,6 +114,7 @@ async function main() {
       log,
     };
 
+    stage = 'probe';
     await probeFn(page, probeContext);
 
     // Collect Web Vitals
@@ -178,6 +183,9 @@ async function main() {
     const durationMs = performance.now() - startTime;
     output({
       success: false,
+      // Setup-stage failures mean the browser/runner itself is broken
+      // (e.g. Chromium failed to launch) — flag as infrastructure error.
+      infra: stage === 'setup',
       duration_ms: durationMs,
       error: e.message,
       logs,
@@ -277,7 +285,7 @@ function output(data) {
 }
 
 function outputError(msg) {
-  output({ success: false, error: msg, duration_ms: 0 });
+  output({ success: false, infra: true, error: msg, duration_ms: 0 });
 }
 
 main().catch((e) => {
