@@ -10,11 +10,15 @@
   "postUpdateOptions": ["gomodTidy"],
   "packageRules": [
     {
+      "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
+      "automerge": true
+    },
+    {
       "description": "Group all patch updates into a single PR",
       "matchUpdateTypes": ["patch"],
       "groupName": "patch updates",
-      "automerge": true,
-      "minimumReleaseAge": "14 days",
+      "minimumReleaseAge": "7 days",
       "matchPackageNames": [
         "!go.opentelemetry.io/otel**",
         "!github.com/aws/aws-sdk-go-v2**"
@@ -24,6 +28,7 @@
       "description": "Group all minor updates into a single PR",
       "matchUpdateTypes": ["minor"],
       "groupName": "minor updates",
+      "minimumReleaseAge": "7 days",
       "matchPackageNames": [
         "!go.opentelemetry.io/otel**",
         "!github.com/aws/aws-sdk-go-v2**"
@@ -34,22 +39,19 @@
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "github actions",
-      "automerge": true,
-      "minimumReleaseAge": "14 days"
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Group all OpenTelemetry packages",
       "matchPackageNames": ["go.opentelemetry.io/otel**"],
       "groupName": "opentelemetry",
-      "automerge": true,
-      "minimumReleaseAge": "14 days"
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Group all AWS SDK packages",
       "matchPackageNames": ["github.com/aws/aws-sdk-go-v2**"],
       "groupName": "aws-sdk-go-v2",
-      "automerge": true,
-      "minimumReleaseAge": "14 days"
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Group Docker base image digest updates, weekly Monday",
@@ -60,6 +62,7 @@
   ],
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"]
+    "labels": ["security"],
+    "minimumReleaseAge": "0 days"
   }
 }
