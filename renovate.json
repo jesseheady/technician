@@ -8,6 +8,10 @@
   ],
   "labels": ["dependencies"],
   "postUpdateOptions": ["gomodTidy"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
   "packageRules": [
     {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
