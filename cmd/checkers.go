@@ -3,9 +3,9 @@ package cmd
 import (
 	"log/slog"
 
+	"github.com/jesseheady/technician/internal/check"
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/playwright"
-	"github.com/jesseheady/technician/internal/check"
 )
 
 // newCheckers builds the default set of checkers. Playwright is registered

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 func TestLoadBudgets(t *testing.T) {

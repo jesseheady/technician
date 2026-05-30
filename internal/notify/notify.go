@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 // EventType identifies the kind of notification.
