@@ -8,8 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 // maxCheckCardinality is the maximum number of distinct check names that will

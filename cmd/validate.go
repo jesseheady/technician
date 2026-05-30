@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	budgetFile      string
-	validateOutput  string
-	checkType       string
-	excludeType     string
-	failOnError     bool
-	failOnBudget    bool
+	budgetFile     string
+	validateOutput string
+	checkType      string
+	excludeType    string
+	failOnError    bool
+	failOnBudget   bool
 )
 
 var validateCmd = &cobra.Command{

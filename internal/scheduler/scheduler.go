@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jesseheady/technician/internal/check"
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/metrics"
-	"github.com/jesseheady/technician/internal/check"
 	"github.com/robfig/cron/v3"
 )
 
 type ProberRegistry struct {
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 	checkers map[config.CheckType]check.Checker
 }
 

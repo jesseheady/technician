@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/check"
+	"github.com/jesseheady/technician/internal/config"
 )
 
 func makeResult(name string, typ config.CheckType, success bool) *check.Result {
