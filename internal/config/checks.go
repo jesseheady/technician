@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var validAssertionTypes = map[string]bool{
@@ -21,18 +21,18 @@ var validAssertionTypes = map[string]bool{
 type CheckType string
 
 const (
-	CheckTypeHTTP        CheckType = "http"
-	CheckTypeSMTP        CheckType = "smtp"
-	CheckTypeTraceroute  CheckType = "traceroute"
-	CheckTypePlaywright  CheckType = "playwright"
-	CheckTypeTCP         CheckType = "tcp"
-	CheckTypeDNS         CheckType = "dns"
-	CheckTypeICMP        CheckType = "icmp"
-	CheckTypeGRPC        CheckType = "grpc"
-	CheckTypeNTP         CheckType = "ntp"
-	CheckTypeTLS         CheckType = "tls"
-	CheckTypeUDP         CheckType = "udp"
-	CheckTypeBGP         CheckType = "bgp"
+	CheckTypeHTTP         CheckType = "http"
+	CheckTypeSMTP         CheckType = "smtp"
+	CheckTypeTraceroute   CheckType = "traceroute"
+	CheckTypePlaywright   CheckType = "playwright"
+	CheckTypeTCP          CheckType = "tcp"
+	CheckTypeDNS          CheckType = "dns"
+	CheckTypeICMP         CheckType = "icmp"
+	CheckTypeGRPC         CheckType = "grpc"
+	CheckTypeNTP          CheckType = "ntp"
+	CheckTypeTLS          CheckType = "tls"
+	CheckTypeUDP          CheckType = "udp"
+	CheckTypeBGP          CheckType = "bgp"
 	CheckTypeDomainExpiry CheckType = "domain_expiry"
 )
 
@@ -43,26 +43,26 @@ type RetryPolicy struct {
 }
 
 type CheckConfig struct {
-	Name     string            `yaml:"name"`
-	Type     CheckType         `yaml:"-"`
-	Group    string            `yaml:"group"`
-	Schedule string            `yaml:"schedule"`
-	Timeout  time.Duration     `yaml:"timeout"`
-	Retry    *RetryPolicy      `yaml:"retry"`
-	DegradedAfter time.Duration `yaml:"degraded_after"` // response time threshold for "degraded" state
-	HTTP     *HTTPCheckConfig  `yaml:"-"`
-	SMTP     *SMTPCheckConfig  `yaml:"-"`
-	Traceroute *TracerouteCheckConfig `yaml:"-"`
-	Playwright *PlaywrightCheckConfig `yaml:"-"`
-	TCP      *TCPCheckConfig   `yaml:"-"`
-	DNS      *DNSCheckConfig   `yaml:"-"`
-	ICMP     *ICMPCheckConfig  `yaml:"-"`
-	GRPC     *GRPCCheckConfig  `yaml:"-"`
-	NTP      *NTPCheckConfig   `yaml:"-"`
-	TLS      *TLSCheckConfig   `yaml:"-"`
-	UDP          *UDPCheckConfig              `yaml:"-"`
-	BGP          *BGPCheckConfig              `yaml:"-"`
-	DomainExpiry *DomainExpirationCheckConfig `yaml:"-"`
+	Name          string                       `yaml:"name"`
+	Type          CheckType                    `yaml:"-"`
+	Group         string                       `yaml:"group"`
+	Schedule      string                       `yaml:"schedule"`
+	Timeout       time.Duration                `yaml:"timeout"`
+	Retry         *RetryPolicy                 `yaml:"retry"`
+	DegradedAfter time.Duration                `yaml:"degraded_after"` // response time threshold for "degraded" state
+	HTTP          *HTTPCheckConfig             `yaml:"-"`
+	SMTP          *SMTPCheckConfig             `yaml:"-"`
+	Traceroute    *TracerouteCheckConfig       `yaml:"-"`
+	Playwright    *PlaywrightCheckConfig       `yaml:"-"`
+	TCP           *TCPCheckConfig              `yaml:"-"`
+	DNS           *DNSCheckConfig              `yaml:"-"`
+	ICMP          *ICMPCheckConfig             `yaml:"-"`
+	GRPC          *GRPCCheckConfig             `yaml:"-"`
+	NTP           *NTPCheckConfig              `yaml:"-"`
+	TLS           *TLSCheckConfig              `yaml:"-"`
+	UDP           *UDPCheckConfig              `yaml:"-"`
+	BGP           *BGPCheckConfig              `yaml:"-"`
+	DomainExpiry  *DomainExpirationCheckConfig `yaml:"-"`
 }
 
 // Target returns the canonical hostname or IP that this check targets.
@@ -150,7 +150,7 @@ type HTTPCheckConfig struct {
 	Headers         map[string]string `yaml:"headers"`
 	Body            string            `yaml:"body"`
 	SkipTLS         bool              `yaml:"skip_tls"`
-	FollowRedirects bool             `yaml:"follow_redirects"`
+	FollowRedirects bool              `yaml:"follow_redirects"`
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
@@ -159,7 +159,7 @@ type TCPCheckConfig struct {
 	Port       int    `yaml:"port"`
 	IPVersion  string `yaml:"ip_version"` // "4", "6", or "" (any)
 	TLS        bool   `yaml:"tls"`
-	Send       string `yaml:"send"`       // optional bytes to send
+	Send       string `yaml:"send"`        // optional bytes to send
 	ExpectRecv string `yaml:"expect_recv"` // optional expected response substring
 }
 
@@ -198,11 +198,11 @@ type TLSCheckConfig struct {
 type UDPCheckConfig struct {
 	Host             string `yaml:"host"`
 	Port             int    `yaml:"port"`
-	IPVersion        string `yaml:"ip_version"`      // "4", "6", or "" (any)
-	Send             string `yaml:"send"`             // payload to send (plain text)
-	SendHex          string `yaml:"send_hex"`         // payload to send (hex-encoded bytes)
-	ExpectResponse   *bool  `yaml:"expect_response"`  // nil defaults to true
-	ExpectRecv       string `yaml:"expect_recv"`      // expected substring in response
+	IPVersion        string `yaml:"ip_version"`         // "4", "6", or "" (any)
+	Send             string `yaml:"send"`               // payload to send (plain text)
+	SendHex          string `yaml:"send_hex"`           // payload to send (hex-encoded bytes)
+	ExpectResponse   *bool  `yaml:"expect_response"`    // nil defaults to true
+	ExpectRecv       string `yaml:"expect_recv"`        // expected substring in response
 	MaxResponseBytes int    `yaml:"max_response_bytes"` // default 4096
 }
 
@@ -224,9 +224,9 @@ type SMTPCheckConfig struct {
 }
 
 type TracerouteCheckConfig struct {
-	Host     string `yaml:"host"`
-	MaxHops  int    `yaml:"max_hops"`
-	Count    int    `yaml:"count"`
+	Host    string `yaml:"host"`
+	MaxHops int    `yaml:"max_hops"`
+	Count   int    `yaml:"count"`
 }
 
 type PlaywrightCheckConfig struct {
@@ -234,8 +234,8 @@ type PlaywrightCheckConfig struct {
 	Authenticator string `yaml:"authenticator"`
 	BaseURL       string `yaml:"base_url"`
 	Video         bool   `yaml:"video"`
-	Network       string `yaml:"network"`  // 4g, 3g, slow-3g, or empty (no throttling)
-	Device        string `yaml:"device"`   // Playwright device name, e.g. "iPhone 14", "Pixel 7"
+	Network       string `yaml:"network"` // 4g, 3g, slow-3g, or empty (no throttling)
+	Device        string `yaml:"device"`  // Playwright device name, e.g. "iPhone 14", "Pixel 7"
 }
 
 // checkYAML is the unified YAML representation for all check types.
@@ -258,13 +258,13 @@ type checkYAML struct {
 	Headers         map[string]string `yaml:"headers"`
 	Body            string            `yaml:"body"`
 	SkipTLS         bool              `yaml:"skip_tls"`
-	FollowRedirects bool             `yaml:"follow_redirects"`
+	FollowRedirects bool              `yaml:"follow_redirects"`
 	Assertions      []Assertion       `yaml:"assertions"`
 
 	// TCP / SMTP / ICMP / Traceroute / gRPC / NTP / TLS / Domain Expiry
-	Host         string `yaml:"host"`
-	Port         int    `yaml:"port"`
-	IPVersion    string `yaml:"ip_version"`
+	Host      string `yaml:"host"`
+	Port      int    `yaml:"port"`
+	IPVersion string `yaml:"ip_version"`
 
 	// TCP / UDP
 	Send       string `yaml:"send"`
