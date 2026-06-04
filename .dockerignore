@@ -4,9 +4,9 @@
 .dockerignore
 docs
 dashboards
-scripts
+scripts/*
+!scripts/gen-licenses.sh
 config
 examples
 *.md
-LICENSE
 technician

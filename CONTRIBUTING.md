@@ -23,6 +23,21 @@ These mirror the CI pipeline, so issues are caught before pushing. To install `g
 go install golang.org/x/vuln/cmd/govulncheck@latest
 ```
 
+## Dependency licenses
+
+All Go dependencies must be permissively licensed (Apache-2.0, MIT, or BSD).
+CI (`.github/workflows/licenses.yml`) and the pre-push hook fail if a dependency
+carries a copyleft license, so nothing extra is needed when adding a dependency.
+
+The aggregated attribution notice (`THIRD_PARTY_LICENSES.txt`) is **generated at
+build and release time** — baked into the Docker image and attached to each
+GitHub release — so it always matches the shipped binary and is never committed.
+To inspect it locally:
+
+```bash
+./scripts/gen-licenses.sh   # writes THIRD_PARTY_LICENSES.txt (gitignored)
+```
+
 ## Code style
 
 - **Logging**: `log/slog`. **Errors**: `fmt.Errorf("context: %w", err)`.
@@ -32,7 +47,7 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 ## Adding a check type
 
 1. Implement `check.Checker` (`Type()` and `Run()`).
-2. Add `ProbeType` and config struct in `internal/config/checks.go`, loader in `LoadProbes`.
+2. Add `CheckType` and config struct in `internal/config/checks.go`, loader in `LoadChecks`.
 3. Register in `cmd/worker.go` and record metrics in `internal/metrics/prometheus.go`.
 4. Add example config in `examples/checks/` and update the check table in [docs/getting-started.md](docs/getting-started.md).
 

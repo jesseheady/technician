@@ -2,6 +2,9 @@
 technician
 /dist/
 
+# Generated at build/release time, never committed (see scripts/gen-licenses.sh)
+/THIRD_PARTY_LICENSES.txt
+
 # IDE
 .idea/
 .vscode/
