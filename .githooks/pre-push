@@ -46,4 +46,12 @@ docker run --rm --entrypoint amtool \
     -v "$REPO_ROOT/prometheus:/work" -w /work \
     prom/alertmanager:latest check-config alertmanager.yml
 
+if command -v go-licenses >/dev/null 2>&1; then
+    echo "==> go-licenses (dependency license types)"
+    go-licenses check ./... --disallowed_types=forbidden,restricted,reciprocal \
+        --ignore github.com/jesseheady/technician 2>/dev/null
+else
+    echo "==> go-licenses not installed — skipping license check (CI enforces it)"
+fi
+
 echo "==> All checks passed"

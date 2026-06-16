@@ -139,3 +139,9 @@ docker compose build technician && docker compose up
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, pre-commit hooks, and PR guidelines.
+
+## License
+
+Technician is licensed under the [MIT License](LICENSE).
+
+Bundled third-party dependencies are permissively licensed (Apache-2.0, MIT, BSD); their notices are generated at build time and ship with binary and container distributions as `THIRD_PARTY_LICENSES.txt`.

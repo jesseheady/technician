@@ -80,11 +80,20 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version-file: go.mod
+
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: Generate third-party license notice
+        run: |
+          go install github.com/google/go-licenses@v1.6.0
+          PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh artifacts/THIRD_PARTY_LICENSES.txt
 
       - name: Ensure release exists
         env:
@@ -99,4 +108,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" --clobber artifacts/*.tar.gz
+          cp LICENSE artifacts/
+          gh release upload "${{ github.ref_name }}" --clobber \
+            artifacts/*.tar.gz artifacts/THIRD_PARTY_LICENSES.txt artifacts/LICENSE
