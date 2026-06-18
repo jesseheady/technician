@@ -30,7 +30,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 - **`technician validate`** – Run all checks, evaluate budgets, exit 0/1 (CI).
 - **`technician test-webhook`** – Send a test notification to all configured webhooks.
 
-Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`), `--verbose` / `-v`.
+Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`), `--log-level` (debug, info, warn, error).
 
 ## Configuration
 
@@ -73,7 +73,7 @@ Three strategies (see `docs/alerting.md`):
 
 ## Conventions
 
-- **Logging**: `log/slog`; level set by `--verbose` in root command.
+- **Logging**: `log/slog`; level set by `--log-level` in root command.
 - **Errors**: Return with `fmt.Errorf("context: %w", err)` for wrapping.
 - **Tests**: Standard library `testing`; use httptest/mocks where appropriate; check tests live next to implementation (e.g. `http_test.go`).
 - **Go**: Module `github.com/jesseheady/technician`; keep `internal/` for non-exported code.

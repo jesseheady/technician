@@ -55,7 +55,7 @@ go run . worker --config examples/technician.yml
 - Health: [http://localhost:9590/health](http://localhost:9590/health)
 - Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
 
-Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`). Use `-v` for debug logging.
+Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`). Use `--log-level debug` for debug logging.
 
 ## Run with Prometheus and Grafana
 
