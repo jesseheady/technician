@@ -618,14 +618,6 @@ type persistedStore struct {
 	BudgetChecks map[string]persistedBudget `json:"budget_checks,omitempty"` // "check:metric" -> state
 }
 
-// persistedStoreRaw is used for backwards-compatible loading: budget_checks
-// used to be map[string]bool, so we decode it as RawMessage first.
-type persistedStoreRaw struct {
-	Order        []string                 `json:"order"`
-	Rings        map[string]persistedRing `json:"rings"`
-	BudgetChecks json.RawMessage          `json:"budget_checks,omitempty"`
-}
-
 // Save writes the current store state to disk. Safe to call concurrently.
 // Returns the underlying error on failure so callers can surface it as
 // a metric. Repeated failures eventually flip WriteHealthy() to false.
@@ -845,9 +837,7 @@ func (s *Store) load() {
 
 // tryLoadData attempts to parse and load store data. Returns true on success.
 func (s *Store) tryLoadData(data []byte) bool {
-	// Use raw struct so budget_checks field type mismatch doesn't block
-	// loading the rest of the store (check rings, order, etc.).
-	var raw persistedStoreRaw
+	var raw persistedStore
 	if err := json.Unmarshal(data, &raw); err != nil {
 		slog.Warn("Failed to parse status store", "error", err)
 		return false
@@ -865,29 +855,12 @@ func (s *Store) tryLoadData(data []byte) bool {
 		}
 	}
 
-	// Try new format (map[string]persistedBudget) first, fall back to
-	// legacy format (map[string]bool) for backwards compatibility.
 	if len(raw.BudgetChecks) > 0 {
-		var newFmt map[string]persistedBudget
-		if err := json.Unmarshal(raw.BudgetChecks, &newFmt); err == nil {
-			s.budgetChecks = make(map[string]budgetState, len(newFmt))
-			for key, pb := range newFmt {
-				s.budgetChecks[key] = budgetState{
-					violated:              pb.Violated,
-					consecutiveViolations: pb.ConsecutiveViolations,
-				}
-			}
-		} else {
-			// Legacy: map[string]bool
-			var oldFmt map[string]bool
-			if err := json.Unmarshal(raw.BudgetChecks, &oldFmt); err == nil {
-				s.budgetChecks = make(map[string]budgetState, len(oldFmt))
-				for key, violated := range oldFmt {
-					s.budgetChecks[key] = budgetState{violated: violated}
-				}
-				slog.Info("Migrated legacy budget checks format", "count", len(oldFmt))
-			} else {
-				slog.Warn("Failed to parse budget checks", "error", err)
+		s.budgetChecks = make(map[string]budgetState, len(raw.BudgetChecks))
+		for key, pb := range raw.BudgetChecks {
+			s.budgetChecks[key] = budgetState{
+				violated:              pb.Violated,
+				consecutiveViolations: pb.ConsecutiveViolations,
 			}
 		}
 	}

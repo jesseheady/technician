@@ -10,7 +10,6 @@ import (
 var (
 	cfgFile  string
 	originID string
-	verbose  bool
 	logLevel string
 )
 
@@ -20,9 +19,6 @@ var rootCmd = &cobra.Command{
 	Long:  "Technician is a self-hosted check runner that checks your infrastructure over the network. Deploy one worker per region, point Prometheus at them — eleven check types, performance budgets, OTLP traces, and Grafana dashboards included.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		level := slog.LevelInfo
-		if verbose {
-			level = slog.LevelDebug
-		}
 		if logLevel != "" {
 			switch logLevel {
 			case "debug":
@@ -44,7 +40,6 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "technician.yml", "config file path")
 	rootCmd.PersistentFlags().StringVar(&originID, "origin", os.Getenv("ORIGIN_ID"), "origin ID for this instance")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "log level: debug, info, warn, error")
 }
 

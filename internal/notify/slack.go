@@ -27,8 +27,8 @@ type slackPayload struct {
 }
 
 type slackAttachment struct {
-	Color  string `json:"color"`
-	Text   string `json:"text"`
+	Color string `json:"color"`
+	Text  string `json:"text"`
 }
 
 func (s *SlackSender) Send(ctx context.Context, event Event) error {
@@ -45,10 +45,16 @@ func (s *SlackSender) Send(ctx context.Context, event Event) error {
 		text = fmt.Sprintf("[%s] %s", strings.ToUpper(string(event.Severity)), text)
 	}
 
+	var details string
+	for k, v := range event.Details {
+		if v != "" {
+			details += fmt.Sprintf("%s: %s\n", k, v)
+		}
+	}
 	payload := slackPayload{
 		Text: text,
 		Attachments: []slackAttachment{
-			{Color: color, Text: formatDetails(event)},
+			{Color: color, Text: details},
 		},
 	}
 
@@ -73,17 +79,4 @@ func (s *SlackSender) Send(ctx context.Context, event Event) error {
 		return fmt.Errorf("slack webhook returned %d", resp.StatusCode)
 	}
 	return nil
-}
-
-func formatDetails(event Event) string {
-	if len(event.Details) == 0 {
-		return ""
-	}
-	var s string
-	for k, v := range event.Details {
-		if v != "" {
-			s += fmt.Sprintf("%s: %s\n", k, v)
-		}
-	}
-	return s
 }
