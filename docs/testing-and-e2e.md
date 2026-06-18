@@ -95,7 +95,7 @@ Inspect stdout for success/failure and timing fields.
 
 1. Start the worker with a config that includes your checks:
    ```bash
-   go run . worker --config config/technician.yml -v
+   go run . worker --config config/technician.yml --log-level debug
    ```
 2. Wait at least one schedule interval (e.g. 30s for `*/30 * * * * *`).
 3. Curl metrics and check for non-zero counters/gauges:

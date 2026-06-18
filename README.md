@@ -5,7 +5,7 @@ A single Go binary that checks your infrastructure over the network. Thirteen ch
 ## What it does
 
 - **Scheduled checks** — HTTP (with full httptrace timing: DNS, TLS, connect, TTFB, transfer), SMTP (mail server connectivity), traceroute (mtr), and browser (Playwright with Core Web Vitals and HAR recording).
-- **Prometheus metrics** — 20 gauges covering uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations. Exposed on `/metrics`.
+- **Prometheus metrics** — 29 metrics (28 gauges + 1 counter) covering uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations. Exposed on `/metrics`.
 - **Blackbox-compatible `/probe` endpoint** — Accepts `?target=&module=` queries so Prometheus can scrape ad-hoc probe targets via relabeling, the same contract as [prometheus/blackbox_exporter](https://github.com/prometheus/blackbox_exporter).
 - **OTLP traces** — One span per check run with timing attributes and HAR entries as span events.
 - **Performance budgets** — Define thresholds (duration, TTFB, LCP, INP, CLS, etc.) in YAML. The `validate` command runs all checks, evaluates budgets, and exits 0/1 for CI. Reporters: text, JSON, GitHub Actions annotations.

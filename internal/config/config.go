@@ -111,7 +111,7 @@ func validateWebhooks(webhooks []WebhookConfig) error {
 		}
 		for _, e := range wh.Events {
 			if !validWebhookEvents[e] {
-				return fmt.Errorf("webhook[%d]: invalid event %q (must be probe_down, probe_up, budget_violation, or cert_expiring)", i, e)
+				return fmt.Errorf("webhook[%d]: invalid event %q (must be check_down, check_up, budget_violation, or cert_expiring)", i, e)
 			}
 		}
 		for _, s := range wh.Severities {
