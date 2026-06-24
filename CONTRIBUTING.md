@@ -4,7 +4,8 @@
 2. Run `./scripts/init-mac.sh` to set up dependencies and git hooks.
 3. `cp -r examples/ config/` then `go run . worker --config config/technician.yml`.
 4. Create a branch and make your change.
-5. Open a PR with a clear description. CI runs build, test, lint, and budget validation.
+5. Commit with `git commit -s` to add the required `Signed-off-by` trailer (DCO). CI will reject PRs without it.
+6. Open a PR with a clear description. CI runs build, test, lint, and budget validation.
 
 See [docs/getting-started.md](docs/getting-started.md) for the full setup guide and [AGENTS.md](AGENTS.md) for architecture, conventions, and the check model.
 
