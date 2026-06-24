@@ -1,0 +1,24 @@
+{{- if .Values.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "technician.fullname" . }}
+  labels:
+    {{- include "technician.labels" . | nindent 4 }}
+    {{- with .Values.podMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "technician.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.podMonitor.interval }}
+      scrapeTimeout: {{ .Values.podMonitor.scrapeTimeout }}
+      relabelings:
+        # Surface the per-origin label as `origin` on scraped series.
+        - sourceLabels: [__meta_kubernetes_pod_label_technician_io_origin]
+          targetLabel: origin
+{{- end }}

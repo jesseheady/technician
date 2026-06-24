@@ -1,5 +1,5 @@
 # Binaries
-technician
+/technician
 /dist/
 
 # Generated at build/release time, never committed (see scripts/gen-licenses.sh)

@@ -1,0 +1,23 @@
+Technician is deployed with one worker per origin:
+
+{{- range $origin := .Values.origins }}
+  - {{ include "technician.fullname" $ }}-{{ $origin.id }}  (ORIGIN_ID={{ $origin.id }})
+{{- end }}
+
+Each origin runs a single replica and exposes /metrics on port {{ .Values.service.port }}.
+
+Scrape it:
+{{- if .Values.podMonitor.enabled }}
+  A PodMonitor was created. Ensure its labels match your Prometheus
+  podMonitorSelector. Metrics carry an `origin` label per worker.
+{{- else }}
+  PodMonitor is disabled. Point Prometheus at the per-origin Services, e.g.
+    kubectl get svc -l app.kubernetes.io/instance={{ .Release.Name }}
+{{- end }}
+
+Scaling note:
+  Add capacity by adding entries to `.Values.origins` (new vantage points).
+  Do NOT raise replicas within an origin — identical replicas collide on
+  {check,origin} metric series and multiply load on your targets.
+  Sharding one origin's checks across workers needs probe filtering:
+  https://github.com/jesseheady/technician/issues/15
