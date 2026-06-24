@@ -1,0 +1,105 @@
+{{- $root := . -}}
+{{- range $origin := .Values.origins }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "technician.fullname" $root }}-{{ $origin.id }}
+  labels:
+    {{- include "technician.labels" $root | nindent 4 }}
+    technician.io/origin: {{ $origin.id | quote }}
+spec:
+  # Fixed at 1. Scale by adding origins, not replicas — identical same-origin
+  # replicas collide on {check,origin} metric series and multiply target load.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "technician.selectorLabels" $root | nindent 6 }}
+      technician.io/origin: {{ $origin.id | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "technician.selectorLabels" $root | nindent 8 }}
+        technician.io/origin: {{ $origin.id | quote }}
+      annotations:
+        checksum/config: {{ $root.Values.config | toYaml | sha256sum }}
+        {{- with $root.Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $root.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $root.Values.playwright.enabled }}
+      # Lets PID 1 reap exited Chromium children (see docs/playwright-scaling.md).
+      shareProcessNamespace: true
+      {{- end }}
+      securityContext:
+        {{- toYaml $root.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: technician
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag | default $root.Chart.AppVersion }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $root.Values.securityContext | nindent 12 }}
+          args: ["worker", "--config", "/etc/technician/technician.yml"]
+          env:
+            - name: ORIGIN_ID
+              value: {{ $origin.id | quote }}
+            {{- with $origin.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: 9590
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- if $root.Values.playwright.enabled }}
+            {{- toYaml $root.Values.playwright.resources | nindent 12 }}
+            {{- else }}
+            {{- toYaml $root.Values.resources | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/technician
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: home
+              mountPath: /home/technician
+            {{- with $root.Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "technician.fullname" $root }}-config
+        - name: tmp
+          emptyDir: {}
+        - name: home
+          emptyDir: {}
+        {{- with $root.Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $origin.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $origin.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

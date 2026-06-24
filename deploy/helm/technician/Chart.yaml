@@ -1,0 +1,20 @@
+apiVersion: v2
+name: technician
+description: |
+  Synthetic monitoring worker — one worker per vantage point. This chart
+  renders one Deployment + Service per origin, each with a distinct ORIGIN_ID.
+  Scale by adding origins, not by raising replica count.
+type: application
+version: 0.1.0
+# appVersion tracks the technician image tag this chart was last validated against.
+appVersion: "latest"
+keywords:
+  - monitoring
+  - synthetic
+  - prometheus
+  - uptime
+home: https://github.com/jesseheady/technician
+sources:
+  - https://github.com/jesseheady/technician
+maintainers:
+  - name: jesseheady
