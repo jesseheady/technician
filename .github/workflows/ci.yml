@@ -207,8 +207,10 @@ jobs:
     needs: [changes, build, test, lint, validate, validate-playwright]
     steps:
       - name: Check results
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+          if [[ "$FAILED" == "true" ]]; then
             echo "A required job failed or was cancelled"
             exit 1
           fi
