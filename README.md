@@ -2,6 +2,8 @@
 
 A single Go binary that checks your infrastructure over the network. Thirteen check types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
 
+**What this is not:** Technician is not a fleet agent, service discovery tool, or alerting engine. It does not auto-discover targets, manage remote agents, or replace your existing alerting pipeline. One binary, deployed per region, runs scheduled checks and exposes Prometheus metrics — that's the scope.
+
 ## What it does
 
 - **Scheduled checks** — HTTP (with full httptrace timing: DNS, TLS, connect, TTFB, transfer), SMTP (mail server connectivity), traceroute (mtr), and browser (Playwright with Core Web Vitals and HAR recording).
