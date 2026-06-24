@@ -1,0 +1,21 @@
+{{- $root := . -}}
+{{- range $origin := .Values.origins }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "technician.fullname" $root }}-{{ $origin.id }}
+  labels:
+    {{- include "technician.labels" $root | nindent 4 }}
+    technician.io/origin: {{ $origin.id | quote }}
+spec:
+  type: {{ $root.Values.service.type }}
+  selector:
+    {{- include "technician.selectorLabels" $root | nindent 4 }}
+    technician.io/origin: {{ $origin.id | quote }}
+  ports:
+    - name: metrics
+      port: {{ $root.Values.service.port }}
+      targetPort: metrics
+      protocol: TCP
+{{- end }}

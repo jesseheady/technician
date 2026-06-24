@@ -1,0 +1,94 @@
+image:
+  repository: ghcr.io/jesseheady/technician
+  # tag defaults to .Chart.AppVersion when empty. Pin to a digest in production.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# One worker per vantage point. Each entry becomes its own Deployment + Service
+# with a distinct ORIGIN_ID. Replicas are intentionally fixed at 1 per origin —
+# scale by ADDING origins, never by raising replica count.
+#
+# Why: every metric series is labeled by origin. Identical replicas in one
+# origin produce colliding {check,origin} series (duplicate/flapping samples in
+# Prometheus) and multiply load on the targets you monitor by the replica count.
+# The scheduler's stagger is a hash of (check, origin), so same-origin replicas
+# fire simultaneously rather than spreading out.
+#
+# Splitting a single origin's check load across workers (e.g. heavy Playwright
+# checks onto a dedicated worker) needs probe filtering, which is not yet
+# implemented — see https://github.com/jesseheady/technician/issues/15.
+origins:
+  - id: local
+    # extraEnv: []
+    # nodeSelector: {}
+    # tolerations: []
+
+service:
+  type: ClusterIP
+  port: 9590
+
+# Rendered into a ConfigMap mounted read-only at /etc/technician. The same
+# config is shared by every origin; ORIGIN_ID distinguishes them at runtime
+# (this mirrors the documented VPC model: same technician.yml, per-instance
+# ORIGIN_ID). For per-origin check sets, see the probe-filtering issue above.
+config:
+  technician.yml: |
+    service: technician
+    metrics:
+      listen: "0.0.0.0:9590"
+  checks.yml: |
+    # checks: []
+
+# Default resources for network/HTTP probes (lightweight).
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# Playwright/browser checks spawn Node -> Chromium child processes. Enabling
+# this sets shareProcessNamespace: true so PID 1 reaps exited Chromium
+# (otherwise zombies accumulate and grow kernel memory linearly with check
+# runs) and applies the heavier resource profile below.
+# See docs/playwright-scaling.md.
+playwright:
+  enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+# PodMonitor for prometheus-operator. Off by default. When off, scrape the
+# per-origin Services with a static/endpoints scrape config instead.
+podMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  # labels matched by your Prometheus podMonitorSelector:
+  labels: {}
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# With readOnlyRootFilesystem: true, the writable paths the worker needs are
+# backed by emptyDir: /tmp (Playwright HAR/videos/scripts, general scratch) and
+# the non-root user's home (Chromium caches). To persist the status store, set
+# its path in config to a directory under an extra mount and wire a PVC below.
+extraVolumes: []
+extraVolumeMounts: []
