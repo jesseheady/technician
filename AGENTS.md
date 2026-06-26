@@ -165,6 +165,10 @@ Do not push docs-only or test-only changes directly to main. Bundle them with th
 
 Single-line commit messages. No multi-line body. No Co-Authored-By trailers.
 
+**DCO required.** Every commit must carry a `Signed-off-by:` trailer matching the
+author (`git commit -s`). The DCO workflow rejects any PR commit without it; this
+is the one trailer that is required (the no-Co-Authored-By rule still applies).
+
 ## Config changes vs code changes
 
 - Config changes (`config/`, `technician.yml`, `checks/*.yml`): `docker compose restart technician`. No rebuild needed; config is volume-mounted.
