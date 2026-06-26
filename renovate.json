@@ -14,6 +14,11 @@
   },
   "packageRules": [
     {
+      "description": "Don't track our own published app image",
+      "matchPackageNames": ["ghcr.io/jesseheady/technician**"],
+      "enabled": false
+    },
+    {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
       "automerge": true
