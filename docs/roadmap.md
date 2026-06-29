@@ -368,6 +368,13 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### IP protocol preference for HTTP checks
+
+HTTP checks accept an `ip_version` field (`"4"`, `"6"`, or empty for either family) to force the dial address family, matching the existing TCP/UDP/ICMP checks.
+
+- **Config**: `ip_version` on HTTP checks in the checks YAML.
+- **Implementation**: `internal/check/http.go` pins the transport `DialContext` to `tcp4`/`tcp6`; clients are cached per address-family so connection pooling is preserved.
+
 ### Native webhook notifications with severity routing
 
 Built-in webhook alerting directly from the Technician worker, independent of Prometheus/Grafana. Fires on check state transitions (up→down, down→up), new budget violations, and TLS certificate expiry warnings, with per-check cooldown to prevent notification floods.
