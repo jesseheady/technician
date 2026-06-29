@@ -193,10 +193,18 @@ type HTTPCheckConfig struct {
 	Body            string            `yaml:"body"`
 	SkipTLS         bool              `yaml:"skip_tls"`
 	FollowRedirects bool              `yaml:"follow_redirects"`
-	IPVersion       string            `yaml:"ip_version"` // "4", "6", or "" (any)
-	MinTLS          string            `yaml:"min_tls"`    // "1.0".."1.3", or "" (Go default)
-	MaxTLS          string            `yaml:"max_tls"`    // "1.0".."1.3", or "" (Go default)
+	IPVersion       string            `yaml:"ip_version"`   // "4", "6", or "" (any)
+	MinTLS          string            `yaml:"min_tls"`      // "1.0".."1.3", or "" (Go default)
+	MaxTLS          string            `yaml:"max_tls"`      // "1.0".."1.3", or "" (Go default)
+	BasicAuth       *BasicAuth        `yaml:"basic_auth"`   // username/password for HTTP Basic auth
+	BearerToken     string            `yaml:"bearer_token"` // token for "Authorization: Bearer" header
 	Assertions      []Assertion       `yaml:"assertions"`
+}
+
+// BasicAuth holds credentials for HTTP Basic authentication.
+type BasicAuth struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type TCPCheckConfig struct {
@@ -306,6 +314,8 @@ type checkYAML struct {
 	Body            string            `yaml:"body"`
 	SkipTLS         bool              `yaml:"skip_tls"`
 	FollowRedirects bool              `yaml:"follow_redirects"`
+	BasicAuth       *BasicAuth        `yaml:"basic_auth"`
+	BearerToken     string            `yaml:"bearer_token"`
 	Assertions      []Assertion       `yaml:"assertions"`
 
 	// HTTP / TCP — TLS version constraints
@@ -475,10 +485,15 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			IPVersion:       r.IPVersion,
 			MinTLS:          r.MinTLS,
 			MaxTLS:          r.MaxTLS,
+			BasicAuth:       r.BasicAuth,
+			BearerToken:     r.BearerToken,
 			Assertions:      r.Assertions,
 		}
 		if err := validateTLSVersions(c.Name, c.HTTP.MinTLS, c.HTTP.MaxTLS); err != nil {
 			return CheckConfig{}, err
+		}
+		if c.HTTP.BasicAuth != nil && c.HTTP.BearerToken != "" {
+			return CheckConfig{}, fmt.Errorf("check %q: basic_auth and bearer_token are mutually exclusive", c.Name)
 		}
 		if err := validateAssertions(c.Name, c.HTTP.Assertions); err != nil {
 			return CheckConfig{}, err
