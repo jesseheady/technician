@@ -151,6 +151,7 @@ type HTTPCheckConfig struct {
 	Body            string            `yaml:"body"`
 	SkipTLS         bool              `yaml:"skip_tls"`
 	FollowRedirects bool              `yaml:"follow_redirects"`
+	IPVersion       string            `yaml:"ip_version"` // "4", "6", or "" (any)
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
@@ -421,6 +422,7 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			Body:            r.Body,
 			SkipTLS:         r.SkipTLS,
 			FollowRedirects: r.FollowRedirects,
+			IPVersion:       r.IPVersion,
 			Assertions:      r.Assertions,
 		}
 		if err := validateAssertions(c.Name, c.HTTP.Assertions); err != nil {

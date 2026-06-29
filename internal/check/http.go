@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"regexp"
@@ -19,6 +20,7 @@ import (
 type httpClientKey struct {
 	skipTLS         bool
 	followRedirects bool
+	ipVersion       string
 }
 
 type HTTPChecker struct {
@@ -34,8 +36,8 @@ func NewHTTPChecker() *HTTPChecker {
 
 // getClient returns a shared *http.Client for the given config, reusing
 // transports so TCP/TLS connections are pooled across check runs.
-func (p *HTTPChecker) getClient(skipTLS, followRedirects bool) *http.Client {
-	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects}
+func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion string) *http.Client {
+	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects, ipVersion: ipVersion}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if c, ok := p.clients[key]; ok {
@@ -49,6 +51,14 @@ func (p *HTTPChecker) getClient(skipTLS, followRedirects bool) *http.Client {
 		MaxIdleConnsPerHost: 5,
 		IdleConnTimeout:     90 * time.Second,
 	}
+	// Force the address family when ip_version is set; the dialer honors
+	// the tcp4/tcp6 network and ignores the network passed by the transport.
+	if network := ipVersionNetwork(ipVersion); network != "tcp" {
+		dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
+		transport.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, addr)
+		}
+	}
 	client := &http.Client{Transport: transport}
 	if !followRedirects {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -57,6 +67,19 @@ func (p *HTTPChecker) getClient(skipTLS, followRedirects bool) *http.Client {
 	}
 	p.clients[key] = client
 	return client
+}
+
+// ipVersionNetwork maps an ip_version config value to a dial network.
+// "4" and "6" force IPv4/IPv6; anything else allows either family.
+func ipVersionNetwork(ipVersion string) string {
+	switch ipVersion {
+	case "4":
+		return "tcp4"
+	case "6":
+		return "tcp6"
+	default:
+		return "tcp"
+	}
 }
 
 func (p *HTTPChecker) Type() config.CheckType {
@@ -131,7 +154,7 @@ func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		req.Header.Set(k, v)
 	}
 
-	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects)
+	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion)
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)

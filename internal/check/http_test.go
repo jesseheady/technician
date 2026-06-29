@@ -49,6 +49,54 @@ func TestHTTPCheckerSuccess(t *testing.T) {
 	}
 }
 
+func TestHTTPCheckerIPVersion(t *testing.T) {
+	// httptest serves on 127.0.0.1, so ip_version "4" must succeed and
+	// "6" must fail to connect because the IPv4 address can't be reached
+	// over a tcp6-forced dial.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	origin := &config.Origin{ID: "test", City: "Test", Country: "XX"}
+
+	t.Run("force IPv4 succeeds", func(t *testing.T) {
+		checker := NewHTTPChecker()
+		cfg := &config.CheckConfig{
+			Name:    "ipv4",
+			Type:    config.CheckTypeHTTP,
+			Timeout: 5 * time.Second,
+			HTTP: &config.HTTPCheckConfig{
+				URL:            server.URL,
+				Method:         "GET",
+				ExpectedStatus: 200,
+				IPVersion:      "4",
+			},
+		}
+		if result := checker.Run(context.Background(), cfg, origin); !result.Success {
+			t.Errorf("expected success forcing IPv4, got error: %s", result.Error)
+		}
+	})
+
+	t.Run("force IPv6 fails for IPv4 target", func(t *testing.T) {
+		checker := NewHTTPChecker()
+		cfg := &config.CheckConfig{
+			Name:    "ipv6",
+			Type:    config.CheckTypeHTTP,
+			Timeout: 5 * time.Second,
+			HTTP: &config.HTTPCheckConfig{
+				URL:            server.URL,
+				Method:         "GET",
+				ExpectedStatus: 200,
+				IPVersion:      "6",
+			},
+		}
+		if result := checker.Run(context.Background(), cfg, origin); result.Success {
+			t.Error("expected failure forcing IPv6 against an IPv4-only target")
+		}
+	})
+}
+
 func TestHTTPCheckerUnexpectedStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -326,8 +326,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
 
-- **IP protocol preference for HTTP** [#29](https://github.com/jesseheady/technician/issues/29) — Force IPv4 or IPv6 for HTTP checks (TCP/DNS/ICMP already support this). Low priority.
-
 - **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
 - **Native HTTP Basic/Bearer auth fields** [#31](https://github.com/jesseheady/technician/issues/31) — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
@@ -369,6 +367,13 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### IP protocol preference for HTTP checks
+
+HTTP checks accept an `ip_version` field (`"4"`, `"6"`, or empty for either family) to force the dial address family, matching the existing TCP/UDP/ICMP checks.
+
+- **Config**: `ip_version` on HTTP checks in the checks YAML.
+- **Implementation**: `internal/check/http.go` pins the transport `DialContext` to `tcp4`/`tcp6`; clients are cached per address-family so connection pooling is preserved.
 
 ### Native webhook notifications with severity routing
 
