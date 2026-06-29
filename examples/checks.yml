@@ -133,6 +133,22 @@
 #   schedule: "0 */5 * * * *"
 #   degraded_after: 2s
 
+# HTTP Basic auth (dedicated fields — set the Authorization header for you):
+# - name: protected-endpoint
+#   url: https://api.example.com/private
+#   basic_auth:
+#     username: "${API_USER}"
+#     password: "${API_PASSWORD}"
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
+# Bearer token auth (mutually exclusive with basic_auth):
+# - name: bearer-endpoint
+#   url: https://api.example.com/private
+#   bearer_token: "${API_TOKEN}"
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
 # Example TCP checks.
 # Tests that the target accepts TCP connections on the given port.
 # degraded_after guidance:

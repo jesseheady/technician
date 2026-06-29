@@ -801,6 +801,68 @@ func TestLoadHTTPCheckHeaderAssertionValidation(t *testing.T) {
 	}
 }
 
+func TestLoadHTTPCheckAuthFields(t *testing.T) {
+	content := `
+- name: Basic Auth
+  type: http
+  url: https://example.com
+  basic_auth:
+    username: alice
+    password: s3cret
+- name: Bearer Auth
+  type: http
+  url: https://example.com
+  bearer_token: abc.def.ghi
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "http.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	checks, err := LoadChecks(checksDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]CheckConfig{}
+	for _, c := range checks {
+		byName[c.Name] = c
+	}
+	if ba := byName["Basic Auth"].HTTP.BasicAuth; ba == nil || ba.Username != "alice" || ba.Password != "s3cret" {
+		t.Errorf("expected basic_auth alice/s3cret, got %+v", ba)
+	}
+	if tok := byName["Bearer Auth"].HTTP.BearerToken; tok != "abc.def.ghi" {
+		t.Errorf("expected bearer_token abc.def.ghi, got %q", tok)
+	}
+}
+
+func TestLoadHTTPCheckAuthMutuallyExclusive(t *testing.T) {
+	content := `
+- name: Both Auth
+  type: http
+  url: https://example.com
+  bearer_token: abc.def.ghi
+  basic_auth:
+    username: alice
+    password: s3cret
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "http.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadChecks(checksDir)
+	if err == nil {
+		t.Fatal("expected error when both basic_auth and bearer_token are set")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("expected error to contain 'mutually exclusive', got: %s", err.Error())
+	}
+}
+
 func TestLoadTLSChecks(t *testing.T) {
 	content := `
 - name: API Cert

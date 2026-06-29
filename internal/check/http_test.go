@@ -206,6 +206,65 @@ func TestHTTPCheckerHeaders(t *testing.T) {
 	}
 }
 
+func TestHTTPCheckerBasicAuth(t *testing.T) {
+	var gotUser, gotPass string
+	var gotOK bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUser, gotPass, gotOK = r.BasicAuth()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	checker := NewHTTPChecker()
+	cfg := &config.CheckConfig{
+		Name:    "test-basic-auth",
+		Type:    config.CheckTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPCheckConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			BasicAuth:      &config.BasicAuth{Username: "alice", Password: "s3cret"},
+		},
+	}
+
+	if result := checker.Run(context.Background(), cfg, nil); !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if !gotOK || gotUser != "alice" || gotPass != "s3cret" {
+		t.Errorf("expected basic auth alice/s3cret, got ok=%v user=%q pass=%q", gotOK, gotUser, gotPass)
+	}
+}
+
+func TestHTTPCheckerBearerToken(t *testing.T) {
+	var receivedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	checker := NewHTTPChecker()
+	cfg := &config.CheckConfig{
+		Name:    "test-bearer",
+		Type:    config.CheckTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPCheckConfig{
+			URL:            server.URL,
+			Method:         "GET",
+			ExpectedStatus: 200,
+			BearerToken:    "abc.def.ghi",
+		},
+	}
+
+	if result := checker.Run(context.Background(), cfg, nil); !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if receivedAuth != "Bearer abc.def.ghi" {
+		t.Errorf("expected bearer auth header, got %q", receivedAuth)
+	}
+}
+
 func TestHTTPCheckerTimingFields(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

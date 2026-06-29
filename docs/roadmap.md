@@ -326,8 +326,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
-- **Native HTTP Basic/Bearer auth fields** [#31](https://github.com/jesseheady/technician/issues/31) — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
-
 - **SMTP STARTTLS and auth** [#32](https://github.com/jesseheady/technician/issues/32) — The SMTP check currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
 
 ### Observability and export
@@ -365,6 +363,13 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Native HTTP Basic/Bearer auth fields
+
+HTTP checks accept dedicated `basic_auth` (`username`/`password`) and `bearer_token` fields instead of hand-rolling an `Authorization` header. The two are mutually exclusive and validated at config load time; dedicated fields take precedence over any raw `Authorization` header.
+
+- **Config**: `basic_auth: {username, password}` or `bearer_token` on HTTP checks (supports `${ENV_VAR}` expansion).
+- **Implementation**: `internal/check/http.go` applies the credentials via `req.SetBasicAuth` / a `Bearer` header; `internal/config/checks.go` enforces mutual exclusion.
 
 ### TLS version constraints for HTTP and TCP checks
 
