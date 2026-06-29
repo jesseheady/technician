@@ -118,6 +118,13 @@
 #   schedule: "0 */5 * * * *"
 #   degraded_after: 2s
 
+# Force IPv4 or IPv6 (omit for either family):
+# - name: example.com (IPv6)
+#   url: https://example.com
+#   ip_version: "6"
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
 # Example TCP checks.
 # Tests that the target accepts TCP connections on the given port.
 # degraded_after guidance:

@@ -326,8 +326,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
 
-- **IP protocol preference for HTTP** [#29](https://github.com/jesseheady/technician/issues/29) — Force IPv4 or IPv6 for HTTP checks (TCP/DNS/ICMP already support this). Low priority.
-
 - **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
 - **Native HTTP Basic/Bearer auth fields** [#31](https://github.com/jesseheady/technician/issues/31) — Dedicated config fields instead of raw headers. Achievable via `headers` config today; first-class fields are a convenience, not a capability gap.
