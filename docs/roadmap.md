@@ -322,8 +322,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Checks and protocol
 
-- **TLS version constraints** [#27](https://github.com/jesseheady/technician/issues/27) — Min/max TLS version for HTTP and TCP checks. Low priority; rarely needed for synthetic monitoring.
-
 - **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
 
 - **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
@@ -367,6 +365,13 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### TLS version constraints for HTTP and TCP checks
+
+HTTP and TCP (with `tls: true`) checks accept `min_tls` and `max_tls` fields (`"1.0".."1.3"`) to pin the negotiated TLS version. Values are validated at config load time — unknown versions and an inverted min/max range are rejected.
+
+- **Config**: `min_tls` / `max_tls` on HTTP and TCP checks (omit for the Go default range).
+- **Implementation**: `config.TLSVersion` maps the strings to `crypto/tls` constants; `internal/check/http.go` and `internal/check/tcp.go` apply them to the `tls.Config`.
 
 ### IP protocol preference for HTTP checks
 

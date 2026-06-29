@@ -190,6 +190,63 @@ func TestLoadTCPChecks(t *testing.T) {
 	}
 }
 
+func TestLoadHTTPCheckTLSVersions(t *testing.T) {
+	content := `
+- name: TLS Pinned
+  type: http
+  url: https://example.com
+  min_tls: "1.2"
+  max_tls: "1.3"
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "http.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	checks, err := LoadChecks(checksDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checks[0].HTTP.MinTLS != "1.2" || checks[0].HTTP.MaxTLS != "1.3" {
+		t.Errorf("expected min_tls=1.2 max_tls=1.3, got %q/%q", checks[0].HTTP.MinTLS, checks[0].HTTP.MaxTLS)
+	}
+}
+
+func TestLoadCheckInvalidTLSVersion(t *testing.T) {
+	cases := map[string]string{
+		"unknown version": `
+- name: Bad
+  type: http
+  url: https://example.com
+  min_tls: "1.5"
+`,
+		"min higher than max": `
+- name: Inverted
+  type: tcp
+  host: example.com
+  port: 443
+  tls: true
+  min_tls: "1.3"
+  max_tls: "1.2"
+`,
+	}
+	for name, content := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			checksDir := filepath.Join(dir, "checks")
+			os.MkdirAll(checksDir, 0o755)
+			if err := os.WriteFile(filepath.Join(checksDir, "c.yml"), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadChecks(checksDir); err == nil {
+				t.Fatal("expected error for invalid TLS version config")
+			}
+		})
+	}
+}
+
 func TestLoadDNSChecks(t *testing.T) {
 	content := `
 - name: Google DNS
