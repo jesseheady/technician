@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
@@ -16,6 +17,47 @@ import (
 var validAssertionTypes = map[string]bool{
 	"contains": true, "not_contains": true, "regex": true,
 	"header_contains": true, "header_not_contains": true, "header_regex": true,
+}
+
+// TLSVersion maps a config string ("1.0".."1.3") to a crypto/tls version
+// constant. The second return value is false for unrecognized strings.
+func TLSVersion(s string) (uint16, bool) {
+	switch s {
+	case "1.0":
+		return tls.VersionTLS10, true
+	case "1.1":
+		return tls.VersionTLS11, true
+	case "1.2":
+		return tls.VersionTLS12, true
+	case "1.3":
+		return tls.VersionTLS13, true
+	default:
+		return 0, false
+	}
+}
+
+// validateTLSVersions checks that min_tls/max_tls are recognized values and
+// that min does not exceed max. Empty strings mean "unset" and are allowed.
+func validateTLSVersions(name, minTLS, maxTLS string) error {
+	var minV, maxV uint16
+	if minTLS != "" {
+		v, ok := TLSVersion(minTLS)
+		if !ok {
+			return fmt.Errorf("check %q: invalid min_tls %q (want 1.0, 1.1, 1.2, or 1.3)", name, minTLS)
+		}
+		minV = v
+	}
+	if maxTLS != "" {
+		v, ok := TLSVersion(maxTLS)
+		if !ok {
+			return fmt.Errorf("check %q: invalid max_tls %q (want 1.0, 1.1, 1.2, or 1.3)", name, maxTLS)
+		}
+		maxV = v
+	}
+	if minV != 0 && maxV != 0 && minV > maxV {
+		return fmt.Errorf("check %q: min_tls %q is higher than max_tls %q", name, minTLS, maxTLS)
+	}
+	return nil
 }
 
 type CheckType string
@@ -152,6 +194,8 @@ type HTTPCheckConfig struct {
 	SkipTLS         bool              `yaml:"skip_tls"`
 	FollowRedirects bool              `yaml:"follow_redirects"`
 	IPVersion       string            `yaml:"ip_version"` // "4", "6", or "" (any)
+	MinTLS          string            `yaml:"min_tls"`    // "1.0".."1.3", or "" (Go default)
+	MaxTLS          string            `yaml:"max_tls"`    // "1.0".."1.3", or "" (Go default)
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
@@ -160,6 +204,8 @@ type TCPCheckConfig struct {
 	Port       int    `yaml:"port"`
 	IPVersion  string `yaml:"ip_version"` // "4", "6", or "" (any)
 	TLS        bool   `yaml:"tls"`
+	MinTLS     string `yaml:"min_tls"`     // "1.0".."1.3", or "" (Go default); applies when tls is true
+	MaxTLS     string `yaml:"max_tls"`     // "1.0".."1.3", or "" (Go default); applies when tls is true
 	Send       string `yaml:"send"`        // optional bytes to send
 	ExpectRecv string `yaml:"expect_recv"` // optional expected response substring
 }
@@ -261,6 +307,10 @@ type checkYAML struct {
 	SkipTLS         bool              `yaml:"skip_tls"`
 	FollowRedirects bool              `yaml:"follow_redirects"`
 	Assertions      []Assertion       `yaml:"assertions"`
+
+	// HTTP / TCP — TLS version constraints
+	MinTLS string `yaml:"min_tls"`
+	MaxTLS string `yaml:"max_tls"`
 
 	// TCP / SMTP / ICMP / Traceroute / gRPC / NTP / TLS / Domain Expiry
 	Host      string `yaml:"host"`
@@ -423,7 +473,12 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			SkipTLS:         r.SkipTLS,
 			FollowRedirects: r.FollowRedirects,
 			IPVersion:       r.IPVersion,
+			MinTLS:          r.MinTLS,
+			MaxTLS:          r.MaxTLS,
 			Assertions:      r.Assertions,
+		}
+		if err := validateTLSVersions(c.Name, c.HTTP.MinTLS, c.HTTP.MaxTLS); err != nil {
+			return CheckConfig{}, err
 		}
 		if err := validateAssertions(c.Name, c.HTTP.Assertions); err != nil {
 			return CheckConfig{}, err
@@ -435,8 +490,13 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			Port:       r.Port,
 			IPVersion:  r.IPVersion,
 			TLS:        r.TLS,
+			MinTLS:     r.MinTLS,
+			MaxTLS:     r.MaxTLS,
 			Send:       r.Send,
 			ExpectRecv: r.ExpectRecv,
+		}
+		if err := validateTLSVersions(c.Name, c.TCP.MinTLS, c.TCP.MaxTLS); err != nil {
+			return CheckConfig{}, err
 		}
 
 	case CheckTypeDNS:
