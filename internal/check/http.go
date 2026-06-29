@@ -164,6 +164,14 @@ func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		req.Header.Set(k, v)
 	}
 
+	// Dedicated auth fields take precedence over a raw Authorization header.
+	// Config validation guarantees basic_auth and bearer_token are not both set.
+	if hcfg.BasicAuth != nil {
+		req.SetBasicAuth(hcfg.BasicAuth.Username, hcfg.BasicAuth.Password)
+	} else if hcfg.BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+hcfg.BearerToken)
+	}
+
 	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion, hcfg.MinTLS, hcfg.MaxTLS)
 
 	reqStart = time.Now()
