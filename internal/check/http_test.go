@@ -2,6 +2,7 @@ package check
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -93,6 +94,55 @@ func TestHTTPCheckerIPVersion(t *testing.T) {
 		}
 		if result := checker.Run(context.Background(), cfg, origin); result.Success {
 			t.Error("expected failure forcing IPv6 against an IPv4-only target")
+		}
+	})
+}
+
+func TestHTTPCheckerMinTLS(t *testing.T) {
+	// Server caps at TLS 1.2. A client requiring min 1.2 succeeds; a client
+	// requiring min 1.3 fails the handshake.
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.TLS = &tls.Config{MaxVersion: tls.VersionTLS12}
+	server.StartTLS()
+	defer server.Close()
+
+	t.Run("min_tls satisfied", func(t *testing.T) {
+		checker := NewHTTPChecker()
+		cfg := &config.CheckConfig{
+			Name:    "tls-ok",
+			Type:    config.CheckTypeHTTP,
+			Timeout: 5 * time.Second,
+			HTTP: &config.HTTPCheckConfig{
+				URL:            server.URL,
+				Method:         "GET",
+				ExpectedStatus: 200,
+				SkipTLS:        true, // self-signed test cert
+				MinTLS:         "1.2",
+			},
+		}
+		if result := checker.Run(context.Background(), cfg, nil); !result.Success {
+			t.Errorf("expected success with min_tls 1.2, got error: %s", result.Error)
+		}
+	})
+
+	t.Run("min_tls violated", func(t *testing.T) {
+		checker := NewHTTPChecker()
+		cfg := &config.CheckConfig{
+			Name:    "tls-fail",
+			Type:    config.CheckTypeHTTP,
+			Timeout: 5 * time.Second,
+			HTTP: &config.HTTPCheckConfig{
+				URL:            server.URL,
+				Method:         "GET",
+				ExpectedStatus: 200,
+				SkipTLS:        true,
+				MinTLS:         "1.3",
+			},
+		}
+		if result := checker.Run(context.Background(), cfg, nil); result.Success {
+			t.Error("expected handshake failure when min_tls 1.3 exceeds server max 1.2")
 		}
 	})
 }

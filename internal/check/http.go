@@ -21,6 +21,8 @@ type httpClientKey struct {
 	skipTLS         bool
 	followRedirects bool
 	ipVersion       string
+	minTLS          string
+	maxTLS          string
 }
 
 type HTTPChecker struct {
@@ -36,17 +38,25 @@ func NewHTTPChecker() *HTTPChecker {
 
 // getClient returns a shared *http.Client for the given config, reusing
 // transports so TCP/TLS connections are pooled across check runs.
-func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion string) *http.Client {
-	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects, ipVersion: ipVersion}
+func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion, minTLS, maxTLS string) *http.Client {
+	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects, ipVersion: ipVersion, minTLS: minTLS, maxTLS: maxTLS}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if c, ok := p.clients[key]; ok {
 		return c
 	}
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: skipTLS,
+	}
+	// Config validation guarantees these parse; ignore the ok result.
+	if v, ok := config.TLSVersion(minTLS); ok {
+		tlsCfg.MinVersion = v
+	}
+	if v, ok := config.TLSVersion(maxTLS); ok {
+		tlsCfg.MaxVersion = v
+	}
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: skipTLS,
-		},
+		TLSClientConfig:     tlsCfg,
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 5,
 		IdleConnTimeout:     90 * time.Second,
@@ -154,7 +164,7 @@ func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		req.Header.Set(k, v)
 	}
 
-	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion)
+	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion, hcfg.MinTLS, hcfg.MaxTLS)
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)

@@ -62,9 +62,17 @@ func (p *TCPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 
 	if tcfg.TLS {
 		tlsStart := time.Now()
-		tlsConn := tls.Client(conn, &tls.Config{
+		tlsCfg := &tls.Config{
 			ServerName: tcfg.Host,
-		})
+		}
+		// Config validation guarantees these parse; ignore the ok result.
+		if v, ok := config.TLSVersion(tcfg.MinTLS); ok {
+			tlsCfg.MinVersion = v
+		}
+		if v, ok := config.TLSVersion(tcfg.MaxTLS); ok {
+			tlsCfg.MaxVersion = v
+		}
+		tlsConn := tls.Client(conn, tlsCfg)
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			result.TCPTLSDuration = time.Since(tlsStart)
 			result.Duration = time.Since(start)
