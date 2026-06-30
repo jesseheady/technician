@@ -325,7 +325,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
-- **SMTP STARTTLS and auth** [#32](https://github.com/jesseheady/technician/issues/32) — The SMTP check currently verifies basic mail server connectivity only. Full STARTTLS negotiation and authenticated sends would add value for email infrastructure monitoring. Moderate effort.
 
 ### Observability and export
 
@@ -360,6 +359,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### SMTP STARTTLS and authentication
+
+The SMTP check now negotiates STARTTLS (`start_tls: true`, failing if the server doesn't advertise it) and optionally authenticates over the encrypted channel (`username`/`password`, PLAIN auth). `skip_tls` allows self-signed mail servers. Config validation enforces that auth requires `start_tls` and that username/password are set together. This extends the check beyond basic connectivity for email-infrastructure monitoring.
 
 ### Scheduler dependency: robfig/cron → gronx + stdlib
 

@@ -2,6 +2,7 @@ package check
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
@@ -63,12 +64,41 @@ func (p *SMTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		return result
 	}
 
+	if scfg.StartTLS {
+		if ok, _ := client.Extension("STARTTLS"); !ok {
+			result.Duration = time.Since(start)
+			result.Error = fmt.Sprintf("server %s does not advertise STARTTLS", addr)
+			return result
+		}
+		tlsConfig := &tls.Config{
+			ServerName:         scfg.Host,
+			InsecureSkipVerify: scfg.SkipTLS, // #nosec G402 -- opt-in via skip_tls for self-signed mail servers
+		}
+		if err := client.StartTLS(tlsConfig); err != nil {
+			result.Duration = time.Since(start)
+			result.Error = fmt.Sprintf("STARTTLS negotiation with %s failed: %v", addr, err)
+			return result
+		}
+	}
+
+	if scfg.Username != "" {
+		// Config validation guarantees start_tls is set, so AUTH runs over TLS.
+		auth := smtp.PlainAuth("", scfg.Username, scfg.Password, scfg.Host)
+		if err := client.Auth(auth); err != nil {
+			result.Duration = time.Since(start)
+			result.Error = fmt.Sprintf("SMTP authentication to %s failed: %v", addr, err)
+			return result
+		}
+	}
+
 	result.Duration = time.Since(start)
 	result.Success = true
 
 	slog.Debug("SMTP check completed",
 		"name", cfg.Name,
 		"host", addr,
+		"start_tls", scfg.StartTLS,
+		"authenticated", scfg.Username != "",
 		"duration", result.Duration,
 	)
 
