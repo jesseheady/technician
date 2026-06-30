@@ -267,7 +267,16 @@
 #   schedule: "0 */5 * * * *"
 #   degraded_after: 500ms
 
-# Supported record types: A, AAAA, MX, TXT, CNAME, NS, SRV
+# SOA record check (zone apex). The answer is "mname rname serial refresh
+# retry expire minimum"; set expected to that string to assert on it.
+# - name: Zone SOA
+#   domain: example.com
+#   server: "8.8.8.8:53"
+#   record_type: SOA
+#   schedule: "0 */15 * * * *"
+#   degraded_after: 500ms
+
+# Supported record types: A, AAAA, MX, TXT, CNAME, NS, SOA, SRV
 # Default server: 8.8.8.8:53
 
 # Example ICMP (ping) checks.
