@@ -335,8 +335,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Status page and UI
 
-- **Latency percentile Grafana panels** [#35](https://github.com/jesseheady/technician/issues/35) — The Grafana dashboards have latency trend graphs but no dedicated P50/P90/P99 panels. Add percentile stat panels and histogram panels to the HTTP Timing and Uptime Overview dashboards.
-
 - **Per-region latency comparison** [#36](https://github.com/jesseheady/technician/issues/36) — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
 
 - **Latency trend sparklines on status page** [#37](https://github.com/jesseheady/technician/issues/37) — Small inline SVG sparklines per check row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
@@ -360,6 +358,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Latency percentile Grafana panels
+
+Added P50/P90/P99 stat panels plus a latency-distribution histogram to the HTTP Timing (TTFB) and Uptime Overview (check duration) dashboards. Because `technician_check_duration_seconds` / `technician_http_ttfb_seconds` are gauges (not histograms), the percentiles are computed with `quantile_over_time(φ, metric[$__range])` rather than `histogram_quantile`, and the histogram panels bin the raw gauge samples.
 
 ### Scheduler dependency: robfig/cron → gronx + stdlib
 
