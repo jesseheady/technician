@@ -147,6 +147,38 @@ func TestHTTPCheckerMinTLS(t *testing.T) {
 	})
 }
 
+func TestHTTPCheckerProxy(t *testing.T) {
+	// A real proxy receives the absolute-URI request for an http:// target, so
+	// we can confirm routing without contacting the target at all.
+	var proxied bool
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxied = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer proxy.Close()
+
+	checker := NewHTTPChecker()
+	cfg := &config.CheckConfig{
+		Name:    "test-proxy",
+		Type:    config.CheckTypeHTTP,
+		Timeout: 5 * time.Second,
+		HTTP: &config.HTTPCheckConfig{
+			URL:            "http://example.invalid/",
+			Method:         "GET",
+			ExpectedStatus: 200,
+			Proxy:          proxy.URL,
+		},
+	}
+
+	result := checker.Run(context.Background(), cfg, nil)
+	if !proxied {
+		t.Error("expected the request to be routed through the proxy")
+	}
+	if !result.Success {
+		t.Errorf("expected success via proxy, got error: %s", result.Error)
+	}
+}
+
 func TestHTTPCheckerUnexpectedStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

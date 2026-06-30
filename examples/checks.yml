@@ -149,6 +149,13 @@
 #   schedule: "0 */5 * * * *"
 #   degraded_after: 2s
 
+# Route through an HTTP/HTTPS proxy (e.g. for checks behind a corporate proxy):
+# - name: via-proxy
+#   url: https://example.com
+#   proxy: "http://proxy.example.com:8080"
+#   schedule: "0 */5 * * * *"
+#   degraded_after: 2s
+
 # Example TCP checks.
 # Tests that the target accepts TCP connections on the given port.
 # degraded_after guidance:
