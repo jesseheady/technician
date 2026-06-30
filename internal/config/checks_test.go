@@ -190,6 +190,46 @@ func TestLoadTCPChecks(t *testing.T) {
 	}
 }
 
+func TestLoadHTTPCheckProxy(t *testing.T) {
+	content := `
+- name: Via Proxy
+  type: http
+  url: https://example.com
+  proxy: http://proxy.example.com:8080
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "http.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checks, err := LoadChecks(checksDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checks[0].HTTP.Proxy != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy parsed, got %q", checks[0].HTTP.Proxy)
+	}
+}
+
+func TestLoadHTTPCheckInvalidProxy(t *testing.T) {
+	content := `
+- name: Bad Proxy
+  type: http
+  url: https://example.com
+  proxy: "not a url"
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "http.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadChecks(checksDir); err == nil {
+		t.Fatal("expected error for invalid proxy URL")
+	}
+}
+
 func TestLoadHTTPCheckTLSVersions(t *testing.T) {
 	content := `
 - name: TLS Pinned

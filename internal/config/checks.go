@@ -198,6 +198,7 @@ type HTTPCheckConfig struct {
 	MaxTLS          string            `yaml:"max_tls"`      // "1.0".."1.3", or "" (Go default)
 	BasicAuth       *BasicAuth        `yaml:"basic_auth"`   // username/password for HTTP Basic auth
 	BearerToken     string            `yaml:"bearer_token"` // token for "Authorization: Bearer" header
+	Proxy           string            `yaml:"proxy"`        // proxy URL, e.g. "http://proxy.example.com:8080" (empty = no proxy)
 	Assertions      []Assertion       `yaml:"assertions"`
 }
 
@@ -320,6 +321,7 @@ type checkYAML struct {
 	FollowRedirects bool              `yaml:"follow_redirects"`
 	BasicAuth       *BasicAuth        `yaml:"basic_auth"`
 	BearerToken     string            `yaml:"bearer_token"`
+	Proxy           string            `yaml:"proxy"`
 	Assertions      []Assertion       `yaml:"assertions"`
 
 	// HTTP / TCP — TLS version constraints
@@ -496,6 +498,7 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			MaxTLS:          r.MaxTLS,
 			BasicAuth:       r.BasicAuth,
 			BearerToken:     r.BearerToken,
+			Proxy:           r.Proxy,
 			Assertions:      r.Assertions,
 		}
 		if err := validateTLSVersions(c.Name, c.HTTP.MinTLS, c.HTTP.MaxTLS); err != nil {
@@ -503,6 +506,12 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 		}
 		if c.HTTP.BasicAuth != nil && c.HTTP.BearerToken != "" {
 			return CheckConfig{}, fmt.Errorf("check %q: basic_auth and bearer_token are mutually exclusive", c.Name)
+		}
+		if c.HTTP.Proxy != "" {
+			u, err := url.Parse(c.HTTP.Proxy)
+			if err != nil || u.Scheme == "" || u.Host == "" {
+				return CheckConfig{}, fmt.Errorf("check %q: invalid proxy URL %q", c.Name, c.HTTP.Proxy)
+			}
 		}
 		if err := validateAssertions(c.Name, c.HTTP.Assertions); err != nil {
 			return CheckConfig{}, err
