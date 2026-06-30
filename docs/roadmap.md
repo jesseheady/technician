@@ -364,6 +364,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Run all checks once on startup
+
+The scheduler executes every check once immediately on boot (each after its existing stagger delay, in the background) before settling into the cron schedule. The status page, Prometheus metrics, and alert rules now have data within seconds of startup instead of waiting up to a full interval for the first tick — which mattered most for long-interval checks like TLS-cert and domain-expiry monitoring.
+
+- **Implementation**: `internal/scheduler/scheduler.go` shares one `execute` path between the startup run and the cron job; `runInitial` fans out the one-shot runs. A check may run once on startup and again on its first cron tick, which is harmless for these read-only probes.
+
 ### Native HTTP Basic/Bearer auth fields
 
 HTTP checks accept dedicated `basic_auth` (`username`/`password`) and `bearer_token` fields instead of hand-rolling an `Authorization` header. The two are mutually exclusive and validated at config load time; dedicated fields take precedence over any raw `Authorization` header.
