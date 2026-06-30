@@ -91,21 +91,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 				time.Sleep(checkDelay)
 			}
 			slog.Debug("Running check", "name", checkCfg.Name, "type", checkCfg.Type)
-			result := runWithRetry(ctx, checker, &checkCfg, s.origin)
-			result.Group = checkCfg.Group
-			result.Target = checkCfg.Target()
-
-			// Mark as degraded if duration exceeds threshold
-			if checkCfg.DegradedAfter > 0 && result.Success && result.Duration > checkCfg.DegradedAfter {
-				result.Degraded = true
-			}
-
-			metrics.RecordResult(result)
-			select {
-			case s.results <- result:
-			default:
-				slog.Warn("Result channel full, dropping result", "name", checkCfg.Name)
-			}
+			s.execute(ctx, checker, &checkCfg)
 		})
 		if err != nil {
 			slog.Error("Failed to schedule check", "name", pc.Name, "schedule", schedule, "error", err)
@@ -114,6 +100,13 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 		slog.Info("Scheduled check", "name", pc.Name, "type", pc.Type, "schedule", schedule)
 	}
+
+	// Run every check once immediately so the status page, metrics, and alert
+	// rules have data within seconds of boot instead of waiting up to a full
+	// interval for the first cron tick (matters most for long-interval checks
+	// like cert/domain expiry). Runs are staggered and happen in the
+	// background, so Start does not block on slow checks.
+	s.runInitial(ctx)
 
 	s.cron.Start()
 
@@ -126,6 +119,53 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+// execute runs a single check (with retry), annotates the result, records
+// metrics, and publishes it. Shared by the recurring cron job and the
+// one-shot startup run so both paths behave identically.
+func (s *Scheduler) execute(ctx context.Context, checker check.Checker, cfg *config.CheckConfig) {
+	result := runWithRetry(ctx, checker, cfg, s.origin)
+	result.Group = cfg.Group
+	result.Target = cfg.Target()
+
+	// Mark as degraded if duration exceeds threshold
+	if cfg.DegradedAfter > 0 && result.Success && result.Duration > cfg.DegradedAfter {
+		result.Degraded = true
+	}
+
+	metrics.RecordResult(result)
+	select {
+	case s.results <- result:
+	default:
+		slog.Warn("Result channel full, dropping result", "name", cfg.Name)
+	}
+}
+
+// runInitial executes every check once on startup, each after its stagger
+// delay, in the background. The cron schedule continues independently; a
+// check may therefore run once here and again on its first cron tick, which
+// is harmless for these read-only probes.
+func (s *Scheduler) runInitial(ctx context.Context) {
+	for i := range s.checks {
+		checker := s.registry.Get(s.checks[i].Type)
+		if checker == nil {
+			continue // already warned about during cron registration
+		}
+		checkCfg := s.checks[i] // capture for closure
+		delay := ComputeStagger(checkCfg.Name, s.origin)
+		go func() {
+			if delay > 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(delay):
+				}
+			}
+			slog.Debug("Running initial check", "name", checkCfg.Name, "type", checkCfg.Type)
+			s.execute(ctx, checker, &checkCfg)
+		}()
+	}
 }
 
 func (s *Scheduler) Results() <-chan *check.Result {
