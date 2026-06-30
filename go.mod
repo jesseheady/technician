@@ -3,10 +3,10 @@ module github.com/jesseheady/technician
 go 1.26.4
 
 require (
+	github.com/adhocore/gronx v1.20.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.2
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0

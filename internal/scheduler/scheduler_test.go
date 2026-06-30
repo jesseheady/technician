@@ -2,12 +2,24 @@ package scheduler
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jesseheady/technician/internal/check"
 	"github.com/jesseheady/technician/internal/config"
 )
+
+// countingChecker is a race-safe checker for tests where the startup run and a
+// scheduled tick may invoke Run concurrently.
+type countingChecker struct{ runs atomic.Int64 }
+
+func (c *countingChecker) Type() config.CheckType { return config.CheckTypeHTTP }
+
+func (c *countingChecker) Run(_ context.Context, _ *config.CheckConfig, _ *config.Origin) *check.Result {
+	c.runs.Add(1)
+	return &check.Result{Success: true}
+}
 
 // TestSchedulerRunsChecksOnStartup verifies that Start executes each check
 // once immediately, without waiting for the first cron tick. The schedule is
@@ -38,6 +50,38 @@ func TestSchedulerRunsChecksOnStartup(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected a check result from the startup run, got none")
+	}
+}
+
+// TestSchedulerRunsOnSchedule verifies the gronx-driven loop fires on the cron
+// schedule: with an every-second schedule we expect the immediate startup run
+// plus at least one scheduled tick within a few seconds.
+func TestSchedulerRunsOnSchedule(t *testing.T) {
+	c := &countingChecker{}
+	reg := NewCheckerRegistry()
+	reg.Register(c)
+
+	cfg := &config.Config{}
+	checks := []config.CheckConfig{
+		{Name: "tick", Type: config.CheckTypeHTTP, Schedule: "* * * * * *"}, // every second
+	}
+	s := New(cfg, checks, reg, "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := s.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	got := 0
+	deadline := time.After(4 * time.Second)
+	for got < 2 {
+		select {
+		case <-s.Results():
+			got++
+		case <-deadline:
+			t.Fatalf("expected >=2 results (startup + scheduled tick), got %d", got)
+		}
 	}
 }
 

@@ -361,6 +361,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Scheduler dependency: robfig/cron → gronx + stdlib
+
+Replaced the abandoned `github.com/robfig/cron/v3` (last release 2020, Renovate-flagged) with [`gronx`](https://github.com/adhocore/gronx) for cron-expression parsing plus a standard-library timer loop we own. Each check runs in its own `runLoop` goroutine that computes the next tick with `gronx.NextTick` and waits for it; runs are synchronous per check, so a slow probe can delay or skip its own next tick but never pile up overlapping runs. Shutdown now waits on a `sync.WaitGroup` covering both the schedule loops and the one-shot startup runs before closing the results channel. `robfig/cron/v3` is gone from `go.mod` entirely (direct and indirect).
+
 ### Status store backup rotation
 
 Already shipped (issue [#41](https://github.com/jesseheady/technician/issues/41) closed as done). The status store writes dated daily backups of `status.json` with 90-day retention (`SaveBackup`/`pruneBackups` in `internal/status/store.go`), and `load()` falls back to the most recent backup when the primary file is missing or fails to parse — guarding against corrupt writes. Rotation is time-based (90 days) rather than a fixed count, achieving the same protection.
