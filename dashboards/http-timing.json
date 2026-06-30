@@ -526,11 +526,11 @@
     },
     {
       "id": 10,
-      "title": "TTFB P50 (median)",
-      "type": "stat",
+      "title": "TTFB Percentiles by Check",
+      "type": "table",
       "gridPos": {
-        "h": 5,
-        "w": 8,
+        "h": 9,
+        "w": 24,
         "x": 0,
         "y": 31
       },
@@ -541,107 +541,43 @@
       "targets": [
         {
           "expr": "quantile_over_time(0.5, technician_http_ttfb_seconds{region=~\"$region\", name=~\"$check\"}[$__range])",
-          "legendFormat": "{{name}} @ {{region}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
+          "format": "table",
+          "instant": true,
+          "refId": "P50"
         },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto"
-      }
-    },
-    {
-      "id": 11,
-      "title": "TTFB P90",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 8,
-        "x": 8,
-        "y": 31
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "targets": [
         {
           "expr": "quantile_over_time(0.9, technician_http_ttfb_seconds{region=~\"$region\", name=~\"$check\"}[$__range])",
-          "legendFormat": "{{name}} @ {{region}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
+          "format": "table",
+          "instant": true,
+          "refId": "P90"
         },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto"
-      }
-    },
-    {
-      "id": 12,
-      "title": "TTFB P99",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 8,
-        "x": 16,
-        "y": 31
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "targets": [
         {
           "expr": "quantile_over_time(0.99, technician_http_ttfb_seconds{region=~\"$region\", name=~\"$check\"}[$__range])",
-          "legendFormat": "{{name}} @ {{region}}",
-          "refId": "A"
+          "format": "table",
+          "instant": true,
+          "refId": "P99"
+        }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": { "name": "Check", "region": "Site", "Value #P50": "P50", "Value #P90": "P90", "Value #P99": "P99" }
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } }
+        },
+        "overrides": []
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto"
+        "showHeader": true,
+        "sortBy": [ { "displayName": "P99", "desc": true } ]
       }
     },
     {
@@ -652,7 +588,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 40
       },
       "datasource": {
         "type": "prometheus",
