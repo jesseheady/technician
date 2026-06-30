@@ -144,30 +144,29 @@ Run a targeted subset of checks per worker based on type, group, or tag. Configu
 
 ### Maintenance mode [#22](https://github.com/jesseheady/technician/issues/22)
 
-Suppress alerting and mark checks as "maintenance" on the status page during planned windows. Prevents alert fatigue during deploys or scheduled downtime.
+**Display-only** status-page maintenance badge. Alert suppression is **not** in scope — that stays in Alertmanager (mute time intervals for planned windows, silences for ad-hoc; see [alerting.md § Maintenance windows](alerting.md#maintenance-windows)). Technician should not be a second place to reason about "is it muted?".
+
+When a check or group has a declared maintenance window, Technician's own status page shows a distinct **maintenance** badge instead of "down". Checks keep running and record true state; only the presentation changes.
 
 **What's needed:**
 
-- Per-check `maintenance` config: either a boolean `maintenance: true` for manual toggle, or a time window `maintenance_windows` with start/end times.
-- Scheduler skips webhook notifications for checks in maintenance (checks still run to track actual state).
-- Status page shows maintenance badge instead of failure state.
-- Prometheus label `maintenance="true"` on check metrics during active windows so Grafana alerting rules can exclude them.
-- Optional: `technician maintenance enable <check-name> --duration 2h` CLI command for ad-hoc maintenance without config edit.
+- Declarative `maintenance_windows` (start/end) in check config, at check and group/tag granularity.
+- Render-time evaluation against `now` — no metric/label/gauge and no reconciler, so no staleness lag.
+- Status page renders a maintenance badge (icon + reason) in place of the up/down indicator.
+
+**Deferred** until the status page is load-bearing (public/customer-facing, or the single pane engineers rely on); for internal use today, Alertmanager fully covers the operational need. Ad-hoc on/off (as opposed to declared windows) needs an API or admin UI, neither of which exists yet. If the same windows are also wanted for Alertmanager muting, generate the mute time interval from this config rather than declaring it twice.
 
 **Config shape:**
 
 ```yaml
-# In check config
+# In check config — windows drive status-page display only
 - name: API Server
   url: https://api.example.com
-  maintenance: false                    # manual toggle
   maintenance_windows:
-    - start: "2026-03-15T02:00:00Z"    # scheduled window
+    - start: "2026-03-15T02:00:00Z"
       end: "2026-03-15T04:00:00Z"
       reason: "Database migration"
 ```
-
-**Status page display:** Maintenance checks show a wrench/tool icon and "Scheduled Maintenance" label with the reason text, replacing the normal up/down indicator.
 
 ### WebSocket monitoring [#23](https://github.com/jesseheady/technician/issues/23)
 
@@ -356,13 +355,15 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Module path** [#42](https://github.com/jesseheady/technician/issues/42) — `github.com/jesseheady/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
 
-- **Status store backup rotation** [#41](https://github.com/jesseheady/technician/issues/41) — Keep N rotated copies of `status.json` to guard against corrupt writes. Simple, no external dependencies.
-
 - **Incident tracking** — Automatic incident creation/resolution from check failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Status store backup rotation
+
+Already shipped (issue [#41](https://github.com/jesseheady/technician/issues/41) closed as done). The status store writes dated daily backups of `status.json` with 90-day retention (`SaveBackup`/`pruneBackups` in `internal/status/store.go`), and `load()` falls back to the most recent backup when the primary file is missing or fails to parse — guarding against corrupt writes. Rotation is time-based (90 days) rather than a fixed count, achieving the same protection.
 
 ### Run all checks once on startup
 
