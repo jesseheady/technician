@@ -473,6 +473,27 @@
 #     backoff: none
 #     delay: 3s
 
+# STARTTLS negotiation (submission port 587). Verifies the server advertises
+# and completes the STARTTLS upgrade — fails if it can't:
+# - name: Mail STARTTLS
+#   host: smtp.example.com
+#   port: 587
+#   start_tls: true
+#   schedule: "0 */15 * * * *"
+#   degraded_after: 5s
+
+# STARTTLS + authentication. Verifies credentials over the encrypted channel.
+# Auth requires start_tls; username and password must be set together.
+# - name: Mail Auth
+#   host: smtp.example.com
+#   port: 587
+#   start_tls: true
+#   username: "${SMTP_USER}"
+#   password: "${SMTP_PASSWORD}"
+#   skip_tls: false        # set true only for self-signed mail servers
+#   schedule: "0 */15 * * * *"
+#   degraded_after: 5s
+
 # Example traceroute checks.
 # Requires mtr (brew install mtr on macOS). May need root for raw sockets.
 # degraded_after guidance:

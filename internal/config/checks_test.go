@@ -247,6 +247,66 @@ func TestLoadCheckInvalidTLSVersion(t *testing.T) {
 	}
 }
 
+func TestLoadSMTPCheckTLSAuth(t *testing.T) {
+	content := `
+- name: Mail STARTTLS Auth
+  type: smtp
+  host: smtp.example.com
+  port: 587
+  start_tls: true
+  username: mailer
+  password: secret
+`
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	if err := os.WriteFile(filepath.Join(checksDir, "smtp.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checks, err := LoadChecks(checksDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := checks[0].SMTP
+	if !s.StartTLS || s.Username != "mailer" || s.Password != "secret" {
+		t.Errorf("expected start_tls+auth parsed, got %+v", s)
+	}
+}
+
+func TestLoadSMTPCheckInvalidAuth(t *testing.T) {
+	cases := map[string]string{
+		"auth without start_tls": `
+- name: NoTLS
+  type: smtp
+  host: smtp.example.com
+  port: 587
+  username: mailer
+  password: secret
+`,
+		"username without password": `
+- name: HalfAuth
+  type: smtp
+  host: smtp.example.com
+  port: 587
+  start_tls: true
+  username: mailer
+`,
+	}
+	for name, content := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			checksDir := filepath.Join(dir, "checks")
+			os.MkdirAll(checksDir, 0o755)
+			if err := os.WriteFile(filepath.Join(checksDir, "smtp.yml"), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadChecks(checksDir); err == nil {
+				t.Fatal("expected error for invalid SMTP auth config")
+			}
+		})
+	}
+}
+
 func TestLoadDNSChecks(t *testing.T) {
 	content := `
 - name: Google DNS

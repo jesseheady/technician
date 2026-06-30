@@ -273,9 +273,13 @@ type DomainExpirationCheckConfig struct {
 }
 
 type SMTPCheckConfig struct {
-	Host    string        `yaml:"host"`
-	Port    int           `yaml:"port"`
-	Timeout time.Duration `yaml:"timeout"`
+	Host     string        `yaml:"host"`
+	Port     int           `yaml:"port"`
+	Timeout  time.Duration `yaml:"timeout"`
+	StartTLS bool          `yaml:"start_tls"` // negotiate STARTTLS after EHLO
+	SkipTLS  bool          `yaml:"skip_tls"`  // skip TLS cert verification (with start_tls)
+	Username string        `yaml:"username"`  // SMTP AUTH username (requires start_tls)
+	Password string        `yaml:"password"`  // SMTP AUTH password
 }
 
 type TracerouteCheckConfig struct {
@@ -331,6 +335,11 @@ type checkYAML struct {
 	Send       string `yaml:"send"`
 	ExpectRecv string `yaml:"expect_recv"`
 	TLS        bool   `yaml:"tls"`
+
+	// SMTP
+	StartTLS bool   `yaml:"start_tls"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 
 	// DNS
 	Domain     string   `yaml:"domain"`
@@ -617,9 +626,19 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			r.Port = 25
 		}
 		c.SMTP = &SMTPCheckConfig{
-			Host:    r.Host,
-			Port:    r.Port,
-			Timeout: r.Timeout,
+			Host:     r.Host,
+			Port:     r.Port,
+			Timeout:  r.Timeout,
+			StartTLS: r.StartTLS,
+			SkipTLS:  r.SkipTLS,
+			Username: r.Username,
+			Password: r.Password,
+		}
+		if (c.SMTP.Username != "") != (c.SMTP.Password != "") {
+			return CheckConfig{}, fmt.Errorf("check %q: smtp username and password must be set together", c.Name)
+		}
+		if c.SMTP.Username != "" && !c.SMTP.StartTLS {
+			return CheckConfig{}, fmt.Errorf("check %q: smtp authentication requires start_tls", c.Name)
 		}
 
 	case CheckTypeTraceroute:
