@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -23,6 +24,7 @@ type httpClientKey struct {
 	ipVersion       string
 	minTLS          string
 	maxTLS          string
+	proxy           string
 }
 
 type HTTPChecker struct {
@@ -38,8 +40,8 @@ func NewHTTPChecker() *HTTPChecker {
 
 // getClient returns a shared *http.Client for the given config, reusing
 // transports so TCP/TLS connections are pooled across check runs.
-func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion, minTLS, maxTLS string) *http.Client {
-	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects, ipVersion: ipVersion, minTLS: minTLS, maxTLS: maxTLS}
+func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion, minTLS, maxTLS, proxy string) *http.Client {
+	key := httpClientKey{skipTLS: skipTLS, followRedirects: followRedirects, ipVersion: ipVersion, minTLS: minTLS, maxTLS: maxTLS, proxy: proxy}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if c, ok := p.clients[key]; ok {
@@ -60,6 +62,13 @@ func (p *HTTPChecker) getClient(skipTLS, followRedirects bool, ipVersion, minTLS
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 5,
 		IdleConnTimeout:     90 * time.Second,
+	}
+	// Route through an explicit proxy when configured; config validation
+	// guarantees the URL parses, so the error is unreachable.
+	if proxy != "" {
+		if u, err := url.Parse(proxy); err == nil {
+			transport.Proxy = http.ProxyURL(u)
+		}
 	}
 	// Force the address family when ip_version is set; the dialer honors
 	// the tcp4/tcp6 network and ignores the network passed by the transport.
@@ -172,7 +181,7 @@ func (p *HTTPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		req.Header.Set("Authorization", "Bearer "+hcfg.BearerToken)
 	}
 
-	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion, hcfg.MinTLS, hcfg.MaxTLS)
+	client := p.getClient(hcfg.SkipTLS, hcfg.FollowRedirects, hcfg.IPVersion, hcfg.MinTLS, hcfg.MaxTLS, hcfg.Proxy)
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)

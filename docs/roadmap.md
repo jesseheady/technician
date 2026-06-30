@@ -319,12 +319,6 @@ k6 load generation is CPU and memory intensive, unlike Technician's lightweight 
 
 Items here are either partially covered by Grafana dashboards, low priority, or would add complexity that isn't justified yet. Each item includes a rationale for deferral.
 
-### Checks and protocol
-
-- **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
-
-
-
 ### Observability and export
 
 - **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
@@ -332,12 +326,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 - **Prometheus backfill on startup** [#34](https://github.com/jesseheady/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent check metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
 
 ### Status page and UI
-
-- **Per-region latency comparison** [#36](https://github.com/jesseheady/technician/issues/36) — Side-by-side latency by region. Deferred until [central Prometheus](architecture/central-prometheus-grafana.md) is in place, at which point Grafana handles this natively via `region` label grouping.
-
-- **Latency trend sparklines on status page** [#37](https://github.com/jesseheady/technician/issues/37) — Small inline SVG sparklines per check row. The Grafana HTTP Timing dashboard already shows latency trends. Adding SVG sparklines to the status page is possible but adds template complexity for marginal benefit over existing history bars.
-
-- **Tags and filtering** [#38](https://github.com/jesseheady/technician/issues/38) — Arbitrary key-value tags on checks for filtering on the status page (beyond the existing `group` field). Low priority since groups already provide the primary organization dimension.
 
 - **Public/private visibility toggle** [#39](https://github.com/jesseheady/technician/issues/39) — Control which checks are visible on the public status page vs internal-only.
 
@@ -349,13 +337,15 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Operations
 
-- **Module path** [#42](https://github.com/jesseheady/technician/issues/42) — `github.com/jesseheady/technician` uses a personal GitHub account. Consider a dedicated org or project namespace.
-
 - **Incident tracking** — Automatic incident creation/resolution from check failures. Grafana Alerting provides incident-style state management (firing → resolved), and PagerDuty/Grafana OnCall/OpsGenie integrate via the generic webhook sender. Building a first-party incident system would duplicate existing tooling.
 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### HTTP proxy support
+
+HTTP checks accept a `proxy` field (`http://host:port`) to route the request through an explicit proxy — useful for checks running behind a corporate proxy. Implemented via the transport's `Proxy` (clients are cached per proxy), with the URL validated at config load.
 
 ### Full SOA record support for DNS checks
 
