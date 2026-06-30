@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
+	"github.com/miekg/dns"
 )
 
 type DNSChecker struct {
@@ -134,13 +135,10 @@ func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		}
 
 	case "SOA":
-		// SOA isn't directly supported by net.Resolver. As a fallback we verify
-		// the domain resolves via LookupHost. Full SOA support requires miekg/dns.
-		var addrs []string
-		addrs, queryErr = resolver.LookupHost(ctx, domain)
-		if queryErr == nil {
-			answers = addrs
-		}
+		// net.Resolver can't query SOA, so use miekg/dns directly against the
+		// configured server. Answer format: "mname rname serial refresh retry
+		// expire minimum".
+		answers, queryErr = querySOA(ctx, dcfg.Server, domain)
 
 	default:
 		result.Duration = time.Since(start)
@@ -190,4 +188,41 @@ func (p *DNSChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	)
 
 	return result
+}
+
+// querySOA performs a SOA lookup against the given DNS server using miekg/dns,
+// which net.Resolver cannot do. It returns one formatted answer per SOA record
+// found ("mname rname serial refresh retry expire minimum"). SOA records may be
+// returned in the answer or authority section depending on the server.
+func querySOA(ctx context.Context, server, domain string) ([]string, error) {
+	if server == "" {
+		server = "8.8.8.8:53"
+	}
+	if _, _, err := net.SplitHostPort(server); err != nil {
+		server = net.JoinHostPort(server, "53")
+	}
+
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
+
+	c := new(dns.Client)
+	resp, _, err := c.ExchangeContext(ctx, m, server)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Rcode != dns.RcodeSuccess {
+		return nil, fmt.Errorf("SOA query returned %s", dns.RcodeToString[resp.Rcode])
+	}
+
+	var answers []string
+	for _, rr := range append(resp.Answer, resp.Ns...) {
+		if soa, ok := rr.(*dns.SOA); ok {
+			answers = append(answers, fmt.Sprintf("%s %s %d %d %d %d %d",
+				soa.Ns, soa.Mbox, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minttl))
+		}
+	}
+	if len(answers) == 0 {
+		return nil, fmt.Errorf("no SOA record found for %s", domain)
+	}
+	return answers, nil
 }
