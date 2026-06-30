@@ -256,6 +256,22 @@ routes:
 
 Adjust days and times to match your schedule. All times are UTC.
 
+### Maintenance windows
+
+Maintenance suppression lives here, in Alertmanager — Technician deliberately does **not** implement its own maintenance flag (see [#22](https://github.com/jesseheady/technician/issues/22) for the rationale). Checks keep running and recording true state during maintenance; only alerting is suppressed. Pick the mechanism by whether the window is planned or ad-hoc:
+
+- **Planned / recurring** → a **mute time interval** (above). Define the window once and reference it from the routes you want quieted — declarative and version-controlled alongside the rest of your alerting config.
+- **Ad-hoc / right now** → a **silence** (above). Use the **comment field as the maintenance note** (who, why, ticket) so the reason is visible in the Alertmanager UI:
+
+  ```bash
+  amtool silence add group=payments --duration=1h \
+    --comment="maintenance: payments deploy (JIRA-1234)"
+  ```
+
+Scope a window with label matchers — `group="payments"` covers every check in that group, `name="myprobe"` a single check.
+
+Both forms **auto-expire** — a mute interval by its time window, a silence by its `--duration`. That is the safety property: a forgotten window can't suppress real outages indefinitely the way a stuck boolean flag could. Prefer a bounded duration over an open-ended one.
+
 ## Comparison
 
 | Feature | Native webhooks | Grafana alerting | Alertmanager |
