@@ -76,14 +76,14 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 
 | File | Check type | What it checks |
 |------|-----------|----------------|
-| `http.yml` | HTTP/HTTPS | Status codes, response bodies, headers, redirects |
-| `tcp.yml` | TCP | Port reachability, TLS handshake, banner checks |
-| `dns.yml` | DNS | Record lookups (A, AAAA, MX, TXT, CNAME, NS, SRV) |
+| `http.yml` | HTTP/HTTPS | Status codes, response bodies, headers, redirects, basic/bearer auth, TLS version pinning, IP version, proxy |
+| `tcp.yml` | TCP | Port reachability, TLS handshake (with version pinning), banner checks |
+| `dns.yml` | DNS | Record lookups (A, AAAA, MX, TXT, CNAME, NS, SOA, SRV) |
 | `icmp.yml` | ICMP (ping) | Packet loss, round-trip time |
 | `grpc.yml` | gRPC | Health check protocol |
 | `ntp.yml` | NTP | Clock offset, stratum, round-trip time |
 | `tls.yml` | TLS | Certificate expiry, chain validity, issuer/SAN details |
-| `smtp.yml` | SMTP | Mail server connectivity |
+| `smtp.yml` | SMTP | Connectivity, STARTTLS negotiation, authentication |
 | `traceroute.yml` | Traceroute | Network path hops (requires mtr) |
 | `udp.yml` | UDP | Datagram send/receive, payload matching |
 | `bgp.yml` | BGP | Origin AS validation, prefix hijack detection |
@@ -91,6 +91,8 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
 All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
+
+On startup every check runs once immediately (after a brief per-origin stagger) before settling into its schedule, so the status page, metrics, and alert rules have data within seconds of boot rather than waiting for the first scheduled tick.
 
 **Retry policies**: Every check should have a retry policy to absorb transient failures. The example configs include recommended defaults:
 
