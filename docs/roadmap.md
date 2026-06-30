@@ -323,7 +323,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 - **Proxy support** [#28](https://github.com/jesseheady/technician/issues/28) — HTTP proxy configuration for checks running behind corporate proxies. Edge case for most deployments.
 
-- **Full SOA record support** [#30](https://github.com/jesseheady/technician/issues/30) — DNS check SOA queries require `miekg/dns` for full answer parsing. Current fallback verifies domain resolution.
 
 
 ### Observability and export
@@ -357,6 +356,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Full SOA record support for DNS checks
+
+DNS checks now query SOA records properly via `miekg/dns` (Go's `net.Resolver` can't query SOA), replacing the previous fallback that only verified the domain resolved. The answer is formatted as `mname rname serial refresh retry expire minimum`, and SOA records are read from either the answer or authority section. Other record types continue to use `net.Resolver`. Adds the `github.com/miekg/dns` dependency (~1 MB to the binary).
 
 ### SMTP STARTTLS and authentication
 
