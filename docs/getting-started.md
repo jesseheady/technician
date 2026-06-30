@@ -171,7 +171,7 @@ TLS and domain expiry checks don't typically use `degraded_after` because they c
   schedule: "*/60 * * * * *"
 ```
 
-**Schedule format**: Technician uses 6-field cron expressions (seconds included) via [robfig/cron](https://pkg.go.dev/github.com/robfig/cron/v3):
+**Schedule format**: Technician uses 6-field cron expressions (seconds included), parsed by [gronx](https://pkg.go.dev/github.com/adhocore/gronx):
 
 ```
 ┌──────── second (0-59)

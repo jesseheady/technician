@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/adhocore/gronx"
 	"github.com/jesseheady/technician/internal/check"
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/metrics"
-	"github.com/robfig/cron/v3"
 )
 
 type ProberRegistry struct {
@@ -44,19 +44,16 @@ func (r *ProberRegistry) Get(t config.CheckType) check.Checker {
 }
 
 type Scheduler struct {
-	cron     *cron.Cron
 	cfg      *config.Config
 	checks   []config.CheckConfig
 	registry *ProberRegistry
 	origin   *config.Origin
 	results  chan *check.Result
+	wg       sync.WaitGroup // tracks per-check loops and one-shot startup runs
 }
 
 func New(cfg *config.Config, checks []config.CheckConfig, registry *ProberRegistry, originID string) *Scheduler {
-	c := cron.New(cron.WithSeconds(), cron.WithLogger(cron.DefaultLogger))
-
 	return &Scheduler{
-		cron:     c,
 		cfg:      cfg,
 		checks:   checks,
 		registry: registry,
@@ -75,50 +72,73 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			continue
 		}
 
-		schedule := pc.Schedule
+		if !gronx.IsValid(pc.Schedule) {
+			slog.Error("Invalid schedule, skipping", "name", pc.Name, "schedule", pc.Schedule)
+			continue
+		}
+
 		staggerDelay := ComputeStagger(pc.Name, s.origin)
 		if staggerDelay > 0 {
 			slog.Info("Staggering check", "name", pc.Name, "delay", staggerDelay)
 		}
 
-		checkCfg := pc // capture for closure
-		checkDelay := staggerDelay
-		_, err := s.cron.AddFunc(schedule, func() {
-			if checkDelay > 0 {
-				// Use a timer instead of blocking the cron goroutine directly.
-				// The sleep is intentional: it spreads check starts within
-				// the cron tick window to avoid thundering-herd effects.
-				time.Sleep(checkDelay)
-			}
-			slog.Debug("Running check", "name", checkCfg.Name, "type", checkCfg.Type)
-			s.execute(ctx, checker, &checkCfg)
-		})
-		if err != nil {
-			slog.Error("Failed to schedule check", "name", pc.Name, "schedule", schedule, "error", err)
-			continue
-		}
-
-		slog.Info("Scheduled check", "name", pc.Name, "type", pc.Type, "schedule", schedule)
+		s.wg.Add(1)
+		go s.runLoop(ctx, checker, pc, staggerDelay)
+		slog.Info("Scheduled check", "name", pc.Name, "type", pc.Type, "schedule", pc.Schedule)
 	}
 
 	// Run every check once immediately so the status page, metrics, and alert
 	// rules have data within seconds of boot instead of waiting up to a full
-	// interval for the first cron tick (matters most for long-interval checks
-	// like cert/domain expiry). Runs are staggered and happen in the
+	// interval for the first scheduled tick (matters most for long-interval
+	// checks like cert/domain expiry). Runs are staggered and happen in the
 	// background, so Start does not block on slow checks.
 	s.runInitial(ctx)
-
-	s.cron.Start()
 
 	go func() {
 		<-ctx.Done()
 		slog.Info("Stopping scheduler")
-		cronCtx := s.cron.Stop()
-		<-cronCtx.Done() // wait for running jobs to finish
+		s.wg.Wait() // wait for in-flight checks before closing the channel
 		close(s.results)
 	}()
 
 	return nil
+}
+
+// runLoop drives a single check on its cron schedule until ctx is cancelled.
+// We own the loop (no external cron library): each iteration computes the next
+// matching time with gronx and waits for it. The check runs synchronously, so a
+// slow run can only delay or skip the next tick for that one check, never pile
+// up overlapping runs of itself.
+func (s *Scheduler) runLoop(ctx context.Context, checker check.Checker, cfg config.CheckConfig, stagger time.Duration) {
+	defer s.wg.Done()
+	for {
+		next, err := gronx.NextTick(cfg.Schedule, false)
+		if err != nil {
+			slog.Error("Failed to compute next tick, stopping check loop", "name", cfg.Name, "schedule", cfg.Schedule, "error", err)
+			return
+		}
+
+		timer := time.NewTimer(time.Until(next))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+
+		// Stagger spreads check starts within the tick window across origins to
+		// avoid a thundering herd; skip the run if shutdown begins mid-stagger.
+		if stagger > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(stagger):
+			}
+		}
+
+		slog.Debug("Running check", "name", cfg.Name, "type", cfg.Type)
+		s.execute(ctx, checker, &cfg)
+	}
 }
 
 // execute runs a single check (with retry), annotates the result, records
@@ -143,18 +163,21 @@ func (s *Scheduler) execute(ctx context.Context, checker check.Checker, cfg *con
 }
 
 // runInitial executes every check once on startup, each after its stagger
-// delay, in the background. The cron schedule continues independently; a
-// check may therefore run once here and again on its first cron tick, which
-// is harmless for these read-only probes.
+// delay, in the background. The schedule loops run independently; a check may
+// therefore run once here and again on its first scheduled tick, which is
+// harmless for these read-only probes. Runs are WaitGroup-tracked so shutdown
+// waits for them before closing the results channel.
 func (s *Scheduler) runInitial(ctx context.Context) {
 	for i := range s.checks {
 		checker := s.registry.Get(s.checks[i].Type)
 		if checker == nil {
-			continue // already warned about during cron registration
+			continue // already warned about during schedule registration
 		}
 		checkCfg := s.checks[i] // capture for closure
 		delay := ComputeStagger(checkCfg.Name, s.origin)
+		s.wg.Add(1)
 		go func() {
+			defer s.wg.Done()
 			if delay > 0 {
 				select {
 				case <-ctx.Done():
