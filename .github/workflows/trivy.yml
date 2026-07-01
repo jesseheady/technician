@@ -73,3 +73,7 @@ jobs:
           # the digest current) is required to clear it.
           ignore-unfixed: true
           exit-code: '1'
+          # Fixable CVEs we can't clear yet (fix not in the base image) are
+          # deferred here with an expiry + reason. Expired entries lapse and
+          # fail CI again; the trivy-ignore-audit workflow reconciles them.
+          trivyignores: .trivyignore.yaml
