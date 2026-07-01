@@ -198,7 +198,7 @@ jobs:
           push: false
           tags: technician:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
   ci-passed:
     name: CI Passed
