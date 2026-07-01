@@ -1,0 +1,39 @@
+name: Cleanup PR caches
+
+# When a PR closes, GitHub keeps the caches it created (scoped to
+# refs/pull/<n>/merge) until the 7-day unused-eviction window or the 10 GB
+# LRU cap reclaims them. This deletes them immediately so merged/closed PRs
+# stop holding cache space.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write   # delete caches
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete caches scoped to the closed PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          echo "Deleting caches for $REF"
+          ids=$(gh api --paginate \
+            "repos/$REPO/actions/caches?ref=$REF&per_page=100" \
+            --jq '.actions_caches[].id')
+          if [ -z "$ids" ]; then
+            echo "No caches to delete."
+            exit 0
+          fi
+          count=0
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            gh api -X DELETE "repos/$REPO/actions/caches/$id" >/dev/null && count=$((count + 1))
+          done <<< "$ids"
+          echo "Deleted $count cache(s)."
