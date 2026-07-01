@@ -103,11 +103,11 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 ## CI and workflows
 
-- `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. Skips for docs-only changes (paths-ignore on `docs/`, `dashboards/`, `examples/`, `scripts/`, `*.md`, `LICENSE`, `.github/dependabot.yml`). A `CI Passed` gate job aggregates all results for branch protection.
+- `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. A `changes` filter job skips heavy jobs for docs-only changes. A `CI Passed` gate job aggregates all results for branch protection.
 - `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
 - `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
-- `.github/dependabot.yml` – Weekly dependency updates for Go modules and GitHub Actions.
+- `renovate.json` – Renovate is the dependency-update tool (Go modules, GitHub Actions, Docker base images). Auto-merges non-major updates, groups patch/minor/OTel/AWS-SDK updates, and runs lock-file maintenance. Major bumps are reviewed manually. No Dependabot version-update config — Renovate is the sole updater.
 
 ## Pre-commit hook
 
@@ -136,7 +136,7 @@ Use labels on PRs for changelog categorization:
 | `performance` | Performance improvement |
 | `documentation` | Docs changes |
 | `infrastructure` | CI, build, deployment |
-| `dependencies` | Dependency updates (Dependabot adds this automatically) |
+| `dependencies` | Dependency updates (Renovate adds this automatically) |
 | `skip-changelog` | Exclude from release notes |
 
 ## Tracking completed work
@@ -178,7 +178,7 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 
 - `SECURITY.md` directs vulnerability reports to GitHub's private vulnerability reporting (Security tab). No public issues for security reports.
 - Private vulnerability reporting is enabled on the repo.
-- Dependabot alerts and security updates are enabled.
+- Dependabot **alerts** (the detection scanner — server-side, never shown in the Actions tab) are enabled; Renovate's `vulnerabilityAlerts` reads them and raises the fixes. Dependabot's own PRs are disabled: no `.github/dependabot.yml` (no version-update PRs) and security auto-fix is off. The idle "Dependabot Updates" workflow in the Actions tab is historical residue from before the Renovate migration and cannot be removed (GitHub-managed).
 
 ## Check schedule guidance
 
