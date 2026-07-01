@@ -1,0 +1,20 @@
+# Trivy vulnerability ignores.
+#
+# Only for FIXABLE CVEs that we cannot resolve yet because the fix has not
+# reached our base image. Unfixable upstream CVEs are handled by
+# `ignore-unfixed: true` in the trivy workflow, not here.
+#
+# Every entry MUST have `expired_at` and a `statement`. When the date passes,
+# the suppression lapses and the CVE fails CI again (a re-triage tripwire).
+# The `trivy-ignore-audit` workflow watches these dates: when an entry is due
+# it re-scans and either opens a PR to remove it (fix landed) or an issue to
+# re-triage (still vulnerable). See docs below.
+vulnerabilities:
+  - id: CVE-2026-12151
+    # GHSA-vxpw-j846-p89q — undici WebSocket client DoS (fragment count bypass).
+    # CVSS 3.1 AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (availability only, no data risk).
+    # undici is bundled in the Node runtime of node:24-slim; fixed in undici
+    # 6.27.0 (published 2026-06-19), but Node has not yet shipped a node:24-slim
+    # rebuild carrying it. Renovate's base-image bumps will pull the fix in.
+    statement: "undici bundled in node:24-slim; DoS-only; fixed in undici 6.27.0, awaiting Node base rebuild. See GHSA-vxpw-j846-p89q."
+    expired_at: 2026-08-15

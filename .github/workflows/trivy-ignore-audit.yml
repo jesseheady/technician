@@ -1,0 +1,92 @@
+name: Trivy ignore audit
+
+# Reconciles .trivyignore.yaml deferrals against reality so they never rot.
+#
+# Weekly (and on demand) it finds entries whose `expired_at` is within 14 days
+# or already past. Only if something is due does it do the expensive work:
+# build + scan the image, then for each due CVE either
+#   - fix landed (CVE no longer detected) -> open a PR removing the entry, or
+#   - still vulnerable                     -> open/refresh an issue to re-triage.
+# Untouched entries with far-off expiries cost nothing (no build runs).
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write        # branch + commit for the removal PR
+  pull-requests: write   # open the removal PR
+  issues: write          # open the re-triage issue
+
+concurrency:
+  group: trivy-ignore-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Reconcile trivy ignores
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Find entries due for review
+        id: due
+        run: |
+          if [ ! -f .trivyignore.yaml ]; then
+            echo "No .trivyignore.yaml; nothing to audit."
+            echo "due=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          now=$(date -u +%s)
+          grace=$((14 * 24 * 3600))   # surface entries up to 14 days before expiry
+          due=""
+          while IFS=' ' read -r id exp; do
+            [ -z "$id" ] && continue
+            [ -z "$exp" ] && continue
+            exp_ts=$(date -u -d "$exp" +%s 2>/dev/null || true)
+            [ -z "$exp_ts" ] && continue
+            if [ "$exp_ts" -le "$((now + grace))" ]; then
+              due="$due $id"
+            fi
+          done < <(yq -r '.vulnerabilities[]? | .id + " " + (.expired_at // "")' .trivyignore.yaml)
+          due=$(echo "$due" | xargs || true)
+          echo "Due for review: ${due:-none}"
+          echo "due=$due" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        if: steps.due.outputs.due != ''
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+
+      - name: Build image for scanning
+        if: steps.due.outputs.due != ''
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          push: false
+          load: true
+          tags: technician:ignore-audit
+
+      - name: Scan without the ignore file (true current state)
+        if: steps.due.outputs.due != ''
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: technician:ignore-audit
+          format: json
+          output: trivy-current.json
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          ignore-unfixed: true
+          exit-code: '0'   # never fail the audit itself
+
+      - name: Reconcile due entries
+        if: steps.due.outputs.due != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DUE: ${{ steps.due.outputs.due }}
+          SCAN_JSON: trivy-current.json
+        run: ./scripts/trivy-ignore-audit.sh
