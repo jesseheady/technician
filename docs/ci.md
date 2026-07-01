@@ -35,25 +35,9 @@ When you use `--output gha`, budget violations appear as GitHub Actions annotati
   run: ./technician validate --config config/technician.yml --budget config/budgets.yml --output gha
 ```
 
-### Canary workflow
-
-The separate `canary.yml` workflow runs post-deployment synthetic checks:
-
-```yaml
-# Triggered by deployment success or manual dispatch
-on:
-  deployment_status:
-  workflow_dispatch:
-    inputs:
-      target_url:
-        description: "URL to check"
-```
-
-It uses the pre-built Docker image with Chromium included and uploads HAR artifacts.
-
 ### Artifacts
 
-Both workflows upload check artifacts (HAR files, videos) so you can debug failures:
+The CI workflow uploads check artifacts (HAR files, videos) so you can debug failures:
 
 ```yaml
 - uses: actions/upload-artifact@v7
@@ -82,7 +66,7 @@ Browser checks need Node.js + Chromium. Two approaches:
     npx playwright install chromium
 ```
 
-**Option B: Use the Docker image** (used in `canary.yml`)
+**Option B: Use the pre-built Docker image** (Chromium included)
 
 ```yaml
 container:

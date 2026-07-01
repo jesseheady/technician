@@ -104,7 +104,6 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## CI and workflows
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. A `changes` filter job skips heavy jobs for docs-only changes. A `CI Passed` gate job aggregates all results for branch protection.
-- `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
 - `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
 - `renovate.json` – Renovate is the dependency-update tool (Go modules, GitHub Actions, Docker base images). Auto-merges non-major updates, groups patch/minor/OTel/AWS-SDK updates, and runs lock-file maintenance. Major bumps are reviewed manually. No Dependabot version-update config — Renovate is the sole updater.
