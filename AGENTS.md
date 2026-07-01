@@ -178,7 +178,7 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 
 - `SECURITY.md` directs vulnerability reports to GitHub's private vulnerability reporting (Security tab). No public issues for security reports.
 - Private vulnerability reporting is enabled on the repo.
-- Dependabot security alerts are enabled; Renovate consumes them (`vulnerabilityAlerts`) and raises the fixes. No Dependabot version-update PRs.
+- Dependabot **alerts** (the detection scanner — server-side, never shown in the Actions tab) are enabled; Renovate's `vulnerabilityAlerts` reads them and raises the fixes. Dependabot's own PRs are disabled: no `.github/dependabot.yml` (no version-update PRs) and security auto-fix is off. The idle "Dependabot Updates" workflow in the Actions tab is historical residue from before the Renovate migration and cannot be removed (GitHub-managed).
 
 ## Check schedule guidance
 
