@@ -9,7 +9,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 | `cmd/` | Cobra CLI: `root`, `worker`, `check`, `serve`, `validate` |
 | `internal/config/` | Main YAML config + check definitions; env var expansion `${VAR}` |
 | `internal/check/` | Check implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright |
-| `internal/scheduler/` | Cron-based scheduling with per-site stagger |
+| `internal/scheduler/` | Cron-expression scheduling (gronx + stdlib timer loop) with per-site stagger and a once-on-startup run |
 | `internal/metrics/` | Prometheus gauges, OTLP trace export, HAR parsing |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
 | `internal/budget/` | YAML budgets, threshold evaluation, reporters (text, JSON, GHA) |
@@ -25,7 +25,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 ## Commands
 
 - **`technician worker`** – Long-running worker: loads config + checks, runs scheduler, serves `/metrics`, `/probe`, `/health`.
-- **`technician check --name <name>`** – Run a single check by name (for debugging).
+- **`technician check run --check <name>`** – Run a single check by name (omit `--check` to run all); for debugging.
 - **`technician serve`** – Serve-only mode (metrics/health).
 - **`technician validate`** – Run all checks, evaluate budgets, exit 0/1 (CI).
 - **`technician test-webhook`** – Send a test notification to all configured webhooks.
@@ -36,7 +36,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 
 - **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
-  - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex) and `follow_redirects`.
+  - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex), `follow_redirects`, `ip_version`, `min_tls`/`max_tls`, `basic_auth`/`bearer_token` (mutually exclusive), and `proxy`. TCP checks support `min_tls`/`max_tls` (with `tls: true`). SMTP checks support `start_tls`, `skip_tls`, and `username`/`password` auth (auth requires `start_tls`). DNS checks support SOA alongside A/AAAA/MX/TXT/CNAME/NS/SRV.
   - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.
   - All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold).
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).

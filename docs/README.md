@@ -6,7 +6,7 @@
 | [Alerting](alerting.md) | Native webhooks (Discord, Slack, generic), Grafana alerting (recommended), and Alertmanager. |
 | [Testing and e2e](testing-and-e2e.md) | Unit tests, `go test`/vet, and end-to-end validation (validate command, metrics scrape, Docker stack, CI canary). |
 | [Local development](mock-production.md) | Run Technician locally with full metrics/dashboards while probing mock local endpoints. |
-| [Roadmap](roadmap.md) | Near-term MVP (SSL/TLS, maintenance mode, WebSocket, structured logging, status page redesign), scope principles, and future enhancements. |
+| [Roadmap](roadmap.md) | Near-term MVP (WebSocket, structured logging, status page redesign, check filtering), scope principles, future enhancements, and recently completed work. |
 | [Proposals](proposals/) | Design and rollout plans. |
 | [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying check runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when checks run on Workers or Lambda (provider location codes, metrics labels). |
