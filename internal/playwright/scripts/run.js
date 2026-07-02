@@ -12,6 +12,7 @@
 const { chromium, devices } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { performance } = require('perf_hooks');
 
 // Network throttling profiles (CDP emulateNetworkConditions)
@@ -40,6 +41,12 @@ async function main() {
   const logs = [];
   const log = (msg) => logs.push(msg);
 
+  // Per-run scratch dir for HAR/video, normally created (and cleaned up) by
+  // the Go orchestrator. Fall back to a unique temp dir for manual runs so
+  // concurrent invocations never share output paths.
+  const workDir = config.work_dir || fs.mkdtempSync(path.join(os.tmpdir(), 'technician-pw-'));
+  const harPath = path.join(workDir, 'session.har');
+
   let browser;
   let context;
   let page;
@@ -57,7 +64,7 @@ async function main() {
 
     // Create context with HAR recording
     const contextOpts = {
-      recordHar: { path: '/tmp/technician-har.har', mode: 'full' },
+      recordHar: { path: harPath, mode: 'full' },
     };
 
     // Apply device emulation (viewport, user agent, device scale factor)
@@ -68,7 +75,7 @@ async function main() {
 
     if (config.video) {
       contextOpts.recordVideo = {
-        dir: '/tmp/technician-videos/',
+        dir: path.join(workDir, 'videos'),
         size: { width: contextOpts.viewport?.width || 1280, height: contextOpts.viewport?.height || 720 },
       };
     }
@@ -138,7 +145,7 @@ async function main() {
     let har = null;
     let resourceCount = 0;
     try {
-      const harData = fs.readFileSync('/tmp/technician-har.har', 'utf8');
+      const harData = fs.readFileSync(harPath, 'utf8');
       const harJson = JSON.parse(harData);
       const entries = harJson.log.entries || [];
       resourceCount = entries.length;
