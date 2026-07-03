@@ -120,11 +120,11 @@ Main branch requires the `CI Passed` status check. Admin bypass is enabled for t
 
 ## Releases
 
-- Use annotated tags: `git tag -a v0.2.0 -m "Short summary"`.
+- Use annotated tags: `git tag -a v0.1.0 -m "Short summary"`.
 - The release workflow builds multi-platform binaries and creates a GitHub Release with auto-generated notes.
 - Auto-generated notes are categorized by PR labels (configured in `.github/release.yml`).
 - For the tag annotation, write a short summary. For the GitHub Release, the auto-generated notes cover PR-level detail; add a hand-written summary at the top for major releases.
-- First release was `v0.1.0`. Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
+- The first tagged release will be `v0.1.0`. Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
 
 ## PR labels
 
