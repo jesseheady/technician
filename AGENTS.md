@@ -172,8 +172,10 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 
 ## Config changes vs code changes
 
-- Config changes (`config/`, `technician.yml`, `checks/*.yml`): `docker compose restart technician`. No rebuild needed; config is volume-mounted.
+- Config changes (`config/`, `technician.yml`, `checks/*.yml`, and the mounted `prometheus/*.yml`): `docker compose up -d --force-recreate <service>`. No rebuild needed; config is volume-mounted.
 - Code changes (Go source, Dockerfile): `docker compose build technician && docker compose up`.
+
+> **Use `--force-recreate`, not `restart`, after editing a mounted config.** The stack bind-mounts individual config *files* (not directories). Most editors — and tools like `sed -i` — save by writing a temp file and renaming it, which swaps the file's inode. On Docker Desktop (macOS), a running container keeps viewing the old inode, so `docker compose restart` (and in-place reloads like SIGHUP / `/-/reload`) can load a stale or truncated version. `up -d --force-recreate <service>` creates a new container that re-establishes the mount against the current file. Mounting directories instead of individual files would remove this footgun — tracked separately.
 
 ## Security
 
