@@ -91,7 +91,7 @@ When all slots are occupied:
 
 If you see `timed out waiting for browser slot` in logs:
 1. **Increase `max_browsers`** if the host has RAM headroom
-2. **Spread schedules** -- stagger cron expressions so checks don't all fire at the same second
+2. **Spread schedules** -- offset cron expressions so browser checks don't all fire on the same tick. The built-in per-check stagger only smears them across ~10s, which is not enough when a throttled flow holds a browser for tens of seconds. Give each browser check its own minute with 6-field range-step cron, e.g. `0 */5 * * * *` (minutes 0,5,10…), `0 2-59/5 * * * *` (2,7,12…), `0 4-59/5 * * * *` (4,9,14…)
 3. **Increase check timeout** -- give more time to wait for a slot
 4. **Move browser checks to a dedicated runner** (see below)
 

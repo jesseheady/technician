@@ -14,9 +14,11 @@ services:
       - technician_data:/var/lib/technician
     environment:
       - ORIGIN_ID=local
+      - GOMAXPROCS=2
     deploy:
       resources:
         limits:
+          cpus: "2.0"
           memory: 1G
         reservations:
           memory: 512M

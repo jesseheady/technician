@@ -620,13 +620,19 @@
 # Vitals. Baseline is 3-5s for a simple page; complex flows with interactions,
 # throttled networks, and video recording take longer. Mobile 3G profiles add
 # significant latency by design — set thresholds accordingly.
+#
+# OFFSET YOUR SCHEDULES. Each browser check launches a full Chromium (1-2 cores,
+# 150-300 MB). If several share the same cron tick they spike CPU together and
+# queue against max_browsers. The built-in per-check stagger only spreads them
+# ~10s — too little for throttled flows. Give each its own minute using 6-field
+# range-step cron: "0 */5" (min 0,5,10…), "0 2-59/5" (2,7,12…), "0 4-59/5" (4,9,14…).
 
 - name: "example.com (desktop)"
   type: playwright
   group: Marketing
   script: playwright/example_flow.js
   base_url: "https://example.com"
-  schedule: "0 */5 * * * *"
+  schedule: "0 */5 * * * *"      # minutes 0,5,10…
   timeout: 120s
   degraded_after: 10s
   retry:
@@ -641,7 +647,7 @@
   base_url: "https://example.com"
   network: "4g"
   device: "iPhone 14"
-  schedule: "0 */5 * * * *"
+  schedule: "0 2-59/5 * * * *"   # offset +2 → minutes 2,7,12…
   timeout: 120s
   degraded_after: 15s
   retry:
@@ -656,7 +662,7 @@
   base_url: "https://example.com"
   network: "3g"
   device: "iPhone 14"
-  schedule: "0 */10 * * * *"
+  schedule: "0 4-59/10 * * * *"  # offset +4, 10-min cadence → minutes 4,14,24…
   timeout: 180s
   degraded_after: 20s
   retry:
