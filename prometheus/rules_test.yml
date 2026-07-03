@@ -1,0 +1,74 @@
+# promtool rule unit tests.
+#
+# Run: promtool test rules rules_test.yml
+# (also executed in CI / pre-commit alongside `promtool check rules`).
+
+rule_files:
+  - rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Staleness grace period (#111): a data gap must fire TechnicianDataGap and,
+  # crucially, keep it firing through the ~10-min post-resume stabilization
+  # window — not clear the instant results resume.
+  - name: TechnicianDataGap fires on a gap and holds through recovery
+    interval: 1m
+    input_series:
+      # last-run timestamp tracks wall-clock while fresh (seconds_since ≈ 0),
+      # freezes at 540 during a ~10-min gap (min 10–20), then tracks again on
+      # recovery (min 21–30).
+      - series: 'technician_last_run_timestamp_seconds'
+        values: '0+60x9 540+0x10 1260+60x9'
+    alert_rule_test:
+      # Steady state: fresh data, no gap.
+      - eval_time: 5m
+        alertname: TechnicianDataGap
+        exp_alerts: []
+      # 4 min into the frozen window seconds_since is exactly 300 — not yet over.
+      - eval_time: 14m
+        alertname: TechnicianDataGap
+        exp_alerts: []
+      # Gap now exceeds 5 min → fires.
+      - eval_time: 16m
+        alertname: TechnicianDataGap
+        exp_alerts:
+          - exp_labels:
+              severity: none
+              alert_class: freshness
+            exp_annotations:
+              summary: "Technician data gap — timing alerts suppressed during stabilization"
+              description: "No check results were recorded for over 5 minutes within the last 10 minutes (process restart, connectivity loss, or host downtime). Rolling-average latency alerts are inhibited until the 15m averages re-stabilize."
+      # Results have resumed (min 21) but the recent gap keeps it firing
+      # across the stabilization window.
+      - eval_time: 25m
+        alertname: TechnicianDataGap
+        exp_alerts:
+          - exp_labels:
+              severity: none
+              alert_class: freshness
+            exp_annotations:
+              summary: "Technician data gap — timing alerts suppressed during stabilization"
+              description: "No check results were recorded for over 5 minutes within the last 10 minutes (process restart, connectivity loss, or host downtime). Rolling-average latency alerts are inhibited until the 15m averages re-stabilize."
+      # Window has slid past the gap — cleared, timing alerts un-inhibited.
+      - eval_time: 30m
+        alertname: TechnicianDataGap
+        exp_alerts: []
+
+  # seconds_since_last_run recording rule reflects the frozen timestamp.
+  - name: seconds_since_last_run tracks the gap
+    interval: 1m
+    input_series:
+      - series: 'technician_last_run_timestamp_seconds'
+        values: '0+60x9 540+0x10 1260+60x9'
+    promql_expr_test:
+      - expr: technician:seconds_since_last_run
+        eval_time: 5m
+        exp_samples:
+          - labels: 'technician:seconds_since_last_run'
+            value: 0
+      - expr: technician:seconds_since_last_run
+        eval_time: 18m
+        exp_samples:
+          - labels: 'technician:seconds_since_last_run'
+            value: 540

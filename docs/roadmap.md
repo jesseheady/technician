@@ -343,6 +343,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Staleness grace period (post-gap alert suppression)
+
+After a data gap — restart, connectivity loss, host downtime — the first check results carry cold-start latencies (stale DNS, cold TCP, NTP drift) that spike the 15m rolling averages and would falsely fire the timing alerts for ~10 minutes. Technician now exposes `technician_last_run_timestamp_seconds` (advances only on recorded, non-infra results, so it freezes in every gap type), a `technician:seconds_since_last_run` recording rule, and a `TechnicianDataGap` alert that fires when a >5-min gap occurred within the last 10 minutes — staying firing through the post-resume stabilization window. An Alertmanager inhibit rule suppresses the latency/timing alert family (Web Vitals, HTTP/TCP timing, DNS, ICMP RTT + packet loss, NTP, UDP) while it fires; non-timing alerts (check down, expiry, BGP, budgets) are unaffected. The alert routes to a blackhole receiver so it drives inhibition without notifying anyone. Rule logic is covered by a `promtool test rules` unit test wired into the pre-commit hook.
+
 ### Playwright temp-asset isolation (HAR race + video leak fix)
 
 Each Playwright run now gets a unique per-run temp directory for its HAR and video output, created and removed by the Go orchestrator. Previously every run wrote its HAR to the same fixed path, so concurrent runs (`max_browsers > 1`) clobbered each other's data — corrupting the HAR metrics/OTLP output — and `video: true` files accumulated unbounded under `/tmp`. Videos are deleted with the work dir and `VideoPath` is cleared; retaining failure videos via the artifact store is tracked separately.

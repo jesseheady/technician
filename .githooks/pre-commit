@@ -58,6 +58,12 @@ if staged | grep -q '^prometheus/.*\.yml$'; then
         docker run --rm --entrypoint promtool \
             -v "$REPO_ROOT/prometheus:/work" -w /work \
             prom/prometheus:latest check rules rules.yml
+        if [ -f "$REPO_ROOT/prometheus/rules_test.yml" ]; then
+            echo "==> promtool test rules"
+            docker run --rm --entrypoint promtool \
+                -v "$REPO_ROOT/prometheus:/work" -w /work \
+                prom/prometheus:latest test rules rules_test.yml
+        fi
     fi
 fi
 

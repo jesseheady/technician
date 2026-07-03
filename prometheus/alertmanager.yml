@@ -24,6 +24,15 @@ route:
       # Silence pager during deploys:
       # mute_time_intervals: ['maintenance']
 
+    # ── Staleness grace period ──────────────────────────────────
+    # TechnicianDataGap exists only to drive the inhibit rule below
+    # (post-gap timing-spike suppression). It carries no useful
+    # payload for humans, so route it to a blackhole receiver — it
+    # still reaches Alertmanager for inhibition, just notifies nobody.
+    - matchers:
+        - alertname = TechnicianDataGap
+      receiver: blackhole
+
     # ── Infrastructure ──────────────────────────────────────────
     # Check failures, BGP hijacks, invalid certs, dropped domains,
     # Prometheus WAL corruption.
@@ -45,7 +54,7 @@ route:
     # Web vitals, HTTP timing, TCP, DNS, ICMP, UDP, NTP, resource
     # counts, and budget violations.
     - matchers:
-        - alertname =~ "High(LCP|INP|CLS|TTFB|DNS|TLS|TCPConnect|TCPTLS|DNSQuery|ICMRTT|PacketLoss|NTPOffset|UDPRTT|ResourceCount)(Critical)?|BudgetViolation"
+        - alertname =~ "High(LCP|INP|CLS|TTFB|DNS|TLS|TCPConnect|TCPTLS|DNSQuery|ICMPRTT|PacketLoss|NTPOffset|UDPRTT|ResourceCount)(Critical)?|BudgetViolation"
       receiver: performance
       repeat_interval: 4h
 
@@ -200,6 +209,10 @@ receivers:
     #     text: '{{ template "technician.slack.text" . }}'
     #     send_resolved: true
 
+  # Blackhole — receives alerts that exist only to drive inhibit rules
+  # (e.g. TechnicianDataGap). No configs: notifies nobody by design.
+  - name: blackhole
+
 # ── Acknowledging / silencing alerts ─────────────────────────────
 #
 # repeat_interval (above) limits re-notification, but to fully silence
@@ -251,3 +264,17 @@ inhibit_rules:
     target_matchers:
       - alertname =~ "DomainExpiringSoon|DomainExpiryCritical"
     equal: ['name']
+
+  # ── Staleness grace period ────────────────────────────────────
+  # After a data gap, rolling-average latency metrics carry cold-start
+  # spikes (stale DNS, cold TCP, NTP drift) for ~10 min. TechnicianDataGap
+  # stays firing across that window (see prometheus/rules.yml) and
+  # suppresses the timing alert family so the artifacts don't fire.
+  # No `equal:` — the gap is global, so it inhibits these alerts across
+  # every check and region. Non-timing alerts (check down, cert/domain
+  # expiry, BGP, budgets, resource counts) are intentionally not listed:
+  # a data gap does not make those false, so they still fire.
+  - source_matchers:
+      - alertname = TechnicianDataGap
+    target_matchers:
+      - alertname =~ "High(LCP|INP|CLS|TTFB|DNS|TLS|TCPConnect|TCPTLS|DNSQuery|ICMPRTT|PacketLoss|NTPOffset|UDPRTT)(Critical)?"
