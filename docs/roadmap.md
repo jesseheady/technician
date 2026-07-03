@@ -343,6 +343,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Playwright temp-asset isolation (HAR race + video leak fix)
+
+Each Playwright run now gets a unique per-run temp directory for its HAR and video output, created and removed by the Go orchestrator. Previously every run wrote its HAR to the same fixed path, so concurrent runs (`max_browsers > 1`) clobbered each other's data — corrupting the HAR metrics/OTLP output — and `video: true` files accumulated unbounded under `/tmp`. Videos are deleted with the work dir and `VideoPath` is cleared; retaining failure videos via the artifact store is tracked separately.
+
 ### HTTP proxy support
 
 HTTP checks accept a `proxy` field (`http://host:port`) to route the request through an explicit proxy — useful for checks running behind a corporate proxy. Implemented via the transport's `Proxy` (clients are cached per proxy), with the URL validated at config load.

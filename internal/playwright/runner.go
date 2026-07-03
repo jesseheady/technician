@@ -55,6 +55,10 @@ type RunConfig struct {
 	Network       string `json:"network,omitempty"`
 	Device        string `json:"device,omitempty"`
 	Timeout       int    `json:"timeout_ms"`
+	// WorkDir is a per-run scratch directory for HAR and video output, created
+	// and removed by Run. A unique dir per run prevents concurrent checks
+	// (max_browsers > 1) from clobbering each other's HAR files.
+	WorkDir string `json:"work_dir,omitempty"`
 }
 
 type RunResult struct {
@@ -69,6 +73,20 @@ type RunResult struct {
 }
 
 func (r *Runner) Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
+	// Per-run scratch dir for HAR and video output. run.js parses the HAR into
+	// the JSON result before returning, and nothing persists videos yet, so the
+	// whole dir is removed when the run finishes — even on error.
+	workDir, err := os.MkdirTemp("", "technician-pw-")
+	if err != nil {
+		return nil, fmt.Errorf("creating playwright work dir: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			slog.Warn("Failed to remove playwright work dir", "dir", workDir, "error", err)
+		}
+	}()
+	cfg.WorkDir = workDir
+
 	configJSON, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling config: %w", err)
@@ -94,6 +112,14 @@ func (r *Runner) Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	var result RunResult
 	if err := json.Unmarshal(output, &result); err != nil {
 		return nil, fmt.Errorf("parsing result: %w", err)
+	}
+
+	// The video file lives in the work dir and is deleted with it. Clear the
+	// path rather than return a dangling reference; retaining videos requires
+	// routing them through the artifact store (tracked separately).
+	if result.VideoPath != "" {
+		slog.Debug("Playwright video discarded (no artifact store wired)", "path", result.VideoPath)
+		result.VideoPath = ""
 	}
 
 	return &result, nil
