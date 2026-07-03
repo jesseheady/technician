@@ -1,3 +1,5 @@
+name: technician
+
 services:
   technician:
     build: .
