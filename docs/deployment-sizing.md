@@ -586,7 +586,7 @@ Technician enforces a default limit of **500 unique check names** for metrics re
 | 2–4 GB | ~500K series | 1000–2000 |
 | 8+ GB / managed (AMP) | 1M+ series | 5000+ |
 
-For most deployments (< 100 checks), the limit is never reached. If you're operating at 500+ checks with Prometheus metrics needed for all of them, consider either bumping the constant or making it a config-file option — a future enhancement tracked in TODO.md.
+For most deployments (< 100 checks), the limit is never reached. If you're operating at 500+ checks with Prometheus metrics needed for all of them, consider either bumping the constant or making it a config-file option — a future enhancement tracked in #228.
 
 ### Getting 30-day uptime without an application database
 
