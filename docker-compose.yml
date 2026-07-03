@@ -1,7 +1,3 @@
-# Pin the Compose project name so volumes stay namespaced as technician_* even
-# if the checkout directory is renamed or COMPOSE_PROJECT_NAME is set elsewhere.
-# Without this, the project name defaults to the directory basename; a rename
-# silently orphans the prometheus/alertmanager/grafana data volumes.
 name: technician
 
 services:
