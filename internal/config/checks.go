@@ -88,6 +88,7 @@ type CheckConfig struct {
 	Name          string                       `yaml:"name"`
 	Type          CheckType                    `yaml:"-"`
 	Group         string                       `yaml:"group"`
+	Tags          []string                     `yaml:"tags"`
 	Schedule      string                       `yaml:"schedule"`
 	Timeout       time.Duration                `yaml:"timeout"`
 	Retry         *RetryPolicy                 `yaml:"retry"`
@@ -306,6 +307,7 @@ type checkYAML struct {
 	Name          string        `yaml:"name"`
 	Type          CheckType     `yaml:"type"`
 	Group         string        `yaml:"group"`
+	Tags          []string      `yaml:"tags"`
 	Schedule      string        `yaml:"schedule"`
 	Timeout       time.Duration `yaml:"timeout"`
 	Retry         *RetryPolicy  `yaml:"retry"`
@@ -471,6 +473,7 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 		Name:          r.Name,
 		Type:          r.Type,
 		Group:         r.Group,
+		Tags:          r.Tags,
 		Schedule:      r.Schedule,
 		Timeout:       r.Timeout,
 		Retry:         r.Retry,
