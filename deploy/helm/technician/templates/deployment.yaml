@@ -7,7 +7,7 @@ metadata:
   name: {{ include "technician.fullname" $root }}-{{ $origin.id }}
   labels:
     {{- include "technician.labels" $root | nindent 4 }}
-    technician.io/origin: {{ $origin.id | quote }}
+    technician/origin: {{ $origin.id | quote }}
 spec:
   # Fixed at 1. Scale by adding origins, not replicas — identical same-origin
   # replicas collide on {check,origin} metric series and multiply target load.
@@ -15,12 +15,12 @@ spec:
   selector:
     matchLabels:
       {{- include "technician.selectorLabels" $root | nindent 6 }}
-      technician.io/origin: {{ $origin.id | quote }}
+      technician/origin: {{ $origin.id | quote }}
   template:
     metadata:
       labels:
         {{- include "technician.selectorLabels" $root | nindent 8 }}
-        technician.io/origin: {{ $origin.id | quote }}
+        technician/origin: {{ $origin.id | quote }}
       annotations:
         checksum/config: {{ $root.Values.config | toYaml | sha256sum }}
         {{- with $root.Values.podAnnotations }}
