@@ -182,6 +182,14 @@ SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
+#### Staleness grace period
+
+After a data gap — process restart, connectivity loss, or host downtime — the first check results carry inflated latencies: stale DNS caches, cold TCP connections, and NTP clock drift. These spike the 15-minute rolling averages and would trip the timing alerts for ~10 minutes before the averages re-stabilize. They are artifacts, not real degradation.
+
+Technician exposes `technician_last_run_timestamp_seconds`, which advances on every recorded (non-infra) result. It freezes both when the worker stops (nothing scraped) and when checks run but keep failing to reach their target (connectivity loss), so `technician:seconds_since_last_run` grows in every gap type. The `TechnicianDataGap` alert fires when a gap over 5 minutes occurred anywhere in the last 10 minutes (`max_over_time`), so it stays firing across the post-resume stabilization window rather than clearing the instant data returns. While it fires, an inhibit rule suppresses the whole latency/timing alert family (Web Vitals, HTTP/TCP timing, DNS, ICMP RTT + packet loss, NTP offset, UDP) across every check and region. Non-timing alerts — check down, cert/domain expiry, BGP, budgets — still fire, because a data gap does not make those false.
+
+`TechnicianDataGap` carries `severity: none` and routes to a blackhole receiver: it reaches Alertmanager to drive inhibition but notifies nobody. Rule logic is covered by `prometheus/rules_test.yml` (`promtool test rules`).
+
 Commented-out `TestAlertWarn` and `TestAlertCritical` rules can be uncommented to validate the full pipeline. Alternatively, `scripts/test-alerts.sh` posts test alerts directly to the Alertmanager API, bypassing Prometheus evaluation timing. See the inline comments in `prometheus/rules.yml` for step-by-step instructions.
 
 ### Route structure
@@ -198,6 +206,7 @@ Alertmanager routes alerts using a pager fan-out combined with category-based re
 | `expiry` | TLSCertExpiringSoon/Critical, DomainExpiringSoon/Critical | 12h |
 | `performance` | All timing/vitals/resource alerts, BudgetViolation | 4h |
 | `chatops` | Everything else (CheckInfraError, PrometheusStorageHigh, any new rules) | 4h |
+| `blackhole` | `TechnicianDataGap` (inhibit-only; notifies nobody) | — |
 
 Each receiver has commented integration examples in `alertmanager.yml`. A critical infrastructure alert is delivered to both `pager` and `infrastructure`. A warning performance alert goes only to `performance`.
 
@@ -282,7 +291,7 @@ Both forms **auto-expire** — a mute interval by its time window, a silence by 
 | Discord support | Native | Native | Native |
 | Slack support | Native | Native | Native |
 | Grouping / dedup | Per-check cooldown | Full | Full |
-| Inhibit rules | No | No | Yes (4 pre-configured) |
+| Inhibit rules | No | No | Yes (5 pre-configured) |
 | Silencing | No | Yes (UI) | Yes (API/UI) |
 | Mute timings | No | Yes (file or UI) | Yes (time intervals) |
 | Notification templates | No | Yes (Go templates) | Yes (`technician.tmpl`) |

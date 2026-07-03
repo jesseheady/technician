@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -240,6 +241,19 @@ var (
 		Name: "technician_status_store_write_errors_total",
 		Help: "Total status store persistence write failures since process start",
 	})
+
+	// Data-freshness signal — Unix timestamp of the most recent recorded
+	// check result. Advances on any non-infra result, since that is when the
+	// timing metrics get a fresh sample; infra errors (the target was never
+	// reached) do not advance it, so a stretch of connectivity failures
+	// freezes it just like a process gap does. Alerting uses time() minus
+	// this value to detect data gaps and suppress the post-resume latency
+	// spikes that inflate rolling averages (cold caches, NTP drift). See
+	// prometheus/rules.yml (technician_freshness).
+	lastRunTimestamp = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "technician_last_run_timestamp_seconds",
+		Help: "Unix timestamp of the most recent recorded check result (excludes infra errors)",
+	})
 )
 
 func init() {
@@ -284,6 +298,7 @@ func init() {
 		checkInfraError,
 		checkDegraded,
 		statusStoreWriteErrors,
+		lastRunTimestamp,
 	)
 }
 
@@ -337,6 +352,12 @@ func RecordResult(result *check.Result) {
 
 	checkUp.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(up)
 	checkDuration.WithLabelValues(typeStr, result.Name, labels.code, labels.city, labels.country).Set(result.Duration.Seconds())
+
+	// Mark data as fresh: a real result was recorded (target reached), so the
+	// timing series just got a new sample. Freshness tracks the most recent
+	// such moment across all checks; alerting keys the staleness grace period
+	// off it (prometheus/rules.yml → technician_freshness).
+	lastRunTimestamp.Set(float64(time.Now().Unix()))
 
 	switch result.Type {
 	case config.CheckTypeHTTP:
