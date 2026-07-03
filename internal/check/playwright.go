@@ -78,8 +78,26 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, or
 		return result
 	}
 
+	// Per-run scratch dir for HAR and video output. A unique dir per run
+	// prevents concurrent checks (max_browsers > 1) from clobbering each
+	// other's HAR files. run.js parses the HAR into its JSON output before
+	// returning, and nothing persists videos yet, so the whole dir is removed
+	// when the run finishes — even on error.
+	workDir, err := os.MkdirTemp("", "technician-pw-")
+	if err != nil {
+		result.InfraError = true
+		result.Error = fmt.Sprintf("creating playwright work dir: %v", err)
+		return result
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			slog.Warn("Failed to remove playwright work dir", "dir", workDir, "error", err)
+		}
+	}()
+
 	runnerConfig := map[string]interface{}{
-		"script": pcfg.Script,
+		"script":   pcfg.Script,
+		"work_dir": workDir,
 	}
 	if pcfg.BaseURL != "" {
 		runnerConfig["base_url"] = pcfg.BaseURL
@@ -138,8 +156,14 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, or
 	}
 	result.WebVitals = pwOutput.Vitals
 	result.HARData = pwOutput.HAR
-	result.VideoPath = pwOutput.VideoPath
 	result.ResourceCount = pwOutput.ResourceCount
+
+	// The video file lives in the work dir and is deleted with it. Leave the
+	// path empty rather than return a dangling reference; retaining videos
+	// requires routing them through the artifact store (#218).
+	if pwOutput.VideoPath != "" {
+		slog.Debug("Playwright video discarded (no artifact store wired)", "name", cfg.Name, "path", pwOutput.VideoPath)
+	}
 
 	if pcfg.Network != "" {
 		result.Labels["network"] = pcfg.Network
