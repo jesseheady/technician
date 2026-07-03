@@ -34,6 +34,42 @@ groups:
       - record: technician:browser_lcp_p95
         expr: quantile(0.95, technician_browser_lcp_ms) by (name)
 
+  # ── Data freshness / staleness grace period ──────────────────────
+  # After a data gap (process restart, connectivity loss, host
+  # downtime), the first check results carry inflated latencies —
+  # stale DNS caches, cold TCP connections, NTP clock drift — that
+  # spike the 15m rolling averages and trip the timing alerts before
+  # they re-stabilize (~10 min). These are artifacts, not real
+  # degradation.
+  #
+  # technician_last_run_timestamp_seconds advances only on recorded
+  # (non-infra) results, so it freezes during a total gap AND during a
+  # stretch of connectivity failures. seconds_since_last_run is small
+  # in steady state (the fastest check runs well under 5 min) and
+  # grows once results stop landing.
+  #
+  # TechnicianDataGap fires when a >5-min gap occurred anywhere in the
+  # last 10 minutes (max_over_time), so it stays firing through the
+  # post-resume stabilization window — not just during the gap itself.
+  # Alertmanager inhibits the latency/timing alert family while it
+  # fires (see prometheus/alertmanager.yml). It carries severity=none
+  # and is routed to a blackhole receiver, so it suppresses noise
+  # without generating any.
+  - name: technician_freshness
+    rules:
+      - record: technician:seconds_since_last_run
+        expr: time() - max(technician_last_run_timestamp_seconds)
+
+      - alert: TechnicianDataGap
+        expr: max_over_time(technician:seconds_since_last_run[10m]) > 300
+        for: 0m
+        labels:
+          severity: none
+          alert_class: freshness
+        annotations:
+          summary: "Technician data gap — timing alerts suppressed during stabilization"
+          description: "No check results were recorded for over 5 minutes within the last 10 minutes (process restart, connectivity loss, or host downtime). Rolling-average latency alerts are inhibited until the 15m averages re-stabilize."
+
   # ── Check health ─────────────────────────────────────────────────
   - name: technician_check_health
     rules:
@@ -330,11 +366,12 @@ groups:
           description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
 
   # ── TCP ───────────────────────────────────────────────────────────
-  # Note: network/timing rules (TCP, DNS, ICMP, NTP, UDP) may produce
+  # Note: network/timing rules (TCP, DNS, ICMP, NTP, UDP) can produce
   # false alerts after data gaps (process restart, connectivity loss,
   # host downtime) as rolling averages include post-resume spikes.
-  # Consider raising `for` durations or adding a staleness grace
-  # period if this becomes noisy in your environment.
+  # The TechnicianDataGap alert above detects these gaps and inhibits
+  # the timing alert family for ~10 minutes while averages re-stabilize
+  # (see the freshness group and prometheus/alertmanager.yml).
   - name: technician_tcp
     rules:
       - alert: HighTCPConnect
