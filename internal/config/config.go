@@ -12,13 +12,14 @@ import (
 )
 
 type Config struct {
-	Service    string           `yaml:"service"`
-	Hostname   string           `yaml:"hostname"`
-	Origins    []Origin         `yaml:"origins"`
-	Metrics    MetricsConfig    `yaml:"metrics"`
-	Artifacts  ArtifactsConfig  `yaml:"artifacts"`
-	Playwright PlaywrightConfig `yaml:"playwright"`
-	Webhooks   []WebhookConfig  `yaml:"webhooks"`
+	Service     string           `yaml:"service"`
+	Hostname    string           `yaml:"hostname"`
+	Origins     []Origin         `yaml:"origins"`
+	Metrics     MetricsConfig    `yaml:"metrics"`
+	Artifacts   ArtifactsConfig  `yaml:"artifacts"`
+	Playwright  PlaywrightConfig `yaml:"playwright"`
+	Webhooks    []WebhookConfig  `yaml:"webhooks"`
+	CheckFilter CheckFilter      `yaml:"check_filter"`
 }
 
 type WebhookConfig struct {

@@ -33,6 +33,7 @@ var checkRunCmd = &cobra.Command{
 func init() {
 	checkRunCmd.Flags().StringVar(&checkName, "check", "", "check name to run (runs all if empty)")
 	checkRunCmd.Flags().StringVarP(&checkOutput, "output", "o", "text", "output format: text, json")
+	addFilterFlags(checkRunCmd)
 	checkCmd.AddCommand(checkRunCmd)
 	rootCmd.AddCommand(checkCmd)
 }
@@ -58,24 +59,28 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksPath := config.ResolveChecksPath(cfgFile)
-	checks, err := config.LoadChecks(checksPath)
-	if err != nil {
-		return fmt.Errorf("loading checks: %w", err)
-	}
-
 	origin := cfg.ResolveOrigin(originID)
 
 	checkers := newCheckers(cfg)
 
 	var toRun []config.CheckConfig
 	if checkName != "" {
+		// An explicit --check is direct intent, so search the full set — a
+		// named check is never hidden by check_filter.
+		checks, err := config.LoadChecks(config.ResolveChecksPath(cfgFile))
+		if err != nil {
+			return fmt.Errorf("loading checks: %w", err)
+		}
 		p := config.FindCheckByName(checks, checkName)
 		if p == nil {
 			return fmt.Errorf("check %q not found", checkName)
 		}
 		toRun = append(toRun, *p)
 	} else {
+		checks, err := loadFilteredChecks(cfg)
+		if err != nil {
+			return err
+		}
 		toRun = checks
 	}
 
