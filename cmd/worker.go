@@ -29,6 +29,7 @@ var workerCmd = &cobra.Command{
 }
 
 func init() {
+	addFilterFlags(workerCmd)
 	rootCmd.AddCommand(workerCmd)
 }
 
@@ -38,8 +39,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksPath := config.ResolveChecksPath(cfgFile)
-	checks, err := config.LoadChecks(checksPath)
+	checks, err := loadFilteredChecks(cfg)
 	if err != nil {
 		slog.Warn("No checks loaded", "error", err)
 		checks = nil

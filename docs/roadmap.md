@@ -127,21 +127,6 @@ Terraform or CloudFormation templates for common deployment patterns:
 
 Features planned for the next development cycle.
 
-### Check filtering
-
-Run a targeted subset of checks per worker based on type, group, or tag. Configured in `technician.yml` via `check_filter` or CLI flags (`--types`, `--groups`). Enables deploying specialized workers from a single shared check config repo: HTTP-only on Cloudflare Workers, lightweight checks on Lambda, browser checks on a dedicated runner, etc.
-
-**What's needed:**
-
-- `check_filter` config block with `types`, `groups`, and `tags` fields. Filters are additive.
-- CLI flags `--types` and `--groups` as overrides.
-- New `tags` field on check configs (types and groups already exist).
-- Filtering at config load time in `internal/config/`, not at runtime.
-- `technician validate` should respect filters for per-target CI validation.
-- Documentation: multi-target deployment patterns showing how one check repo serves VPS, Lambda, and Workers targets with different filters.
-
-**Current workaround:** Separate `config/checks/` directories per worker with only the desired check YAML files. Works but duplicates check definitions. See [#15](https://github.com/jesseheady/technician/issues/15).
-
 ### Maintenance mode [#22](https://github.com/jesseheady/technician/issues/22)
 
 **Display-only** status-page maintenance badge. Alert suppression is **not** in scope — that stays in Alertmanager (mute time intervals for planned windows, silences for ad-hoc; see [alerting.md § Maintenance windows](alerting.md#maintenance-windows)). Technician should not be a second place to reason about "is it muted?".
@@ -342,6 +327,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Check filtering (multi-target deployment)
+
+Workers can run a targeted subset of checks via a `check_filter` block in `technician.yml` (`types`, `groups`, `tags`) or the `--types`/`--groups`/`--tags` flags on `worker` and `check run`. Dimensions are AND-ed, values within a dimension OR-ed, matching is case-insensitive, and unknown types are rejected at startup. Filtering happens once at load time, so filtered-out checks are never scheduled. Added a `tags` field to check configs; `validate` respects the config filter (its `--check-type`/`--exclude-type` flags still layer on top). This lets one shared `checks/` directory serve many deployment targets — see [multi-target deployment](multi-target-deployment.md).
 
 ### Staleness grace period (post-gap alert suppression)
 
