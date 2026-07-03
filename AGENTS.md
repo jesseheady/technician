@@ -104,8 +104,9 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## CI and workflows
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. A `changes` filter job skips heavy jobs for docs-only changes. A `CI Passed` gate job aggregates all results for branch protection.
-- `.github/workflows/canary.yml` – Canary synthetic check post-deployment.
 - `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
+- `.github/workflows/cache-cleanup.yml` – On PR close, deletes the caches scoped to that PR's `refs/pull/<n>/merge` ref (via `gh api`) so merged/closed PRs stop holding cache space instead of waiting for the 7-day/10 GB eviction.
+- `.github/workflows/trivy-ignore-audit.yml` – Weekly, reconciles `.trivyignore.yaml` deferrals: when an entry's `expired_at` is within 14 days it re-scans the image and either opens a PR to remove the entry (CVE fixed) or a re-triage issue (still vulnerable). Logic in `scripts/trivy-ignore-audit.sh`.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
 - `renovate.json` – Renovate is the dependency-update tool (Go modules, GitHub Actions, Docker base images). Auto-merges non-major updates, groups patch/minor/OTel/AWS-SDK updates, and runs lock-file maintenance. Major bumps are reviewed manually. No Dependabot version-update config — Renovate is the sole updater.
 
@@ -179,6 +180,8 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 - `SECURITY.md` directs vulnerability reports to GitHub's private vulnerability reporting (Security tab). No public issues for security reports.
 - Private vulnerability reporting is enabled on the repo.
 - Dependabot **alerts** (the detection scanner — server-side, never shown in the Actions tab) are enabled; Renovate's `vulnerabilityAlerts` reads them and raises the fixes. Dependabot's own PRs are disabled: no `.github/dependabot.yml` (no version-update PRs) and security auto-fix is off. The idle "Dependabot Updates" workflow in the Actions tab is historical residue from before the Renovate migration and cannot be removed (GitHub-managed).
+- **Trivy scanning** (`trivy.yml`): the filesystem scan gates on our own Go/npm deps (fails CI on any CRITICAL/HIGH). The container image scan uses `ignore-unfixed: true` + `exit-code: 1`, so it gates only on **fixable** CRITICAL/HIGH — unfixable upstream Debian/Node base CVEs can't block CI, but a fixable one forces a base-image bump (Renovate keeps the digest current). The runtime image is `node:24-slim` (Debian) because Playwright/Chromium requires glibc; a zero-CVE base is not achievable there (tracked separately for a possible split slim/browser image).
+- **`.trivyignore.yaml`** – the only place fixable CVEs are deferred, and only when the fix hasn't reached our base image yet. Every entry requires `expired_at` + `statement`. Expired entries lapse and fail CI again; `trivy-ignore-audit.yml` reconciles them (PR to remove when fixed, issue to re-triage when not). Do not add blanket/undated ignores.
 
 ## Check schedule guidance
 

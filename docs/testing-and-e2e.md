@@ -127,17 +127,10 @@ docker compose down
 
 ### 6. CI (GitHub Actions)
 
-Two workflows are available:
-
 **Main CI** (`.github/workflows/ci.yml`) — runs on push to `main` and PRs:
 - Build, test (race detector + coverage), lint
 - Validate checks + budgets (with and without Playwright)
 - Docker build on main branch pushes
-
-**Canary** (`.github/workflows/canary.yml`) — runs post-deployment:
-- Trigger via `workflow_dispatch` with optional `target_url`, or on `deployment_status`
-- Uses the pre-built Docker image (includes Chromium)
-- Uploads HAR artifacts
 
 See [CI documentation](ci.md) for details on GitHub Actions, generic CI pipelines (GitLab, CircleCI, Jenkins), and Playwright resource considerations in CI.
 
@@ -147,10 +140,9 @@ See [CI documentation](ci.md) for details on GitHub Actions, generic CI pipeline
 2. Before merge: run `validate` with a config that uses stable or mock targets.
 3. Optionally run the full Docker stack and spot-check Grafana/Prometheus.
 4. The CI workflow runs build + test + lint + validate automatically on PRs and pushes to main.
-5. Rely on the canary workflow for deployment-time validation.
 
 ## Adding e2e coverage
 
 - Add or extend check definitions in `examples/checks/` (or a dedicated `e2e/` config dir) that hit known-good or mock endpoints.
 - Add a minimal `budgets.yml` for e2e so `validate` has clear pass/fail (e.g. relaxed thresholds for mock targets).
-- Document any required environment (e.g. `CANARY_URL`) in this doc or in the workflow file.
+- Document any required environment (e.g. a target URL via `${ENV_VAR}`) in this doc or in the workflow file.

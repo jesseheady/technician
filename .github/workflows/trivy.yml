@@ -46,10 +46,13 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Build image for scanning
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           push: false
@@ -64,4 +67,13 @@ jobs:
           image-ref: technician:scan
           format: table
           severity: CRITICAL,HIGH
-          # exit-code: '1' - Deliberately disabled; unfixed Debian CVEs would block CI. Filesystem scan still enforces Go/Node deps.
+          # Gate on fixable CVEs only. Unfixed upstream Debian/Node base CVEs
+          # (no patch available) are ignored so they can't block CI; a fixable
+          # CRITICAL/HIGH fails the build so a base-image bump (Renovate keeps
+          # the digest current) is required to clear it.
+          ignore-unfixed: true
+          exit-code: '1'
+          # Fixable CVEs we can't clear yet (fix not in the base image) are
+          # deferred here with an expiry + reason. Expired entries lapse and
+          # fail CI again; the trivy-ignore-audit workflow reconciles them.
+          trivyignores: .trivyignore.yaml

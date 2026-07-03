@@ -58,7 +58,7 @@ playwright:
 
 **1. RAM -- concurrent Chromium instances.** Each browser is 150-300 MB depending on page complexity. The `max_browsers` semaphore prevents unbounded stacking. If a check can't acquire a slot within its timeout, it fails with an infra error rather than OOM-killing the host.
 
-**2. Disk -- HAR + video accumulation.** With `video: true` and full HAR recording, each run produces 2-20 MB of artifacts. At 1-minute intervals across 10 checks that's 20-200 MB/hour. The `artifacts.retention` setting (default 72h) controls cleanup. Without video, roughly half.
+**2. Disk -- HAR + video are transient.** With `video: true` and full HAR recording, each run produces 2-20 MB of scratch output, written to a unique per-run temp directory and deleted when the run finishes — concurrent runs never share paths, and nothing accumulates between runs. Peak disk usage is bounded by `max_browsers` × per-run size. Videos are not yet retained anywhere; routing them through the artifact store for failure inspection is tracked separately.
 
 **3. CPU -- Chromium rendering.** Each instance uses 1-2 CPU cores during page load. 4+ concurrent browsers will saturate a 2-vCPU host. Complex flows with interactions, screenshots, and Web Vitals collection extend the CPU-busy window.
 
