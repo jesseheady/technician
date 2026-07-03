@@ -30,15 +30,15 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 - **`technician validate`** – Run all checks, evaluate budgets, exit 0/1 (CI).
 - **`technician test-webhook`** – Send a test notification to all configured webhooks.
 
-Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`), `--log-level` (debug, info, warn, error).
+Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`), `--log-level` (debug, info, warn, error). `worker` and `check run` also accept `--types`/`--groups`/`--tags` (comma-separated) to run a subset of checks, overriding the `check_filter` config block per dimension.
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`.
+- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics`, `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)).
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex), `follow_redirects`, `ip_version`, `min_tls`/`max_tls`, `basic_auth`/`bearer_token` (mutually exclusive), and `proxy`. TCP checks support `min_tls`/`max_tls` (with `tls: true`). SMTP checks support `start_tls`, `skip_tls`, and `username`/`password` auth (auth requires `start_tls`). DNS checks support SOA alongside A/AAAA/MX/TXT/CNAME/NS/SRV.
   - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.
-  - All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold).
+  - All check types support optional `retry` (count, backoff, delay), `degraded_after` (duration threshold), `group`, and `tags` (used by `check_filter`).
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
 - **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (check_down/check_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m). Notifications fire on state transitions, not every check run. Events carry severity: check_down=critical, budget_violation=warning, cert_expiring=warning or critical based on days vs thresholds. Multiple webhook entries with different `severities` filters enable routing warnings to Slack and critical to PagerDuty.
 - **Config layout**: `examples/` has reference configs with placeholder values (checked in). Copy to `config/` for local/production use (gitignored). Docker Compose mounts from `config/`.

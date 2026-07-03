@@ -33,6 +33,21 @@ playwright:
   mode: local
   # max_browsers: 2  # max concurrent Chromium instances (default 2, increase for CI or dedicated runners)
 
+# Check filter (optional). Run only a subset of the checks/ directory, so one
+# check config can serve many deployment targets from a single per-target
+# technician.yml. Each dimension is a set of allowed values: a check must match
+# every dimension listed (AND), and any value within a dimension (OR). Omit a
+# dimension for no restriction; omit the whole block to run everything.
+# Matching is case-insensitive. CLI equivalents override per dimension:
+#   technician worker --types http,dns   --groups Infrastructure   --tags browser
+#
+# check_filter:
+#   types: [http, dns]        # valid: http, tcp, udp, dns, icmp, grpc, ntp,
+#                             #        tls, smtp, traceroute, bgp,
+#                             #        domain_expiry, playwright
+#   groups: [Infrastructure]  # matches the `group:` field on checks
+#   tags: [critical]          # matches any of the `tags:` on a check
+
 # Native webhook notifications (optional).
 # Technician sends notifications directly — no Alertmanager or Grafana needed.
 # For richer alerting (silencing, grouping, escalation, alert history),

@@ -13,9 +13,13 @@
 # responds in 50-100ms from cloud; a dynamic API may take 500ms-2s legitimately.
 # Residential adds ISP latency + Docker overhead.
 
+# `group` and `tags` are optional metadata used by check_filter (see
+# technician.yml) so one checks/ directory can serve many deployment targets.
+# A check matches a tag filter if it carries any of the requested tags.
 - name: example.com
   type: http
   group: Marketing
+  tags: [public, critical]
   url: https://example.com
   expected_status: 200
   schedule: "*/60 * * * * *"
@@ -28,6 +32,7 @@
 - name: example.com/api
   type: http
   group: API
+  tags: [critical]
   url: https://jsonplaceholder.typicode.com/posts/1
   expected_status: 200
   timeout: 5s

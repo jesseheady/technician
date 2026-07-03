@@ -72,10 +72,12 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checksPath := config.ResolveChecksPath(cfgFile)
-	checks, err := config.LoadChecks(checksPath)
+	// loadFilteredChecks applies the technician.yml check_filter block. The
+	// --check-type / --exclude-type flags below layer on top of it (they are
+	// validate-only and predate check_filter; CI relies on them).
+	checks, err := loadFilteredChecks(cfg)
 	if err != nil {
-		return fmt.Errorf("loading checks: %w", err)
+		return err
 	}
 
 	budgets, err := budget.LoadBudgets(budgetFile)
