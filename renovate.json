@@ -4,6 +4,7 @@
     "config:best-practices",
     ":semanticCommits",
     ":separateMultipleMajorReleases",
+    ":gitSignOff",
     "schedule:weekdays"
   ],
   "labels": ["dependencies"],
