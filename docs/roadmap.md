@@ -328,6 +328,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Cross-platform developer onboarding
+
+Renamed `scripts/init-mac.sh` → `scripts/init.sh` with platform detection (`uname` + package-manager sniffing) so one-time setup works on macOS, Linux, and WSL. Restructured getting-started around an evaluate-vs-contribute split with a chooser table. Evaluated `mise` for runtime pinning and kept it out — Go is pinned via `go.mod` and adding a bootstrap tool would raise, not lower, the adoption barrier.
+
 ### Check filtering (multi-target deployment)
 
 Workers can run a targeted subset of checks via a `check_filter` block in `technician.yml` (`types`, `groups`, `tags`) or the `--types`/`--groups`/`--tags` flags on `worker` and `check run`. Dimensions are AND-ed, values within a dimension OR-ed, matching is case-insensitive, and unknown types are rejected at startup. Filtering happens once at load time, so filtered-out checks are never scheduled. Added a `tags` field to check configs; `validate` respects the config filter (its `--check-type`/`--exclude-type` flags still layer on top). This lets one shared `checks/` directory serve many deployment targets — see [multi-target deployment](multi-target-deployment.md).
@@ -472,7 +476,7 @@ GitHub Actions workflow (`.github/workflows/release.yml`) triggered on `v*` tag 
 
 ### Pre-commit hook
 
-`.githooks/pre-commit` runs `go build`, `go vet`, `go test -race`, and `govulncheck` (optional) on every commit. Mirrors CI locally. Configured automatically by `scripts/init-mac.sh` via `git config core.hooksPath .githooks`.
+`.githooks/pre-commit` runs `go build`, `go vet`, `go test -race`, and `govulncheck` (optional) on every commit. Mirrors CI locally. Configured automatically by `scripts/init.sh` via `git config core.hooksPath .githooks`.
 
 ### Dependabot
 

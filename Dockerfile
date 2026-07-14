@@ -1,5 +1,12 @@
 FROM golang:1.26-bookworm@sha256:e60d708a92ad26a6d61901334510d3debd23ddcba125663ecd6008d42e8ec669 AS builder
 
+# Let the builder fetch the exact toolchain go.mod pins if it is newer than the
+# base image, instead of hard-failing (golang images default to GOTOOLCHAIN=local).
+# Downloads are verified against the Go checksum database; go.mod remains the pin.
+# This decouples a go.mod `go` bump from the base-image digest bump so the two
+# can land in separate PRs without breaking the image build.
+ENV GOTOOLCHAIN=auto
+
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download

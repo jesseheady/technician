@@ -20,6 +20,11 @@
       "enabled": false
     },
     {
+      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break",
+      "matchDepNames": ["go", "golang"],
+      "groupName": "go toolchain"
+    },
+    {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
       "automerge": true

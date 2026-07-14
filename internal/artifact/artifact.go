@@ -16,6 +16,12 @@ func New(driver string, opts map[string]string) (Store, error) {
 	case "local":
 		path := opts["path"]
 		if path == "" {
+			// Dev/inspection default only. /tmp is ephemeral (cleared on
+			// reboot, and not on the technician_data volume in Docker), so
+			// artifacts written here do not survive container removal. For
+			// retention, use the "s3" driver in production; a persistent local
+			// path (e.g. under /var/lib/technician) is the alternative if the
+			// local store ever carries artifacts meant to be kept.
 			path = "/tmp/technician/artifacts"
 		}
 		return NewLocalStore(path), nil
