@@ -83,12 +83,15 @@ Metrics at [http://localhost:9590/metrics](http://localhost:9590/metrics), healt
 **Full stack (Technician + Prometheus + Grafana):**
 
 ```bash
+cp -r examples/ config/   # first time
 docker compose up
 ```
 
 - Technician: port 9590
 - Prometheus: [http://localhost:9090](http://localhost:9090)
 - Grafana: [http://localhost:3000](http://localhost:3000) (admin / admin)
+
+`docker compose up` builds Technician from local source. Works on macOS, Linux, and WSL. See [getting started](docs/getting-started.md) for the evaluate / contribute paths.
 
 ## Commands
 
@@ -139,7 +142,7 @@ Technician is built around Prometheus pull-based scraping because:
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md) — Prerequisites, Mac init script, running the worker and full stack.
+- [Getting started](docs/getting-started.md) — Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration.
 - [Architecture: Central Prometheus and Grafana](docs/architecture/central-prometheus-grafana.md) — VPC deployment, scrape config, edge push strategies.
 - [Proposal: Cloudflare Workers](docs/proposals/cloudflare-workers.md) — Edge check runners on Workers and Lambda.
 - [Proposal: Site identifiers at the edge](docs/proposals/site-identifiers-edge.md) — How to identify check location in serverless environments.

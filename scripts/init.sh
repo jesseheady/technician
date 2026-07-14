@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# init-mac.sh – One-time project setup for local development on macOS.
-# Usage: ./scripts/init-mac.sh [--stack]
+# init.sh – One-time project setup for local development.
+# Works on macOS, Linux, and Windows (WSL). Detects the platform and prints
+# the matching install hints; the build itself is identical everywhere.
+# Usage: ./scripts/init.sh [--stack]
 #   --stack  Start docker compose (Technician + Prometheus + Grafana) after setup.
 
 set -e
@@ -15,6 +17,33 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()   { echo -e "${RED}[ERR]${NC} $*"; }
+
+# --- Platform detection ---
+# PLATFORM drives only the human-readable install hints below; the build steps
+# are identical across macOS, Linux, and WSL.
+PLATFORM="unknown"
+MTR_HINT="install mtr with your package manager"
+case "$(uname -s)" in
+  Darwin)
+    PLATFORM="macOS"
+    MTR_HINT="brew install mtr"
+    ;;
+  Linux)
+    if grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
+      PLATFORM="WSL"
+    else
+      PLATFORM="Linux"
+    fi
+    if command -v apt-get &>/dev/null; then
+      MTR_HINT="sudo apt-get install mtr-tiny"
+    elif command -v dnf &>/dev/null; then
+      MTR_HINT="sudo dnf install mtr"
+    elif command -v pacman &>/dev/null; then
+      MTR_HINT="sudo pacman -S mtr"
+    fi
+    ;;
+esac
+info "Platform: $PLATFORM"
 
 # --- Checks ---
 start_stack=0
@@ -42,7 +71,7 @@ info "Build OK: ./technician"
 if command -v mtr &>/dev/null; then
   info "mtr found (traceroute checks supported)"
 else
-  warn "mtr not found. Traceroute checks will fail. Install with: brew install mtr"
+  warn "mtr not found. Traceroute checks will fail. Install with: $MTR_HINT"
 fi
 
 if command -v node &>/dev/null; then
@@ -100,5 +129,5 @@ else
   echo ""
   info "Run the worker: ./technician worker --config config/technician.yml"
   info "(First time? Copy examples: cp -r examples/ config/)"
-  info "Or start full stack: ./scripts/init-mac.sh --stack"
+  info "Or start full stack: ./scripts/init.sh --stack"
 fi

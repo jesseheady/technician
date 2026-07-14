@@ -92,7 +92,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## Documentation
 
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
-- `docs/getting-started.md` – Prerequisites, init script (Mac), run worker and full stack.
+- `docs/getting-started.md` – Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration.
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
 - `docs/playwright-scaling.md` – Browser check resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
 - `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.
@@ -116,7 +116,7 @@ The builder stage sets `ENV GOTOOLCHAIN=auto`, overriding the `golang` base imag
 
 ## Pre-commit hook
 
-`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, and `govulncheck` (skipped if not installed). This mirrors CI so issues are caught before pushing. The hook is configured automatically by `scripts/init-mac.sh` via `git config core.hooksPath .githooks`. New contributors must run the init script or set this manually.
+`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, and `govulncheck` (skipped if not installed). This mirrors CI so issues are caught before pushing. The hook is configured automatically by `scripts/init.sh` via `git config core.hooksPath .githooks`. New contributors must run the init script or set this manually.
 
 ## Branch protection
 
