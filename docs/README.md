@@ -2,7 +2,7 @@
 
 | Document | Description |
 |----------|-------------|
-| [Getting started](getting-started.md) | Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration. |
+| [Getting started](getting-started.md) | Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, and check configuration. |
 | [Alerting](alerting.md) | Native webhooks (Discord, Slack, generic), Grafana alerting (recommended), and Alertmanager. |
 | [Testing and e2e](testing-and-e2e.md) | Unit tests, `go test`/vet, and end-to-end validation (validate command, metrics scrape, Docker stack, CI). |
 | [Local development](mock-production.md) | Run Technician locally with full metrics/dashboards while probing mock local endpoints. |

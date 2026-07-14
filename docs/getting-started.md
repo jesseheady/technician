@@ -1,13 +1,14 @@
 # Getting started
 
-There are two ways in, depending on what you're trying to do. Pick one:
+There are three ways in, depending on what you're trying to do. Pick one:
 
 | I want to… | Use | Needs |
 |------------|-----|-------|
 | **Evaluate** — see the whole stack running fast | [Try it (Docker)](#try-it-docker) | Docker only |
 | **Contribute** — build and iterate on the code | [Set up for development](#set-up-for-development) | Go (+ optional Node) |
+| **Operate** — run it live in production | [Run in production](#run-in-production) | Docker or Kubernetes |
 
-Both work on macOS, Linux, and Windows (WSL).
+All three work on macOS, Linux, and Windows (WSL).
 
 ## Try it (Docker)
 
@@ -29,7 +30,9 @@ docker compose up
 
 > `docker compose up` **builds Technician from local source** (the base
 > `docker-compose.yml` uses `build: .`), so a fresh checkout works with no
-> external image.
+> external image. To pull the published image instead, add the production
+> overlay: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up`.
+> See [Run in production](#run-in-production).
 
 ## Set up for development
 
@@ -81,6 +84,39 @@ go run . worker --config examples/technician.yml
 - Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
 
 Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`), and `--log-level debug` for verbose logging.
+
+## Run in production
+
+Technician is a long-lived worker plus an observability stack (Prometheus +
+Grafana), so the production story is a **published image**, not a build. Two
+supported shapes:
+
+### Single node (Docker Compose)
+
+Copy `docker-compose.yml`, `docker-compose.prod.yml`, `prometheus/`, and your
+`config/` to the host — no source checkout or build needed. The production
+overlay swaps the source build for the published `ghcr.io/jesseheady/technician`
+image:
+
+```bash
+# On the target host:
+export TECHNICIAN_VERSION=v0.1.0     # pin a release tag; defaults to :latest
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+Pin `TECHNICIAN_VERSION` to a released tag rather than tracking `:latest` so
+deploys are reproducible. Set the external-URL env vars (`PROMETHEUS_EXTERNAL_URL`,
+`ALERTMANAGER_EXTERNAL_URL`) so notification links resolve from outside the host —
+see [.env.example](../.env.example).
+
+### Kubernetes (Helm)
+
+A chart lives in [deploy/helm/technician](../deploy/helm/technician); see its
+[README](../deploy/helm/technician/README.md) and `values.yaml` for options.
+
+For running workers across regions and scraping them into a central Prometheus in
+your VPC, see [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md).
+For sizing (VPS, Docker, Lambda, Workers), see [deployment sizing](deployment-sizing.md).
 
 ## Configuration layout
 
