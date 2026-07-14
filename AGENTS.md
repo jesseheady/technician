@@ -92,7 +92,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## Documentation
 
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
-- `docs/getting-started.md` – Prerequisites, init script (Mac), run worker and full stack.
+- `docs/getting-started.md` – Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration.
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
 - `docs/playwright-scaling.md` – Browser check resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
 - `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.
@@ -108,11 +108,15 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 - `.github/workflows/cache-cleanup.yml` – On PR close, deletes the caches scoped to that PR's `refs/pull/<n>/merge` ref (via `gh api`) so merged/closed PRs stop holding cache space instead of waiting for the 7-day/10 GB eviction.
 - `.github/workflows/trivy-ignore-audit.yml` – Weekly, reconciles `.trivyignore.yaml` deferrals: when an entry's `expired_at` is within 14 days it re-scans the image and either opens a PR to remove the entry (CVE fixed) or a re-triage issue (still vulnerable). Logic in `scripts/trivy-ignore-audit.sh`.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
-- `renovate.json` – Renovate is the dependency-update tool (Go modules, GitHub Actions, Docker base images). Auto-merges non-major updates, groups patch/minor/OTel/AWS-SDK updates, and runs lock-file maintenance. Major bumps are reviewed manually. No Dependabot version-update config — Renovate is the sole updater. The `:gitSignOff` preset adds a `Signed-off-by:` trailer to Renovate's commits so they satisfy the DCO check like any other commit — the check is not weakened or bypassed for bots.
+- `renovate.json` – Renovate is the dependency-update tool (Go modules, GitHub Actions, Docker base images). Auto-merges non-major updates, groups patch/minor/OTel/AWS-SDK updates, and runs lock-file maintenance. Major bumps are reviewed manually. No Dependabot version-update config — Renovate is the sole updater. The `:gitSignOff` preset adds a `Signed-off-by:` trailer to Renovate's commits so they satisfy the DCO check like any other commit — the check is not weakened or bypassed for bots. The go.mod `go` directive and the `golang` builder image are grouped ("go toolchain") so the pinned minimum Go version and the base-image Go version update together and never drift into a build break.
+
+### Go toolchain in Docker
+
+The builder stage sets `ENV GOTOOLCHAIN=auto`, overriding the `golang` base image's default of `local`. With `local`, a `go.mod` that requires a newer Go patch than the pinned base image hard-fails the build (`go: go.mod requires go >= X (running Y; GOTOOLCHAIN=local)`) — this bit us when a `go.mod` bump landed before the matching base-image digest bump. `auto` lets the builder fetch the exact toolchain `go.mod` pins (checksum-DB verified; `go.mod` stays the pin) instead of failing, decoupling the two so they can land in separate PRs. `local` was never a deliberate gate we set — it is the base image's own default.
 
 ## Pre-commit hook
 
-`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, and `govulncheck` (skipped if not installed). This mirrors CI so issues are caught before pushing. The hook is configured automatically by `scripts/init-mac.sh` via `git config core.hooksPath .githooks`. New contributors must run the init script or set this manually.
+`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, and `govulncheck` (skipped if not installed). This mirrors CI so issues are caught before pushing. The hook is configured automatically by `scripts/init.sh` via `git config core.hooksPath .githooks`. New contributors must run the init script or set this manually.
 
 ## Branch protection
 
