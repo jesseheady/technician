@@ -21,6 +21,9 @@ metrics:
     endpoint: ""
 
 artifacts:
+  # Local driver = dev/inspection only. /tmp is ephemeral and not on the
+  # technician_data volume, so artifacts here don't survive a restart. Use
+  # driver: s3 for retention in production.
   driver: local
   path: /tmp/technician/artifacts
   retention: 24h

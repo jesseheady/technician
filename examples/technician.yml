@@ -25,6 +25,9 @@ metrics:
     endpoint: ""
 
 artifacts:
+  # The local driver is for dev/inspection. /tmp is ephemeral (not on the
+  # technician_data volume in Docker), so artifacts here do not survive a
+  # container restart. Use driver: s3 for retention in production.
   driver: local
   path: /tmp/technician/artifacts
   retention: 72h
