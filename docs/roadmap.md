@@ -328,6 +328,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Pull-based production compose
+
+The base `docker-compose.yml` builds from source so a fresh checkout works with no image; a tracked `docker-compose.prod.yml` overlay swaps in the published image `ghcr.io/jesseheady/technician:${TECHNICIAN_VERSION:-latest}` for operators (`-f docker-compose.yml -f docker-compose.prod.yml`). Documented the single-node Compose and Kubernetes (Helm) production paths in getting-started.
+
 ### Cross-platform developer onboarding
 
 Renamed `scripts/init-mac.sh` → `scripts/init.sh` with platform detection (`uname` + package-manager sniffing) so one-time setup works on macOS, Linux, and WSL. Restructured getting-started around an evaluate-vs-contribute split with a chooser table. Evaluated `mise` for runtime pinning and kept it out — Go is pinned via `go.mod` and adding a bootstrap tool would raise, not lower, the adoption barrier.

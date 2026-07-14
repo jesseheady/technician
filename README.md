@@ -91,7 +91,7 @@ docker compose up
 - Prometheus: [http://localhost:9090](http://localhost:9090)
 - Grafana: [http://localhost:3000](http://localhost:3000) (admin / admin)
 
-`docker compose up` builds Technician from local source. Works on macOS, Linux, and WSL. See [getting started](docs/getting-started.md) for the evaluate / contribute paths.
+`docker compose up` builds Technician from local source. To pull the published image `ghcr.io/jesseheady/technician` instead, add the production overlay: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up`. Works on macOS, Linux, and WSL. See [getting started](docs/getting-started.md) for the evaluate / contribute / operate paths.
 
 ## Commands
 
@@ -142,7 +142,7 @@ Technician is built around Prometheus pull-based scraping because:
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md) — Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration.
+- [Getting started](docs/getting-started.md) — Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, and check configuration.
 - [Architecture: Central Prometheus and Grafana](docs/architecture/central-prometheus-grafana.md) — VPC deployment, scrape config, edge push strategies.
 - [Proposal: Cloudflare Workers](docs/proposals/cloudflare-workers.md) — Edge check runners on Workers and Lambda.
 - [Proposal: Site identifiers at the edge](docs/proposals/site-identifiers-edge.md) — How to identify check location in serverless environments.

@@ -92,7 +92,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## Documentation
 
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
-- `docs/getting-started.md` – Onboarding paths (evaluate via Docker, contribute via `init.sh`), prerequisites, and check configuration.
+- `docs/getting-started.md` – Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, and check configuration.
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
 - `docs/playwright-scaling.md` – Browser check resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
 - `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.
@@ -104,7 +104,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## CI and workflows
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. A `changes` filter job skips heavy jobs for docs-only changes. A `CI Passed` gate job aggregates all results for branch protection.
-- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes multi-arch Docker image to GHCR (`ghcr.io/<repo>/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached.
+- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes the multi-arch Docker image to GHCR (`ghcr.io/jesseheady/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached. **While the repo is private, do not rely on this to publish images:** the GHCR package is not public, so new tags must be pushed manually (build + `docker push ghcr.io/jesseheady/technician:<tag>`) until the repo goes public. The base `docker-compose.yml` builds from source; the `docker-compose.prod.yml` overlay pulls this image for operators.
 - `.github/workflows/cache-cleanup.yml` – On PR close, deletes the caches scoped to that PR's `refs/pull/<n>/merge` ref (via `gh api`) so merged/closed PRs stop holding cache space instead of waiting for the 7-day/10 GB eviction.
 - `.github/workflows/trivy-ignore-audit.yml` – Weekly, reconciles `.trivyignore.yaml` deferrals: when an entry's `expired_at` is within 14 days it re-scans the image and either opens a PR to remove the entry (CVE fixed) or a re-triage issue (still vulnerable). Logic in `scripts/trivy-ignore-audit.sh`.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
