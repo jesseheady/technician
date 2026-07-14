@@ -1,27 +1,86 @@
 # Getting started
 
-Get Technician running on your machine for local development and testing.
+There are two ways in, depending on what you're trying to do. Pick one:
 
-## Prerequisites
+| I want to… | Use | Needs |
+|------------|-----|-------|
+| **Evaluate** — see the whole stack running fast | [Try it (Docker)](#try-it-docker) | Docker only |
+| **Contribute** — build and iterate on the code | [Set up for development](#set-up-for-development) | Go (+ optional Node) |
 
-- **Go 1.26+** – [go.dev/dl](https://go.dev/dl/)
-- **macOS** – For the init script; other platforms see [Run without the script](#run-without-the-script) below.
+Both work on macOS, Linux, and Windows (WSL).
 
-Optional (for full feature set):
+## Try it (Docker)
 
-- **Docker & Docker Compose** – To run Prometheus and Grafana alongside Technician.
-- **Node.js 18+** – Required for Playwright (browser) checks. Install via [nodejs.org](https://nodejs.org/) or `nvm`.
-- **mtr** – For traceroute checks. On macOS: `brew install mtr`. Note: mtr typically requires root (raw sockets) on macOS and Linux, so traceroute checks may fail unless you run as root. For local dev you can remove or leave traceroute checks out of your config.
+The fastest zero-to-running path. Pulls the published image and brings up
+Technician alongside Prometheus and Grafana — no build, no Go toolchain.
 
-## One-time setup (Mac)
+```bash
+git clone https://github.com/jesseheady/technician.git
+cd technician
+cp -r examples/ config/     # starter configs with placeholder targets
+docker compose up
+```
+
+- **Status page**: [http://localhost:9590/](http://localhost:9590/)
+- **Technician metrics**: [http://localhost:9590/metrics](http://localhost:9590/metrics)
+- **Prometheus**: [http://localhost:9090](http://localhost:9090)
+- **Alertmanager**: [http://localhost:9093](http://localhost:9093)
+- **Grafana**: [http://localhost:3000](http://localhost:3000) (default `admin` / `admin`)
+
+> `docker compose up` **builds Technician from local source** (the base
+> `docker-compose.yml` uses `build: .`), so a fresh checkout works with no
+> external image.
+
+## Set up for development
+
+For contributing to Technician. This builds the binary from source so you can
+iterate on Go code directly.
+
+### Prerequisites
+
+- **Go 1.26+** – [go.dev/dl](https://go.dev/dl/) (required)
+
+Optional, for the full feature set:
+
+- **Docker & Docker Compose** – to run Prometheus and Grafana alongside the worker.
+- **Node.js 22+** – required for Playwright (browser) checks. Install via [nodejs.org](https://nodejs.org/), `nvm`, or your package manager.
+- **mtr** – for traceroute checks. macOS: `brew install mtr`; Debian/Ubuntu/WSL: `sudo apt-get install mtr-tiny`; Fedora: `sudo dnf install mtr`. Note: mtr needs root (raw sockets) on macOS and Linux, so traceroute checks may fail unless run as root. For local dev you can leave traceroute checks out of your config.
+
+### One-time setup
 
 From the project root:
 
 ```bash
-./scripts/init-mac.sh
+./scripts/init.sh
 ```
 
-This checks Go, Node (if needed), and optional tools; installs Go dependencies; builds the binary; and optionally starts the full stack. See [scripts/init-mac.sh](../scripts/init-mac.sh) for what it does.
+The script detects your platform (macOS / Linux / WSL) and prints the matching
+install hints. It checks Go, Node (if present), and optional tools; installs Go
+dependencies; builds the binary; and configures the git hooks. Pass `--stack` to
+also start the full Docker stack. See [scripts/init.sh](../scripts/init.sh) for
+exactly what it does, or [Set up without the script](#set-up-without-the-script)
+to do the same steps by hand.
+
+### Run the worker
+
+```bash
+cp -r examples/ config/                                  # first time only
+go run . worker --config config/technician.yml
+```
+
+Or point straight at the example configs (placeholder targets):
+
+```bash
+go run . worker --config examples/technician.yml
+```
+
+- Status page: [http://localhost:9590/](http://localhost:9590/) — real-time status with collapsible groups, history bars, auto-refresh
+- Status API: [http://localhost:9590/api/status](http://localhost:9590/api/status) — JSON snapshot of all check state
+- Metrics: [http://localhost:9590/metrics](http://localhost:9590/metrics)
+- Health: [http://localhost:9590/health](http://localhost:9590/health)
+- Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
+
+Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`), and `--log-level debug` for verbose logging.
 
 ## Configuration layout
 
@@ -37,38 +96,7 @@ cp -r examples/ config/
 # Edit config/checks.yml, config/technician.yml, etc.
 ```
 
-## Run the worker (minimal)
-
-```bash
-go run . worker --config config/technician.yml
-```
-
-Or with the example configs directly (placeholder targets):
-
-```bash
-go run . worker --config examples/technician.yml
-```
-
-- Status page: [http://localhost:9590/](http://localhost:9590/) — real-time check status with collapsible groups, history bars with tooltips (UTC/local time), and auto-refresh
-- Status API: [http://localhost:9590/api/status](http://localhost:9590/api/status) — JSON snapshot of all check state
-- Metrics: [http://localhost:9590/metrics](http://localhost:9590/metrics)
-- Health: [http://localhost:9590/health](http://localhost:9590/health)
-- Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
-
-Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`). Use `--log-level debug` for debug logging.
-
-## Run with Prometheus and Grafana
-
-```bash
-docker compose up
-```
-
-- **Technician**: metrics on port 9590 (inside the compose network).
-- **Prometheus**: [http://localhost:9090](http://localhost:9090) – scrapes Technician, evaluates alert rules.
-- **Alertmanager**: [http://localhost:9093](http://localhost:9093) – routes alerts to Discord, Slack, Pushover, PagerDuty, etc. See [alerting docs](alerting.md#3-prometheus-alertmanager) for setup.
-- **Grafana**: [http://localhost:3000](http://localhost:3000) – default login `admin` / `admin` (see `docker-compose.yml` for overrides).
-
-Config and checks are mounted from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose uses `ORIGIN_ID=local` so the config's "local" site is used and labels stay distinct from real regions.
+Docker Compose mounts config and checks from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose sets `ORIGIN_ID=local` so the config's "local" site is used and labels stay distinct from real regions.
 
 ## Check configuration
 
@@ -268,14 +296,16 @@ go run . validate --config config/technician.yml --budget config/budgets.yml
 
 Output formats: `--output text` (default), `--output json`, `--output gha` (GitHub Actions annotations).
 
-## Run without the script
+## Set up without the script
+
+The same steps [scripts/init.sh](../scripts/init.sh) runs, by hand:
 
 1. Install Go 1.26+ and ensure `go` is on your `PATH`.
 2. From the repo root: `go mod download` then `go build -o technician .`.
 3. Copy examples to config: `cp -r examples/ config/` and customise.
 4. Run: `./technician worker --config config/technician.yml`.
 
-On Linux you may need `mtr` for traceroute checks (`apt install mtr` or equivalent). For Playwright checks you need Node.js and the Playwright Chromium browser (see Dockerfile or run `npx playwright install chromium` in a Node environment).
+For traceroute checks, install `mtr` (macOS: `brew install mtr`; Debian/Ubuntu/WSL: `sudo apt-get install mtr-tiny`; Fedora: `sudo dnf install mtr`). For Playwright checks you need Node.js and the Playwright Chromium browser (see Dockerfile or run `npx playwright install chromium` in a Node environment).
 
 ## Next steps
 

@@ -1,7 +1,7 @@
 # Contributing
 
 1. Fork, clone, and install Go 1.26+. Optionally Node.js 22+ (Playwright checks) and mtr (traceroute).
-2. Run `./scripts/init-mac.sh` to set up dependencies and git hooks.
+2. Run `./scripts/init.sh` to set up dependencies and git hooks (macOS, Linux, and WSL).
 3. `cp -r examples/ config/` then `go run . worker --config config/technician.yml`.
 4. Create a branch and make your change.
 5. Commit with `git commit -s` to add the required `Signed-off-by` trailer (DCO). CI will reject PRs without it.
