@@ -2,6 +2,9 @@ name: technician
 
 services:
   technician:
+    # Builds from local source by default so a fresh checkout works with no
+    # external image. Operators can pull the published image instead by adding
+    # the docker-compose.prod.yml overlay (see that file).
     build: .
     init: true
     ports:
