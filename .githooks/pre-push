@@ -48,8 +48,29 @@ docker run --rm --entrypoint amtool \
 
 if command -v go-licenses >/dev/null 2>&1; then
     echo "==> go-licenses (dependency license types)"
-    go-licenses check ./... --disallowed_types=forbidden,restricted,reciprocal \
-        --ignore github.com/jesseheady/technician 2>/dev/null
+    # go-licenses resolves stdlib module info with logic fixed at build time, so a
+    # binary built against a different Go than the active toolchain fails on every
+    # std package ("does not have module info"). Rebuild the pinned version when the
+    # binary's build-Go differs from the active toolchain (e.g. after a go.mod bump).
+    want="$(go env GOVERSION)"
+    have="$(go version -m "$(command -v go-licenses)" 2>/dev/null | awk 'NR==1{print $2}')"
+    if [ "$have" != "$want" ]; then
+        echo "    go-licenses built with ${have:-unknown}; rebuilding for ${want}..."
+        go install "github.com/google/go-licenses@${GOLICENSES_VERSION:-v1.6.0}"
+        PATH="$PATH:$(go env GOPATH)/bin"
+    fi
+    # Capture stderr and surface it only on failure: go-licenses is noisy about
+    # non-Go (asm/cgo) files in deps on success, but hiding it also hid real
+    # failures behind an opaque "failed to push".
+    gl_err="$(mktemp)"
+    if go-licenses check ./... --disallowed_types=forbidden,restricted,reciprocal \
+        --ignore github.com/jesseheady/technician 2>"$gl_err"; then
+        rm -f "$gl_err"
+    else
+        sed 's/^/    /' "$gl_err"
+        rm -f "$gl_err"
+        exit 1
+    fi
 else
     echo "==> go-licenses not installed — skipping license check (CI enforces it)"
 fi
