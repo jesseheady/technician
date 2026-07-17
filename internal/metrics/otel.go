@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,9 +27,16 @@ func InitOTEL(ctx context.Context, cfg *config.OTELConfig, serviceName string) (
 		return func(context.Context) error { return nil }, nil
 	}
 
-	exporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(cfg.Endpoint),
-	)
+	// A scheme-qualified endpoint decides its own transport: http:// exports in
+	// plaintext (the usual local/sidecar collector), https:// over TLS. A bare
+	// "host:port" keeps the OTel default of TLS rather than silently
+	// downgrading traces onto the wire unencrypted.
+	endpointOpt := otlptracehttp.WithEndpoint(cfg.Endpoint)
+	if strings.Contains(cfg.Endpoint, "://") {
+		endpointOpt = otlptracehttp.WithEndpointURL(cfg.Endpoint)
+	}
+
+	exporter, err := otlptracehttp.New(ctx, endpointOpt)
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP exporter: %w", err)
 	}
@@ -58,7 +67,16 @@ func TraceCheckResult(ctx context.Context, result *check.Result) {
 		return
 	}
 
+	// Spans are emitted after the check has already run, so anchor them to when
+	// the check actually happened. Without explicit timestamps every span would
+	// start and end at drain time, collapsing to ~0 duration in the trace UI.
+	start := result.Timestamp
+	if start.IsZero() {
+		start = time.Now().Add(-result.Duration)
+	}
+
 	_, span := tracer.Start(ctx, fmt.Sprintf("check.%s.%s", result.Type, result.Name),
+		trace.WithTimestamp(start),
 		trace.WithAttributes(
 			attribute.String("check.type", string(result.Type)),
 			attribute.String("check.name", result.Name),
@@ -66,7 +84,7 @@ func TraceCheckResult(ctx context.Context, result *check.Result) {
 			attribute.Float64("check.duration_ms", float64(result.Duration.Milliseconds())),
 		),
 	)
-	defer span.End()
+	defer span.End(trace.WithTimestamp(start.Add(result.Duration)))
 
 	for k, v := range result.Labels {
 		span.SetAttributes(attribute.String(k, v))

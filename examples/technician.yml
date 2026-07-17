@@ -26,6 +26,11 @@ metrics:
     # this and need metrics for all of them (default 500).
     max_check_cardinality: 500
   otel:
+    # OTLP/HTTP trace endpoint. Empty disables tracing entirely.
+    # The scheme picks the transport: http:// exports in plaintext (typical for
+    # a local or sidecar collector), https:// over TLS. A bare "host:port" is
+    # treated as TLS.
+    #   endpoint: "http://localhost:4318"
     endpoint: ""
 
 artifacts:

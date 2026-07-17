@@ -353,7 +353,7 @@ Technician is designed to work with self-hosted or managed infrastructure. Here'
 
 | Dependency | Config field | Options |
 |------------|-------------|---------|
-| **OTLP tracing** | `metrics.otel.endpoint` | Any OTLP-compatible collector — AWS X-Ray (via ADOT Collector), Datadog, Honeycomb, Jaeger, etc. Leave empty to disable. |
+| **OTLP tracing** | `metrics.otel.endpoint` | Any OTLP/HTTP-compatible collector — AWS X-Ray (via ADOT Collector), Datadog, Honeycomb, Jaeger, etc. The scheme selects the transport: `http://host:4318` for a plaintext local/sidecar collector, `https://host` for TLS (a bare `host:port` is treated as TLS). Leave empty to disable. |
 | **Artifact storage** | `artifacts.driver` | `local` (disk), `s3` (any S3-compatible store — AWS S3, MinIO, R2), or `none`. |
 | **Prometheus scrape** | `metrics.prometheus.listen` | Technician exposes `/metrics` on this address. Any Prometheus-compatible scraper can collect from it. |
 
