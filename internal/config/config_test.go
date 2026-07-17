@@ -81,6 +81,33 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Playwright.MaxBrowsers != 2 {
 		t.Errorf("expected default max_browsers=2, got %d", cfg.Playwright.MaxBrowsers)
 	}
+	if cfg.Metrics.Prometheus.MaxCheckCardinality != DefaultMaxCheckCardinality {
+		t.Errorf("expected default max_check_cardinality=%d, got %d",
+			DefaultMaxCheckCardinality, cfg.Metrics.Prometheus.MaxCheckCardinality)
+	}
+}
+
+func TestLoadMaxCheckCardinality(t *testing.T) {
+	content := `
+service: test
+metrics:
+  prometheus:
+    max_check_cardinality: 2000
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "technician.yml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Metrics.Prometheus.MaxCheckCardinality != 2000 {
+		t.Errorf("expected max_check_cardinality=2000, got %d", cfg.Metrics.Prometheus.MaxCheckCardinality)
+	}
 }
 
 func TestLoadPlaywrightMaxBrowsers(t *testing.T) {

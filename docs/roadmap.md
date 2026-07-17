@@ -328,6 +328,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Configurable Prometheus cardinality limit
+
+The 500-name cardinality guard was a compile-time constant, so operators running more checks than that had to fork and rebuild to get metrics for all of them. It's now `metrics.prometheus.max_check_cardinality`, defaulting to 500 when unset. The guard itself is unchanged — only its limit moved into config.
+
 ### Orphaned budget state pruning
 
 `Store.Reconcile` already dropped persisted check history for checks removed from the config (shipped earlier), but budget state is keyed by check name alone in a separate map and survived the sweep. Orphaned badges lingered in `status.json` indefinitely and inflated the status page's budget totals. Reconcile now prunes both.

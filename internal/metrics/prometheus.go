@@ -13,17 +13,30 @@ import (
 	"github.com/jesseheady/technician/internal/config"
 )
 
-// maxCheckCardinality is the maximum number of distinct check names that will
-// be tracked as Prometheus labels. Beyond this limit, new names are ignored
-// and a warning is logged. This prevents accidental label-cardinality
-// explosion in Prometheus (each unique name × 33 metrics × origin labels).
-const maxCheckCardinality = 500
-
 var (
-	cardinalityMu    sync.Mutex
-	seenCheckNames   = make(map[string]struct{})
-	cardinalityLimit bool // true once we've logged the warning
+	cardinalityMu sync.Mutex
+	// maxCheckCardinality is the maximum number of distinct check names that
+	// will be tracked as Prometheus labels. Beyond this limit, new names are
+	// ignored and a warning is logged. This prevents accidental
+	// label-cardinality explosion in Prometheus (each unique name × 33 metrics
+	// × origin labels). Override via metrics.prometheus.max_check_cardinality.
+	maxCheckCardinality = config.DefaultMaxCheckCardinality
+	seenCheckNames      = make(map[string]struct{})
+	cardinalityLimit    bool // true once we've logged the warning
 )
+
+// SetMaxCheckCardinality overrides the cardinality guard's limit. Call before
+// the scheduler starts recording results; a limit <= 0 is ignored so an unset
+// config keeps the default.
+func SetMaxCheckCardinality(limit int) {
+	if limit <= 0 {
+		return
+	}
+	cardinalityMu.Lock()
+	defer cardinalityMu.Unlock()
+	maxCheckCardinality = limit
+	cardinalityLimit = false
+}
 
 var (
 	checkUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
