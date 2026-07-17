@@ -486,9 +486,9 @@ GitHub Actions workflow (`.github/workflows/release.yml`) triggered on `v*` tag 
 
 `.githooks/pre-commit` runs `go build`, `go vet`, `go test -race`, and `govulncheck` (optional) on every commit. Mirrors CI locally. Configured automatically by `scripts/init.sh` via `git config core.hooksPath .githooks`.
 
-### Dependabot
+### Automated dependency updates
 
-`.github/dependabot.yml` configured for weekly Go module and GitHub Actions dependency updates. Vulnerability alerts enabled.
+Renovate (`renovate.json`) is the sole updater for Go modules, GitHub Actions, and Docker base images — auto-merging non-major updates, grouping patch/minor/OTel/AWS-SDK bumps, and running lock-file maintenance. Dependabot **alerts** stay enabled and Renovate's `vulnerabilityAlerts` raises the fixes; Dependabot's own version-update PRs are off (no `.github/dependabot.yml`). Originally shipped as a Dependabot config, since migrated.
 
 ### Branch protection
 

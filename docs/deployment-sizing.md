@@ -93,7 +93,7 @@ Technician includes several layers of optimization to minimize resource usage an
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **Multi-stage build** | `Dockerfile` | Go builder → `node:22-slim` runtime. Binary stripped (`-s -w`), CGO disabled. |
+| **Multi-stage build** | `Dockerfile` | Go builder → `node:24-slim` runtime. Binary stripped (`-s -w`), CGO disabled. |
 | **Layer caching** | `.github/workflows/` | Docker buildx with GitHub Actions cache. |
 | **Health checks** | `docker-compose.yml` | All services (Technician, Prometheus, Alertmanager, Grafana) have health checks with start periods, enabling dependency ordering. |
 | **Security scanning** | CI | `govulncheck` in CI pipeline. |
