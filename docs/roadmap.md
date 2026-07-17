@@ -328,6 +328,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Orphaned budget state pruning
+
+`Store.Reconcile` already dropped persisted check history for checks removed from the config (shipped earlier), but budget state is keyed by check name alone in a separate map and survived the sweep. Orphaned badges lingered in `status.json` indefinitely and inflated the status page's budget totals. Reconcile now prunes both.
+
 ### Pull-based production compose
 
 The base `docker-compose.yml` builds from source so a fresh checkout works with no image; a tracked `docker-compose.prod.yml` overlay swaps in the published image `ghcr.io/jesseheady/technician:${TECHNICIAN_VERSION:-latest}` for operators (`-f docker-compose.yml -f docker-compose.prod.yml`). Documented the single-node Compose and Kubernetes (Helm) production paths in getting-started.
