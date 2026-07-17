@@ -18,7 +18,7 @@ The init script configures a pre-commit hook (`.githooks/pre-commit`) that runs 
 - `go test -race ./...` — full test suite with race detector
 - `govulncheck ./...` — vulnerability scan (skipped if not installed)
 - `gofmt` — formatting check on staged Go files
-- `trivy fs` — secret and misconfig scan (always runs, never skipped)
+- `trivy fs` — secret scan (every severity) and misconfig scan (CRITICAL/HIGH); never skipped
 
 `promtool check rules`, `docker compose config`, and `shellcheck` also run when you stage the files they cover. `SKIP_HOOKS=1` skips the conditional checks, never the trivy scan.
 

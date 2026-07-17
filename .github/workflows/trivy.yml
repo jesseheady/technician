@@ -28,12 +28,23 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
 
-      - name: Run Trivy misconfig and secret scan
+      # Secrets are scanned at every severity: trivy rates some real credentials
+      # below HIGH (a JWT is MEDIUM), and a severity filter drops them silently.
+      - name: Run Trivy secret scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          scanners: misconfig,secret
+          scanners: secret
+          format: table
+          exit-code: '1'
+
+      - name: Run Trivy misconfig scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
           format: table
           severity: CRITICAL,HIGH
           exit-code: '1'
