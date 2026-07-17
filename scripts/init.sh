@@ -23,10 +23,14 @@ err()   { echo -e "${RED}[ERR]${NC} $*"; }
 # are identical across macOS, Linux, and WSL.
 PLATFORM="unknown"
 MTR_HINT="install mtr with your package manager"
+TRIVY_HINT="see https://trivy.dev/latest/getting-started/installation/"
+SHELLCHECK_HINT="install shellcheck with your package manager"
 case "$(uname -s)" in
   Darwin)
     PLATFORM="macOS"
     MTR_HINT="brew install mtr"
+    TRIVY_HINT="brew install trivy"
+    SHELLCHECK_HINT="brew install shellcheck"
     ;;
   Linux)
     if grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
@@ -36,10 +40,13 @@ case "$(uname -s)" in
     fi
     if command -v apt-get &>/dev/null; then
       MTR_HINT="sudo apt-get install mtr-tiny"
+      SHELLCHECK_HINT="sudo apt-get install shellcheck"
     elif command -v dnf &>/dev/null; then
       MTR_HINT="sudo dnf install mtr"
+      SHELLCHECK_HINT="sudo dnf install ShellCheck"
     elif command -v pacman &>/dev/null; then
       MTR_HINT="sudo pacman -S mtr"
+      SHELLCHECK_HINT="sudo pacman -S shellcheck"
     fi
     ;;
 esac
@@ -74,6 +81,18 @@ else
   warn "mtr not found. Traceroute checks will fail. Install with: $MTR_HINT"
 fi
 
+if command -v trivy &>/dev/null; then
+  info "trivy found (hook scans run natively, no Docker needed)"
+else
+  warn "trivy not found. Hook scans will fall back to Docker. Install with: $TRIVY_HINT"
+fi
+
+if command -v shellcheck &>/dev/null; then
+  info "shellcheck found"
+else
+  warn "shellcheck not found. Staging shell scripts will fall back to Docker. Install with: $SHELLCHECK_HINT"
+fi
+
 if command -v node &>/dev/null; then
   info "Node: $(node -v)"
   info "Installing Playwright + Chromium for browser checks..."
@@ -98,7 +117,11 @@ if [ -d .githooks ]; then
   # silently stall on lazy pulls. Skipped if Docker isn't running.
   if command -v docker &>/dev/null && docker info &>/dev/null; then
     info "Pre-pulling Docker images used by git hooks (one-time)..."
-    for image in aquasec/trivy:latest prom/prometheus:latest prom/alertmanager:latest koalaman/shellcheck:stable; do
+    # Native binaries make the matching container images dead weight.
+    hook_images="prom/prometheus:latest prom/alertmanager:latest"
+    command -v trivy &>/dev/null || hook_images="aquasec/trivy:latest $hook_images"
+    command -v shellcheck &>/dev/null || hook_images="koalaman/shellcheck:stable $hook_images"
+    for image in $hook_images; do
       if docker pull --quiet "$image" >/dev/null; then
         info "  pulled $image"
       else

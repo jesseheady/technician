@@ -68,15 +68,22 @@ if staged | grep -q '^prometheus/.*\.yml$'; then
 fi
 
 # Secret + misconfig scan: never skipped, even with SKIP_HOOKS=1.
+# An fs scan only reads the working tree, so a native trivy needs no daemon.
 echo "==> trivy fs (misconfig + secret)"
-require_docker
 mkdir -p "$HOME/.cache/trivy"
-docker run --rm \
-    -v "$REPO_ROOT:/work" \
-    -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-    -w /work aquasec/trivy:latest \
-    fs --scanners misconfig,secret --severity CRITICAL,HIGH \
-       --exit-code 1 --quiet --skip-dirs node_modules .
+if command -v trivy >/dev/null 2>&1; then
+    trivy fs --scanners misconfig,secret --severity CRITICAL,HIGH \
+        --exit-code 1 --quiet --skip-dirs node_modules .
+else
+    echo "    trivy not installed, using Docker (install to skip the daemon: https://trivy.dev/latest/getting-started/installation/)"
+    require_docker
+    docker run --rm \
+        -v "$REPO_ROOT:/work" \
+        -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+        -w /work aquasec/trivy:latest \
+        fs --scanners misconfig,secret --severity CRITICAL,HIGH \
+           --exit-code 1 --quiet --skip-dirs node_modules .
+fi
 
 echo "==> docker compose config"
 if staged | grep -qE '^(docker-compose.*\.yml|\.dockerignore|Dockerfile.*)$'; then
@@ -88,7 +95,11 @@ SH_FILES=$(staged | grep -E '(\.sh$|^\.githooks/)' || true)
 if [ -n "$SH_FILES" ]; then
     if skip_slow; then
         echo "    SKIP_HOOKS=1 — skipped"
+    elif command -v shellcheck >/dev/null 2>&1; then
+        # shellcheck disable=SC2086  # intentional word-splitting on file list
+        shellcheck $SH_FILES
     else
+        echo "    shellcheck not installed, using Docker (install to skip the daemon: https://github.com/koalaman/shellcheck#installing)"
         require_docker
         # shellcheck disable=SC2086  # intentional word-splitting on file list
         docker run --rm -v "$REPO_ROOT:/work" -w /work \

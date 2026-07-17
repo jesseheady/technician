@@ -17,12 +17,21 @@ The init script configures a pre-commit hook (`.githooks/pre-commit`) that runs 
 - `go vet ./...` — static analysis
 - `go test -race ./...` — full test suite with race detector
 - `govulncheck ./...` — vulnerability scan (skipped if not installed)
+- `gofmt` — formatting check on staged Go files
+- `trivy fs` — secret and misconfig scan (always runs, never skipped)
 
-These mirror the CI pipeline, so issues are caught before pushing. To install `govulncheck` locally:
+`promtool check rules`, `docker compose config`, and `shellcheck` also run when you stage the files they cover. `SKIP_HOOKS=1` skips the conditional checks, never the trivy scan.
+
+These mirror the CI pipeline. To install the optional tools:
 
 ```bash
 go install golang.org/x/vuln/cmd/govulncheck@latest
 ```
+
+Install [trivy](https://trivy.dev/latest/getting-started/installation/) and
+[shellcheck](https://github.com/koalaman/shellcheck#installing) for your platform;
+`./scripts/init.sh` prints the matching hint if either is missing. The hooks use
+them directly when present and fall back to Docker when not.
 
 ## Dependency licenses
 
