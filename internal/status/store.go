@@ -220,12 +220,24 @@ func checkKey(typ config.CheckType, name string) string {
 	return string(typ) + ":" + name
 }
 
+// budgetKeyCheck returns the check name from a budget key ("checkName:metric").
+// Metric names never contain a colon, so the last one separates the two.
+func budgetKeyCheck(key string) (string, bool) {
+	i := strings.LastIndex(key, ":")
+	if i < 0 {
+		return "", false
+	}
+	return key[:i], true
+}
+
 // Reconcile removes persisted checks that no longer exist in the active config.
 // Call after loading state and before starting the scheduler.
 func (s *Store) Reconcile(checks []config.CheckConfig) {
 	active := make(map[string]struct{}, len(checks))
+	activeNames := make(map[string]struct{}, len(checks))
 	for _, c := range checks {
 		active[checkKey(c.Type, c.Name)] = struct{}{}
+		activeNames[c.Name] = struct{}{}
 	}
 
 	s.mu.Lock()
@@ -243,8 +255,23 @@ func (s *Store) Reconcile(checks []config.CheckConfig) {
 	}
 	s.order = kept
 
-	if len(pruned) > 0 {
-		slog.Info("Reconciled status store", "pruned", len(pruned), "kept", len(kept), "removed", pruned)
+	// Budget state is keyed by check name alone, so it needs its own pass.
+	s.budgetMu.Lock()
+	prunedBudgets := 0
+	for key := range s.budgetChecks {
+		name, ok := budgetKeyCheck(key)
+		if !ok {
+			continue
+		}
+		if _, active := activeNames[name]; !active {
+			delete(s.budgetChecks, key)
+			prunedBudgets++
+		}
+	}
+	s.budgetMu.Unlock()
+
+	if len(pruned) > 0 || prunedBudgets > 0 {
+		slog.Info("Reconciled status store", "pruned", len(pruned), "kept", len(kept), "removed", pruned, "pruned_budgets", prunedBudgets)
 	}
 }
 
@@ -443,24 +470,20 @@ func (s *Store) computeSnapshot() *Snapshot {
 		if bs.violated {
 			budgetViolations++
 		}
-		// key format: "checkName:metric"
-		for i := len(key) - 1; i >= 0; i-- {
-			if key[i] == ':' {
-				checkName := key[:i]
-				metric := key[i+1:]
-				severity := "pass"
-				if bs.consecutiveViolations >= BudgetFailThreshold {
-					severity = "fail"
-				} else if bs.violated {
-					severity = "warn"
-				}
-				probeBudgets[checkName] = append(probeBudgets[checkName], BudgetCheck{
-					Metric:   metric,
-					Severity: severity,
-				})
-				break
-			}
+		checkName, ok := budgetKeyCheck(key)
+		if !ok {
+			continue
 		}
+		severity := "pass"
+		if bs.consecutiveViolations >= BudgetFailThreshold {
+			severity = "fail"
+		} else if bs.violated {
+			severity = "warn"
+		}
+		probeBudgets[checkName] = append(probeBudgets[checkName], BudgetCheck{
+			Metric:   key[len(checkName)+1:],
+			Severity: severity,
+		})
 	}
 	// Sort budget checks by metric name for stable rendering
 	for k := range probeBudgets {

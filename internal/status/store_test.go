@@ -680,3 +680,77 @@ func TestFmtDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestReconcilePrunesOrphanedChecks(t *testing.T) {
+	s := NewStore("test-service", nil, "")
+	s.Push(makeResult("kept", config.CheckTypeHTTP, true))
+	s.Push(makeResult("gone", config.CheckTypeHTTP, true))
+
+	s.Reconcile([]config.CheckConfig{{Name: "kept", Type: config.CheckTypeHTTP}})
+
+	snap := s.Snapshot()
+	if len(snap.Checks) != 1 {
+		t.Fatalf("expected 1 check after reconcile, got %d", len(snap.Checks))
+	}
+	if snap.Checks[0].Name != "kept" {
+		t.Fatalf("expected 'kept' to survive, got %q", snap.Checks[0].Name)
+	}
+}
+
+func TestReconcileKeepsSameNameDifferentType(t *testing.T) {
+	s := NewStore("test-service", nil, "")
+	s.Push(makeResult("api", config.CheckTypeHTTP, true))
+	s.Push(makeResult("api", config.CheckTypeTCP, true))
+
+	s.Reconcile([]config.CheckConfig{
+		{Name: "api", Type: config.CheckTypeHTTP},
+		{Name: "api", Type: config.CheckTypeTCP},
+	})
+
+	if snap := s.Snapshot(); len(snap.Checks) != 2 {
+		t.Fatalf("expected both 'api' checks to survive, got %d", len(snap.Checks))
+	}
+}
+
+func TestReconcilePrunesOrphanedBudgetState(t *testing.T) {
+	s := NewStore("test-service", nil, "")
+	s.Push(makeResult("kept", config.CheckTypeHTTP, true))
+	s.Push(makeResult("gone", config.CheckTypeHTTP, true))
+	s.RecordBudgetCheck("kept", "lcp", true)
+	s.RecordBudgetCheck("gone", "lcp", true)
+	s.RecordBudgetCheck("gone", "cls", false)
+
+	s.Reconcile([]config.CheckConfig{{Name: "kept", Type: config.CheckTypeHTTP}})
+
+	snap := s.Snapshot()
+	if snap.Summary.BudgetTotal != 1 {
+		t.Fatalf("expected 1 budget check after reconcile, got %d", snap.Summary.BudgetTotal)
+	}
+	if snap.Summary.BudgetViolations != 1 {
+		t.Fatalf("expected 1 budget violation after reconcile, got %d", snap.Summary.BudgetViolations)
+	}
+	if len(snap.Checks) != 1 || len(snap.Checks[0].BudgetChecks) != 1 {
+		t.Fatalf("expected surviving check to keep its budget badge, got %+v", snap.Checks)
+	}
+	if m := snap.Checks[0].BudgetChecks[0].Metric; m != "lcp" {
+		t.Fatalf("expected metric 'lcp', got %q", m)
+	}
+}
+
+func TestReconcilePreservesBudgetEscalation(t *testing.T) {
+	s := NewStore("test-service", nil, "")
+	s.Push(makeResult("kept", config.CheckTypeHTTP, true))
+	for i := 0; i < BudgetFailThreshold; i++ {
+		s.RecordBudgetCheck("kept", "lcp", true)
+	}
+
+	s.Reconcile([]config.CheckConfig{{Name: "kept", Type: config.CheckTypeHTTP}})
+
+	snap := s.Snapshot()
+	if len(snap.Checks[0].BudgetChecks) != 1 {
+		t.Fatalf("expected budget badge to survive, got %+v", snap.Checks[0].BudgetChecks)
+	}
+	if sev := snap.Checks[0].BudgetChecks[0].Severity; sev != "fail" {
+		t.Fatalf("expected escalated severity 'fail' to survive reconcile, got %q", sev)
+	}
+}
