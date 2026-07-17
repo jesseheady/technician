@@ -116,9 +116,9 @@ The builder stage sets `ENV GOTOOLCHAIN=auto`, overriding the `golang` base imag
 
 ## Pre-commit hook
 
-`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, `govulncheck` (skipped if not installed), `gofmt` on staged Go files, and a `trivy fs` secret + misconfig scan. `promtool check rules` (`prometheus/*.yml`), `docker compose config` (compose/Dockerfile), and `shellcheck` (`*.sh`, `.githooks/`) run only when those files are staged. This mirrors CI. The hook is configured by `scripts/init.sh` via `git config core.hooksPath .githooks`; new contributors must run the init script or set this manually.
+`.githooks/pre-commit` runs on every commit: `go build`, `go vet`, `go test -race`, `govulncheck` (skipped if not installed), `gofmt` on staged Go files, and `trivy fs` secret and misconfig scans. `promtool check rules` (`prometheus/*.yml`), `docker compose config` (compose/Dockerfile), and `shellcheck` (`*.sh`, `.githooks/`) run only when those files are staged. This mirrors CI. The hook is configured by `scripts/init.sh` via `git config core.hooksPath .githooks`; new contributors must run the init script or set this manually.
 
-`SKIP_HOOKS=1` skips the conditional checks but never the trivy scan: a secret is unrecoverable once committed, so that one is unconditional.
+`SKIP_HOOKS=1` skips the conditional checks but never the trivy scans: a secret is unrecoverable once committed, so those are unconditional. Secrets are scanned at every severity because trivy rates some real credentials below HIGH (a JWT is MEDIUM); misconfig gates on CRITICAL/HIGH only. `trivy.yml` splits them the same way.
 
 The hooks prefer native `trivy`, `shellcheck`, `promtool`, and `amtool` on `PATH` and fall back to containers otherwise; `fs` scans and config linting only read the working tree, so no daemon is needed. `scripts/init.sh` prints platform install hints for any that are missing. With them installed, Docker is only required for `docker compose config`.
 

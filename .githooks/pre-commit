@@ -67,23 +67,32 @@ if staged | grep -q '^prometheus/.*\.yml$'; then
     fi
 fi
 
-# Secret + misconfig scan: never skipped, even with SKIP_HOOKS=1.
 # An fs scan only reads the working tree, so a native trivy needs no daemon.
-echo "==> trivy fs (misconfig + secret)"
+trivy_fs() {
+    if command -v trivy >/dev/null 2>&1; then
+        trivy fs "$@" --exit-code 1 --quiet --skip-dirs node_modules .
+    else
+        require_docker
+        docker run --rm \
+            -v "$REPO_ROOT:/work" \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            -w /work aquasec/trivy:latest \
+            fs "$@" --exit-code 1 --quiet --skip-dirs node_modules .
+    fi
+}
+
+# Never skipped, even with SKIP_HOOKS=1.
 mkdir -p "$HOME/.cache/trivy"
-if command -v trivy >/dev/null 2>&1; then
-    trivy fs --scanners misconfig,secret --severity CRITICAL,HIGH \
-        --exit-code 1 --quiet --skip-dirs node_modules .
-else
+command -v trivy >/dev/null 2>&1 || \
     echo "    trivy not installed, using Docker (install to skip the daemon: https://trivy.dev/latest/getting-started/installation/)"
-    require_docker
-    docker run --rm \
-        -v "$REPO_ROOT:/work" \
-        -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-        -w /work aquasec/trivy:latest \
-        fs --scanners misconfig,secret --severity CRITICAL,HIGH \
-           --exit-code 1 --quiet --skip-dirs node_modules .
-fi
+
+# Unfiltered: trivy rates some real credentials below HIGH (a JWT is MEDIUM),
+# so a severity filter drops them silently.
+echo "==> trivy fs (secret)"
+trivy_fs --scanners secret
+
+echo "==> trivy fs (misconfig)"
+trivy_fs --scanners misconfig --severity CRITICAL,HIGH
 
 echo "==> docker compose config"
 if staged | grep -qE '^(docker-compose.*\.yml|\.dockerignore|Dockerfile.*)$'; then
