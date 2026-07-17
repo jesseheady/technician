@@ -20,6 +20,6 @@
 | [Multi-target deployment](multi-target-deployment.md) | Serve many workers from one checks directory with `check_filter` (types/groups/tags) and the `--types`/`--groups`/`--tags` flags. |
 | [CI](ci.md) | GitHub Actions workflow, generic CI pipelines (GitLab, CircleCI, Jenkins), budget validation, Playwright in CI. |
 | [Playwright scaling](playwright-scaling.md) | Browser check resource analysis, concurrency controls (`max_browsers`), and dedicated runner architecture (stages 1-4). |
-| [Migrating between versions](migrating.md) | Breaking changes, label renames, port changes, Prometheus/Grafana cutover, and version-specific migration steps. |
+| [Migrating between versions](migrating.md) | Breaking changes, label renames, port changes, and Prometheus/Grafana cutover. |
 
 See also [AGENTS.md](../AGENTS.md) for architecture and conventions.
