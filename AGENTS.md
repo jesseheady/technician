@@ -104,7 +104,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 ## CI and workflows
 
 - `.github/workflows/ci.yml` – Build, test, lint, validate (with and without Playwright), security scan (govulncheck), Docker build. Runs on push to main and PRs. A `changes` filter job skips heavy jobs for docs-only changes. A `CI Passed` gate job aggregates all results for branch protection.
-- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes the multi-arch Docker image to GHCR (`ghcr.io/jesseheady/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached. **While the repo is private, do not rely on this to publish images:** the GHCR package is not public, so new tags must be pushed manually (build + `docker push ghcr.io/jesseheady/technician:<tag>`) until the repo goes public. The base `docker-compose.yml` builds from source; the `docker-compose.prod.yml` overlay pulls this image for operators.
+- `.github/workflows/release.yml` – Triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Builds and pushes the multi-arch Docker image to GHCR (`ghcr.io/jesseheady/technician:<tag>` and `:latest`). Creates a GitHub Release with binaries attached. **While the repo is private, do not rely on this to publish images:** no GHCR package exists yet, so new tags must be pushed manually (build + `docker push ghcr.io/jesseheady/technician:<tag>`) until the repo goes public. **Flip the repo public before pushing the first `v*` tag.** A GHCR package inherits its visibility from the repo at creation time, so tagging while private creates a private package, and every `docker pull` of it then fails with `unauthorized` — including the one the README documents — until the package is manually flipped public in its settings. The base `docker-compose.yml` builds from source; the `docker-compose.prod.yml` overlay pulls this image for operators.
 - `.github/workflows/cache-cleanup.yml` – On PR close, deletes the caches scoped to that PR's `refs/pull/<n>/merge` ref (via `gh api`) so merged/closed PRs stop holding cache space instead of waiting for the 7-day/10 GB eviction.
 - `.github/workflows/trivy-ignore-audit.yml` – Weekly, reconciles `.trivyignore.yaml` deferrals: when an entry's `expired_at` is within 14 days it re-scans the image and either opens a PR to remove the entry (CVE fixed) or a re-triage issue (still vulnerable). Logic in `scripts/trivy-ignore-audit.sh`.
 - `.github/release.yml` – Changelog category config for auto-generated release notes. Categories PRs by label (enhancement, bug, performance, documentation, infrastructure, dependencies). PRs labeled `skip-changelog` are excluded.
@@ -120,7 +120,11 @@ The builder stage sets `ENV GOTOOLCHAIN=auto`, overriding the `golang` base imag
 
 ## Branch protection
 
-Main branch requires the `CI Passed` status check. Admin bypass is enabled for the maintainer to push directly. Contributors must open PRs that pass CI before merging.
+Main requires four status checks: `CI Passed`, `Go vulnerability check`, `Scan Go dependencies`, `Go security scan`. Checks are strict — a PR branch must be up to date with main to merge, so main moving forces a rebase and re-run.
+
+History is linear: merge commits are disabled repo-wide, so PRs land via squash (default) or rebase and every commit on main has one parent. Force-pushes and deletion of main are blocked. Admin bypass is enabled for the maintainer to push directly; contributors must open PRs that pass CI before merging.
+
+Reviews and conversation resolution are deliberately not required. Neither constrains outside contributors — they have no write access and cannot merge regardless — and the maintainer can bypass both, so the status checks are the real gate. Renovate has write access but is not an admin, so it cannot bypass them: its automerge must pass the same four checks.
 
 ## Releases
 
