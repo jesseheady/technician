@@ -149,7 +149,7 @@ test:
 
 validate:
   stage: validate
-  image: node:22-slim
+  image: node:24-slim
   before_script:
     - apt-get update && apt-get install -y ca-certificates
     - cd internal/playwright/scripts && npm init -y && npm install playwright && npx playwright install chromium && cd -
@@ -181,7 +181,7 @@ jobs:
 
   validate:
     docker:
-      - image: node:22-slim
+      - image: node:24-slim
     steps:
       - checkout
       - attach_workspace:

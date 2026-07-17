@@ -10,6 +10,9 @@
 | [Proposals](proposals/) | Design and rollout plans. |
 | [Proposal: Cloudflare Workers](proposals/cloudflare-workers.md) | Plan to support deploying check runners as Cloudflare Workers (and alignment with AWS Lambda Edge). |
 | [Proposal: Site identifiers (edge)](proposals/site-identifiers-edge.md) | How to define site/location when checks run on Workers or Lambda (provider location codes, metrics labels). |
+| [Proposal: Browser checker options](proposals/browser-prober-options.md) | Four alternatives compared for the browser check runtime (today: a Node.js subprocess running Playwright). |
+| [Proposal: CI/CD pipeline runner mode](proposals/ci-runner.md) | Using Technician as a CI step to enforce budgets against a preview/staging URL before merge. |
+| [Proposal: Status page and visualization roadmap](proposals/portal-features.md) | What to add to the built-in portal, what to leave to Grafana, and what comes free from Playwright. |
 | [Central Prometheus and Grafana](architecture/central-prometheus-grafana.md) | Config for central Prometheus (private VPC) and Grafana as source of record; local/Docker vs central reporting; edge push. |
 | [Core Web Vitals](core-web-vitals.md) | LCP, INP, CLS; thresholds, collection, network throttling (4G/3G/slow-3G), and device emulation. |
 | [Deployment sizing](deployment-sizing.md) | Resource requirements, cost estimates, and sizing by deployment mode (VPS, Lambda, Workers, full stack). |

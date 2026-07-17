@@ -55,14 +55,15 @@ golint ./...
 | Package            | Focus |
 |--------------------|--------|
 | `internal/check`   | HTTP (httptest), TCP, DNS, Playwright (concurrency limiter), behavior |
-| `internal/config`  | YAML loading, env expansion, defaults, check config for all 11 types |
+| `internal/config`  | YAML loading, env expansion, defaults, check config for all 13 types |
 | `internal/budget`  | Threshold evaluation, wildcards |
 | `internal/metrics` | HAR parsing, recording |
 | `internal/scheduler` | Stagger, cron, retry logic |
 | `internal/artifact` | Store interfaces |
 | `internal/exporter` | Blackbox handler |
 | `internal/notify`  | Webhook delivery, state transitions |
-| `internal/status`  | Store persistence, snapshot, budget badges |
+| `internal/playwright` | Run script orchestration |
+| `internal/status`  | Store persistence, snapshot, budget badges, config reconcile |
 
 Tests live next to code (`*_test.go`). Use `httptest.NewServer` for HTTP checks; mock or skip external dependencies (e.g. SMTP, mtr) when not available.
 
