@@ -306,7 +306,7 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 
 ### Observability and export
 
-- **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Tracing is implemented; metrics export is not. Medium priority.
+- **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Trace export is wired into the worker; metrics export is not. Medium priority.
 
 - **Prometheus backfill on startup** [#34](https://github.com/jesseheady/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent check metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
 
@@ -327,6 +327,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### OTLP trace export wired into the worker
+
+`internal/metrics/otel.go` held a complete tracing implementation that nothing ever called, so `metrics.otel.endpoint` was accepted and silently ignored — spans were never emitted despite tracing being a documented feature. The worker now initializes the tracer at startup, emits a span per check result, and flushes the batcher on shutdown. Two defects surfaced while wiring it: spans were anchored at drain time (collapsing to ~0 duration, since results are traced after the check finishes) and the exporter always used TLS, so plaintext local/sidecar collectors could never receive traces. Spans now carry the check's real start and end, and the endpoint's scheme selects the transport.
 
 ### Configurable Prometheus cardinality limit
 

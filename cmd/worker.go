@@ -69,6 +69,21 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Tracing is a no-op unless metrics.otel.endpoint is set.
+	shutdownOTEL, err := metrics.InitOTEL(ctx, &cfg.Metrics.OTEL, cfg.Service)
+	if err != nil {
+		return fmt.Errorf("initializing OTLP tracing: %w", err)
+	}
+	defer func() {
+		// The run context is cancelled by the time this fires, so give the
+		// batch exporter its own deadline to flush pending spans.
+		flushCtx, flushCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer flushCancel()
+		if err := shutdownOTEL(flushCtx); err != nil {
+			slog.Warn("OTLP shutdown failed", "error", err)
+		}
+	}()
+
 	sched := scheduler.New(cfg, checks, registry, originID)
 	if err := sched.Start(ctx); err != nil {
 		return err
@@ -121,6 +136,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	go func() {
 		for result := range sched.Results() {
 			store.Push(result)
+			metrics.TraceCheckResult(ctx, result)
 			notifier.HandleResult(ctx, result)
 			notifier.HandleCertResult(ctx, result)
 
