@@ -62,7 +62,7 @@ Three strategies (see `docs/alerting.md`):
 - **Interface**: `internal/check.Checker`: `Type() config.CheckType` and `Run(ctx, cfg, site) *Result`.
 - **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `playwright`.
 - **Result**: `check.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `origin.MetricLabels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
-- **Adding a check type: Implement `Checker`; add `CheckType` and config struct in `internal/config/checks.go`; add loader in `LoadChecks`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired).
+- **Adding a check type: Implement `Checker`; add `CheckType` and config struct in `internal/config/checks.go`; add loader in `LoadChecks`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired); document any new metric in `docs/metrics.md`.
 
 ## Sites and deployment
 
@@ -91,6 +91,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 ## Documentation
 
+- `docs/metrics.md` – Reference for every exported metric: type, labels, meaning. Generated from the `Name`/`Help` pairs in `internal/metrics/`; update it when you add a metric.
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
 - `docs/getting-started.md` – Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, and check configuration.
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.

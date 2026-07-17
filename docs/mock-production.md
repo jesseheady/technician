@@ -100,7 +100,7 @@ go run . worker --config config/technician.yml
 
 3. **Verify**
    - [http://localhost:9590/metrics](http://localhost:9590/metrics) – should show `technician_*` metrics updating.
-   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_check_up`.
+   - [http://localhost:9090](http://localhost:9090) – Prometheus → query `technician_check_healthy`.
    - [http://localhost:3000](http://localhost:3000) – Grafana dashboards should show data for the mock checks.
 
 ## 4. Validate against local config
