@@ -98,27 +98,8 @@ docker compose up
 
 ## Version-specific migrations
 
-### v0.2.0 → v0.3.0
-
-**Config field renames:**
-- `geohash` → `geohash` (in origin definitions)
-- `provider` → `platform` (in origin definitions)
-
-**Metric label renames:**
-- `site_code` → `region`
-- `site_city` → `city`
-- `site_country` → `country`
-
-**Prometheus rule renames:**
-- Recording rule `technician:check_down_fraction` → `technician:failure_ratio`
-- Recording rule `technician:check_uptime_daily` → `technician:daily_availability`
-- Alert `ProbeDown` → `CheckFailing` (also changed `for:` from 5m to 3m)
-
-**Action required:**
-1. Update `technician.yml` origin fields (`geohash`, `platform`).
-2. Ensure `prometheus/prometheus.yml` scrape target uses port `9590`.
-3. Ensure `docker-compose.yml` port mapping is `9590:9590`.
-4. Replace `prometheus/rules.yml` with the new version.
-5. Update `prometheus/alertmanager.yml` inhibit rules (`CheckFailing`).
-6. Re-import Grafana dashboards from `dashboards/`.
-7. Delete `status.json` and backups before restarting the worker.
+Breaking changes for a given release are described in that release's notes on the
+[GitHub Releases page](https://github.com/jesseheady/technician/releases), which
+are generated from the merged PRs and stay authoritative. When a release renames
+config fields, metric labels, or Prometheus rules, its notes call out what
+changed; apply the general steps above using that list.
