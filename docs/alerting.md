@@ -17,7 +17,7 @@ Grafana is the recommended alerting backend for production. It provides:
 1. Open Grafana at [http://localhost:3000](http://localhost:3000) (default `admin`/`admin`).
 2. Go to **Alerting > Contact points** and add your integration (Discord, Slack, etc.).
 3. Go to **Alerting > Alert rules** and create rules using Technician's Prometheus metrics:
-   - `technician_check_up == 0` — check is down
+   - `technician_check_healthy == 0` — check is down
    - `technician_budget_violation == 1` — budget threshold exceeded
    - `technician_http_ttfb_seconds > 2` — high TTFB
    - `technician_browser_lcp_ms > 2500` — high LCP
@@ -178,7 +178,7 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | SMTP / Traceroute / gRPC | CheckFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
-SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_up`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have check-specific threshold alerts.
+SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_healthy`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have check-specific threshold alerts.
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 

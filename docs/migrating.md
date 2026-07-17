@@ -43,12 +43,12 @@ If you need dashboards to show both old and new data during the transition, add 
 
 ```yaml
 # Add to prometheus/rules.yml temporarily
-- record: technician_check_up_compat
+- record: technician_check_healthy_compat
   expr: |
-    technician_check_up
+    technician_check_healthy
     or
     label_replace(
-      technician_check_up{site_code!=""},
+      technician_check_healthy{site_code!=""},
       "region", "$1", "site_code", "(.*)"
     )
 ```

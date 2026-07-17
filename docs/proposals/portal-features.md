@@ -83,7 +83,7 @@ Things that are better as Grafana panels because they're historical, comparative
 
 **SLO tracking panel**
 - Monthly/weekly uptime SLO (e.g., 99.9% target)
-- `1 - avg_over_time(technician_check_up[30d])` as error budget burn
+- `1 - avg_over_time(technician_check_healthy[30d])` as error budget burn
 - Fits on uptime-overview dashboard as a new row
 
 ### What NOT to build as Grafana dashboards

@@ -599,7 +599,7 @@ For most deployments (< 100 checks), the limit is never reached. If you're opera
 Prometheus **is** the time-series database. When Grafana (or the status page) needs "30-day uptime for check X", it queries:
 
 ```promql
-avg_over_time(technician_check_up{name="example.com"}[30d])
+avg_over_time(technician_check_healthy{name="example.com"}[30d])
 ```
 
 This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, retention, and aggregation natively. For AMP, retention is 150 days by default (no configuration needed).

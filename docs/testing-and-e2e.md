@@ -112,7 +112,7 @@ Hit the `/probe` endpoint (same semantics as Prometheus blackbox_exporter):
 curl -s "http://localhost:9590/probe?target=https://example.com&module=http_2xx"
 ```
 
-Expect Prometheus exposition format with `technician_check_up` and timing metrics.
+Expect Prometheus exposition format with `technician_check_healthy` and timing metrics.
 
 ### 5. Docker Compose stack
 
