@@ -21,6 +21,10 @@ origins:
 metrics:
   prometheus:
     listen: ":9590"
+    # Caps distinct check names recorded as Prometheus labels; new names beyond
+    # the limit are dropped with a warning. Raise it if you run more checks than
+    # this and need metrics for all of them (default 500).
+    max_check_cardinality: 500
   otel:
     endpoint: ""
 

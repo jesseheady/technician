@@ -53,11 +53,14 @@ func runWorker(cmd *cobra.Command, args []string) error {
 		slog.Info("Loaded budgets", "count", len(budgets))
 	}
 
+	metrics.SetMaxCheckCardinality(cfg.Metrics.Prometheus.MaxCheckCardinality)
+
 	slog.Info("Loaded configuration",
 		"origins", len(cfg.Origins),
 		"checks", len(checks),
 		"origin", originID,
 		"listen", cfg.Metrics.Prometheus.Listen,
+		"max_check_cardinality", cfg.Metrics.Prometheus.MaxCheckCardinality,
 	)
 
 	registry := scheduler.NewCheckerRegistry()

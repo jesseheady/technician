@@ -11,6 +11,12 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// DefaultMaxCheckCardinality is the default cap on distinct check names
+// recorded as Prometheus labels. Each unique name multiplies out across ~33
+// metrics and the origin labels, so the guard protects Prometheus from a
+// label explosion caused by a runaway config.
+const DefaultMaxCheckCardinality = 500
+
 type Config struct {
 	Service     string           `yaml:"service"`
 	Hostname    string           `yaml:"hostname"`
@@ -45,6 +51,9 @@ type MetricsConfig struct {
 
 type PrometheusConfig struct {
 	Listen string `yaml:"listen"`
+	// MaxCheckCardinality caps the number of distinct check names recorded as
+	// Prometheus labels; beyond it, new names are dropped (0 = default 500).
+	MaxCheckCardinality int `yaml:"max_check_cardinality"`
 }
 
 type OTELConfig struct {
@@ -80,6 +89,9 @@ func Load(path string) (*Config, error) {
 
 	if cfg.Metrics.Prometheus.Listen == "" {
 		cfg.Metrics.Prometheus.Listen = ":9590"
+	}
+	if cfg.Metrics.Prometheus.MaxCheckCardinality <= 0 {
+		cfg.Metrics.Prometheus.MaxCheckCardinality = DefaultMaxCheckCardinality
 	}
 	if cfg.Artifacts.Driver == "" {
 		cfg.Artifacts.Driver = "none"
