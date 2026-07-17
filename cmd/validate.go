@@ -85,6 +85,8 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading budgets: %w", err)
 	}
 
+	metrics.SetMaxCheckCardinality(cfg.Metrics.Prometheus.MaxCheckCardinality)
+
 	origin := cfg.ResolveOrigin(originID)
 	checkers := newCheckers(cfg)
 

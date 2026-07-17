@@ -86,7 +86,7 @@ Technician includes several layers of optimization to minimize resource usage an
 
 | Optimization | Location | Detail |
 |-------------|----------|--------|
-| **Cardinality guard** | `internal/metrics/prometheus.go` | `maxProbeCardinality=500` — silently drops new check names beyond the limit. Prevents label explosion from degrading Prometheus. |
+| **Cardinality guard** | `internal/metrics/prometheus.go` | `maxCheckCardinality` (default 500, set via `metrics.prometheus.max_check_cardinality`) — drops new check names beyond the limit, logging a warning once. Prevents label explosion from degrading Prometheus. |
 | **Stagger delay** | `internal/scheduler/stagger.go` | FNV-32a hash-based deterministic delay (0–10s) per check. Spreads check execution to avoid metric spikes and network bursts. |
 
 ### Docker & CI
@@ -558,7 +558,13 @@ All backup storage fits comfortably on a minimal EBS volume at any realistic che
 
 Each unique check name creates a set of Prometheus time-series (one per metric × site label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
 
-Technician enforces a default limit of **500 unique check names** for metrics recording. This is controlled by `maxProbeCardinality` in `internal/metrics/prometheus.go`. When the limit is reached, new check names are silently dropped from `/metrics` and a warning is logged.
+Technician enforces a default limit of **500 unique check names** for metrics recording, set by `metrics.prometheus.max_check_cardinality` in `technician.yml`. When the limit is reached, new check names are dropped from `/metrics` and a warning is logged once.
+
+```yaml
+metrics:
+  prometheus:
+    max_check_cardinality: 2000
+```
 
 **What the limit affects and doesn't affect:**
 
@@ -574,19 +580,19 @@ Technician enforces a default limit of **500 unique check names** for metrics re
 
 1. **Consolidate check names** — If many checks target variants of the same endpoint (e.g. per-customer health checks), group them under fewer names using labels or a shared name prefix. The status page still shows individual results.
 2. **Use recording rules** — Pre-aggregate high-cardinality series in Prometheus with recording rules, then drop the raw series. This reduces storage cost without losing visibility.
-3. **Increase the limit** — Change `maxProbeCardinality` in `internal/metrics/prometheus.go`. The constant is a compile-time guard; there's no config file knob for it today. A reasonable ceiling depends on your Prometheus sizing — each check name creates up to ~33 series (across all metric types and origin labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
+3. **Increase the limit** — Raise `metrics.prometheus.max_check_cardinality`; no rebuild required. A reasonable ceiling depends on your Prometheus sizing — each check name creates up to ~33 series (across all metric types and origin labels), so 1000 names ≈ 33K series, well within a modestly sized Prometheus.
 4. **Shard by worker** — Run multiple Technician workers, each responsible for a subset of checks. Each worker has its own cardinality counter, effectively multiplying the limit.
 5. **Use metric relabeling** — Configure Prometheus `metric_relabel_configs` to drop series you don't need (e.g. HAR resource breakdowns for non-browser checks), freeing cardinality budget for more check names.
 
 **Recommended limits by Prometheus sizing:**
 
-| Prometheus RAM | Active series budget | Suggested maxProbeCardinality |
-|---------------|---------------------|-------------------------------|
+| Prometheus RAM | Active series budget | Suggested max_check_cardinality |
+|---------------|---------------------|---------------------------------|
 | 1 GB | ~100K series | 500 (default) |
 | 2–4 GB | ~500K series | 1000–2000 |
 | 8+ GB / managed (AMP) | 1M+ series | 5000+ |
 
-For most deployments (< 100 checks), the limit is never reached. If you're operating at 500+ checks with Prometheus metrics needed for all of them, consider either bumping the constant or making it a config-file option — a future enhancement tracked in #228.
+For most deployments (< 100 checks), the limit is never reached. If you're operating at 500+ checks with Prometheus metrics needed for all of them, raise `max_check_cardinality` to match your Prometheus sizing.
 
 ### Getting 30-day uptime without an application database
 
