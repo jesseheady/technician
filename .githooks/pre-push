@@ -17,15 +17,22 @@ require_docker() {
     fi
 }
 
+# An fs scan only reads the working tree, so a native trivy needs no daemon.
 echo "==> trivy fs (vuln)"
-require_docker
 mkdir -p "$HOME/.cache/trivy"
-docker run --rm \
-    -v "$REPO_ROOT:/work" \
-    -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-    -w /work aquasec/trivy:latest \
-    fs --scanners vuln --severity CRITICAL,HIGH \
-       --exit-code 1 --quiet --skip-dirs node_modules .
+if command -v trivy >/dev/null 2>&1; then
+    trivy fs --scanners vuln --severity CRITICAL,HIGH \
+        --exit-code 1 --quiet --skip-dirs node_modules .
+else
+    echo "    trivy not installed, using Docker (install to skip the daemon: https://trivy.dev/latest/getting-started/installation/)"
+    require_docker
+    docker run --rm \
+        -v "$REPO_ROOT:/work" \
+        -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+        -w /work aquasec/trivy:latest \
+        fs --scanners vuln --severity CRITICAL,HIGH \
+           --exit-code 1 --quiet --skip-dirs node_modules .
+fi
 
 echo "==> technician validate"
 go run . validate \
@@ -36,15 +43,26 @@ go run . validate \
     --fail-on-budget=false
 
 echo "==> promtool check config"
-require_docker
-docker run --rm --entrypoint promtool \
-    -v "$REPO_ROOT/prometheus:/work" -w /work \
-    prom/prometheus:latest check config prometheus.yml
+if command -v promtool >/dev/null 2>&1; then
+    (cd prometheus && promtool check config prometheus.yml)
+else
+    require_docker
+    docker run --rm --entrypoint promtool \
+        -v "$REPO_ROOT/prometheus:/work" -w /work \
+        prom/prometheus:latest check config prometheus.yml
+fi
 
 echo "==> amtool check-config"
-docker run --rm --entrypoint amtool \
-    -v "$REPO_ROOT/prometheus:/work" -w /work \
-    prom/alertmanager:latest check-config alertmanager.yml
+if command -v amtool >/dev/null 2>&1; then
+    (cd prometheus && amtool check-config alertmanager.yml)
+else
+    # Not covered by the promtool require_docker above: that branch is skipped
+    # entirely when promtool is native.
+    require_docker
+    docker run --rm --entrypoint amtool \
+        -v "$REPO_ROOT/prometheus:/work" -w /work \
+        prom/alertmanager:latest check-config alertmanager.yml
+fi
 
 if command -v go-licenses >/dev/null 2>&1; then
     echo "==> go-licenses (dependency license types)"
