@@ -9,7 +9,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 | `cmd/` | Cobra CLI: `root`, `worker`, `check`, `serve`, `validate` |
 | `internal/config/` | Main YAML config + check definitions; env var expansion `${VAR}` |
 | `internal/check/` | Check implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright |
-| `internal/scheduler/` | Cron-expression scheduling (gronx + stdlib timer loop) with per-site stagger and a once-on-startup run |
+| `internal/scheduler/` | Cron-expression scheduling (gronx + stdlib timer loop) with per-origin stagger and a once-on-startup run |
 | `internal/metrics/` | Prometheus gauges, OTLP trace export, HAR parsing |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
 | `internal/budget/` | YAML budgets, threshold evaluation, reporters (text, JSON, GHA) |
@@ -59,15 +59,15 @@ Three strategies (see `docs/alerting.md`):
 
 ## Check model
 
-- **Interface**: `internal/check.Checker`: `Type() config.CheckType` and `Run(ctx, cfg, site) *Result`.
+- **Interface**: `internal/check.Checker`: `Type() config.CheckType` and `Run(ctx, cfg, origin) *Result`.
 - **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `playwright`.
 - **Result**: `check.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `origin.MetricLabels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a check type: Implement `Checker`; add `CheckType` and config struct in `internal/config/checks.go`; add loader in `LoadChecks`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired); document any new metric in `docs/metrics.md`.
 
-## Sites and deployment
+## Origins and deployment
 
-- **Sites** are defined in `technician.yml` (`code`, `city`, `country`, `geohash`, `platform`). Example config has `local` (platform `docker`) for local/Docker, and `us-east-1` / `us-west-2` (platform `aws`) for US regions. `ORIGIN_ID` (env or `--origin`) selects which origin labels are emitted; unset or unknown falls back to first site.
-- **Local/Docker**: Use `ORIGIN_ID=local`; the example config includes a `local` site so labels stay distinct. Prometheus in compose scrapes `technician:9590` (Docker service name = hostname on the compose network).
+- **Origins** are defined in `technician.yml` (`id`, `city`, `country`, `platform`, and freeform `labels`). Example config has `local` (platform `docker`) for local/Docker, and `us-east-1` / `us-west-2` (platform `aws`) for US regions. `ORIGIN_ID` (env or `--origin`) selects which origin labels are emitted; unset or unknown falls back to the first origin. Emitted labels are `region` (from `id`), `city`, and `country`, plus any freeform `labels` that don't collide with those.
+- **Local/Docker**: Use `ORIGIN_ID=local`; the example config includes a `local` origin so labels stay distinct. Prometheus in compose scrapes `technician:9590` (Docker service name = hostname on the compose network).
 - **VPC / central observability**: Deployed workers in a VPC are scraped by central Prometheus (static or service discovery). Central Grafana uses that Prometheus as source of record. See `docs/architecture/central-prometheus-grafana.md` for scrape config, discovery, and optional edge push.
 - **Edge (Workers, Lambda)**: Site/location is derived from the platform at request time (e.g. Cloudflare colo, AWS region). See `docs/proposals/site-identifiers-edge.md`.
 

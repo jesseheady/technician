@@ -556,7 +556,7 @@ All backup storage fits comfortably on a minimal EBS volume at any realistic che
 
 ### Prometheus metrics cardinality
 
-Each unique check name creates a set of Prometheus time-series (one per metric × site label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
+Each unique check name creates a set of Prometheus time-series (one per metric × origin label combination). At scale, this can cause cardinality explosion — degrading Prometheus query performance and memory usage.
 
 Technician enforces a default limit of **500 unique check names** for metrics recording, set by `metrics.prometheus.max_check_cardinality` in `technician.yml`. When the limit is reached, new check names are dropped from `/metrics` and a warning is logged once.
 

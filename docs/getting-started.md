@@ -83,7 +83,7 @@ go run . worker --config examples/technician.yml
 - Health: [http://localhost:9590/health](http://localhost:9590/health)
 - Blackbox-style probe: [http://localhost:9590/probe?target=https://example.com&module=http_2xx](http://localhost:9590/probe?target=https://example.com&module=http_2xx)
 
-Use `--origin <code>` to run as a specific site (e.g. `--origin us-east-1`), and `--log-level debug` for verbose logging.
+Use `--origin <id>` to run as a specific origin (e.g. `--origin us-east-1`), and `--log-level debug` for verbose logging.
 
 ## Run in production
 
