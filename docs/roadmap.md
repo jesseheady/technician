@@ -62,7 +62,7 @@ Memory does not scale with retention. SQLite reads pages on demand; the page cac
 
 **Port separation:** A public-facing status page should not share a port with `/metrics`, `/probe`, and `/health`. These are internal operational endpoints. Options include a separate listen address (`status.listen: :8080`) or a config toggle to disable operational endpoints on the status port.
 
-See [deployment-sizing.md § Persistence](deployment-sizing.md#persistence-and-historical-data) for the full analysis and [#16](https://github.com/jesseheady/technician/issues/16) for implementation tracking.
+See [persistence-and-retention.md](persistence-and-retention.md) for the full analysis and [#16](https://github.com/jesseheady/technician/issues/16) for implementation tracking.
 
 ### SLA reporting [#20](https://github.com/jesseheady/technician/issues/20)
 
