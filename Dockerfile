@@ -1,4 +1,4 @@
-FROM golang:1.26-bookworm@sha256:e60d708a92ad26a6d61901334510d3debd23ddcba125663ecd6008d42e8ec669 AS builder
+FROM golang:1.26-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651 AS builder
 
 # Let the builder fetch the exact toolchain go.mod pins if it is newer than the
 # base image, instead of hard-failing (golang images default to GOTOOLCHAIN=local).
