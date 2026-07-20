@@ -97,6 +97,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
 - `docs/playwright-scaling.md` – Browser check resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
 - `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.
+- `docs/persistence-and-retention.md` – Storage model, status store scaling, Prometheus cardinality, long-term history options.
 - `docs/architecture/central-prometheus-grafana.md` – Central Prometheus (VPC), Grafana as source of record, local vs phone-home, edge push.
 - `docs/proposals/site-identifiers-edge.md` – Site identifiers when checks run on Workers or Lambda.
 - `docs/proposals/cloudflare-workers.md` – Cloudflare Workers and AWS options (Health Checks, Synthetics, Lambda).
@@ -200,17 +201,10 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 
 ## Check schedule guidance
 
-Not all checks need the same frequency. Recommended production intervals:
-
-| Category | Interval |
-|----------|----------|
-| Your own services (HTTP, gRPC) | 30s–1min |
-| Infrastructure connectivity (TCP, ICMP, UDP) | 2min |
-| DNS resolution | 5min |
-| Third-party APIs | 5min |
-| NTP | 10min |
-| BGP, SMTP | 15min |
-| Traceroute | 30min |
-| TLS certificates, domain expiry | 6h |
+Not all checks need the same frequency. Recommended production intervals, with the
+rationale for each, live in
+[docs/deployment-sizing.md § Check schedule guidance](docs/deployment-sizing.md#check-schedule-guidance).
+Keep that table as the single source; this file previously carried a copy that had
+already lost a column.
 
 When editing code, preserve existing patterns: check results feed metrics and (where applicable) OTLP; new metrics should follow the naming in `internal/metrics/prometheus.go`; budget metric names must match threshold keys in `budgets.yml`.
