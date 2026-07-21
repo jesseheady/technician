@@ -49,10 +49,45 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
 
+  container-changes:
+    name: Detect container changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      container: ${{ steps.filter.outputs.container }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect container-affecting changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          # Fail safe: if the diff base is unknown, scan.
+          if [ -z "$BASE_SHA" ] || ! changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null); then
+            echo "container=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|\.trivyignore\.yaml|internal/playwright/scripts/)'; then
+            echo "container=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "container=false" >> "$GITHUB_OUTPUT"
+          fi
+
   container:
     name: Scan container image
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [container-changes]
+    # Always on push to main and on the weekly schedule (base-image CVEs appear
+    # over time, with no commit to trigger them). On PRs, only when the image's
+    # own inputs change — the build is expensive and most PRs cannot affect it.
+    if: >-
+      always() &&
+      (github.event_name != 'pull_request' ||
+       needs.container-changes.outputs.container == 'true')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

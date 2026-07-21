@@ -34,10 +34,20 @@ RUN groupadd --system --gid 1001 technician && \
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 
 COPY internal/playwright/scripts/ /opt/technician/playwright/
+# npm, npx, corepack, and yarn are build-time only: the runtime spawns `node`
+# directly (internal/playwright/runner.go). They are removed in this same layer
+# because npm's bundled dependency tree is ~143 of the image's node packages and
+# is the source of nearly every fixable CVE the image scan reports — CVEs we
+# cannot patch ourselves, since they ship inside the upstream node base image.
 RUN cd /opt/technician/playwright && \
     npm ci && \
     npx playwright install --with-deps chromium && \
-    chown -R technician:technician /opt/technician/playwright "$PLAYWRIGHT_BROWSERS_PATH"
+    chown -R technician:technician /opt/technician/playwright "$PLAYWRIGHT_BROWSERS_PATH" && \
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn-v* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+           /root/.npm
 ENV NODE_PATH=/opt/technician/playwright/node_modules
 
 COPY --from=builder /technician /usr/local/bin/technician
