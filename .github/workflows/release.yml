@@ -31,6 +31,12 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Generated here, not committed, so it always matches the module set this
+      # binary was built from. Runs unset GOOS/GOARCH so the go-licenses install
+      # targets the runner; the license set itself is not platform-specific.
+      - name: Generate third-party license notice
+        run: ./scripts/gen-licenses.sh THIRD_PARTY_LICENSES.txt
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -38,7 +44,11 @@ jobs:
           CGO_ENABLED: "0"
         run: |
           go build -ldflags="-s -w" -o technician .
-          tar czf technician-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz technician
+          # The tarball is the unit people redistribute, so a statically linked
+          # binary has to carry its dependencies' attribution inside the archive,
+          # not merely alongside it as a sibling release asset.
+          tar czf technician-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+            technician LICENSE THIRD_PARTY_LICENSES.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

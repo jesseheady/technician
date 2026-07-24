@@ -40,8 +40,9 @@ CI (`.github/workflows/licenses.yml`) and the pre-push hook fail if a dependency
 carries a copyleft license, so nothing extra is needed when adding a dependency.
 
 The aggregated attribution notice (`THIRD_PARTY_LICENSES.txt`) is **generated at
-build and release time** — baked into the Docker image and attached to each
-GitHub release — so it always matches the shipped binary and is never committed.
+build and release time** — baked into the Docker image, bundled inside each
+release tarball alongside `LICENSE`, and attached to each GitHub release as a
+standalone asset — so it always matches the shipped binary and is never committed.
 To inspect it locally:
 
 ```bash
