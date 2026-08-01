@@ -10,45 +10,78 @@ permissions:
   packages: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
-    runs-on: ubuntu-latest
+
+  licenses:
+    name: Generate 3rd Party Licenses
     strategy:
       matrix:
         include:
           - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
+            runner: ubuntu-latest
           - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
 
-      # Generated here, not committed, so it always matches the module set this
-      # binary was built from. Runs unset GOOS/GOARCH so the go-licenses install
-      # targets the runner; the license set itself is not platform-specific.
-      - name: Generate third-party license notice
-        run: ./scripts/gen-licenses.sh THIRD_PARTY_LICENSES.txt
+      - name: Generate 3rd Party Licenses
+        run: |
+          go install github.com/google/go-licenses@v1.6.0
+          PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh THIRD_PARTY_LICENSES-${{ matrix.goos }}.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: licenses-${{ matrix.goos }}
+          path: THIRD_PARTY_LICENSES-${{ matrix.goos }}.txt
+
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    needs: licenses
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+          - goos: darwin
+            goarch: amd64
+            runner: macos-15-intel
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      - name: Download 3rd Party Licenses
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: licenses-${{ matrix.goos }}
 
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-        run: |
-          go build -ldflags="-s -w" -o technician .
-          # The tarball is the unit people redistribute, so a statically linked
-          # binary has to carry its dependencies' attribution inside the archive,
-          # not merely alongside it as a sibling release asset.
-          tar czf technician-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
-            technician LICENSE THIRD_PARTY_LICENSES.txt
+        shell: bash
+        run: ./scripts/build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -59,8 +92,11 @@ jobs:
   docker:
     name: Push Docker image to GHCR
     runs-on: ubuntu-latest
+    needs: licenses
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
@@ -70,6 +106,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download 3rd Party Licenses
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: licenses-linux
 
       - name: Build and push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
@@ -92,6 +133,8 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -102,11 +145,6 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-
-      - name: Generate third-party license notice
-        run: |
-          go install github.com/google/go-licenses@v1.6.0
-          PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh artifacts/THIRD_PARTY_LICENSES.txt
 
       - name: Ensure release exists
         env:
@@ -124,5 +162,4 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           cp LICENSE artifacts/
-          gh release upload "$TAG" --clobber \
-            artifacts/*.tar.gz artifacts/THIRD_PARTY_LICENSES.txt artifacts/LICENSE
+          gh release upload "$TAG" --clobber artifacts/*

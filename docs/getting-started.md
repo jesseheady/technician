@@ -64,6 +64,23 @@ also start the full Docker stack. See [scripts/init.sh](../scripts/init.sh) for
 exactly what it does, or [Set up without the script](#set-up-without-the-script)
 to do the same steps by hand.
 
+### Reproducing a release artifact
+
+Releases contain reproducible artifacts. To reproduce an artifact locally, use
+`scripts/build.sh` with appropriate values of GOOS and GOARCH for your target.
+For example, if you'd like to reproduce `technician-linux-arm64.tar.gz` from
+a release, run the script on a Linux system like this:
+
+```shell
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ./scripts/build.sh
+sha256sum technician-linux-arm64.tar.gz
+```
+
+The resulting digest should match the one shown on the release page for the
+corresponding tarball. A caveat: this is not expected to produce a matching
+tarball in cross-compiling environments. The Darwin tarball can be reproduced
+on a macOS system; the Linux tarball on a Linux host.
+
 ### Run the worker
 
 ```bash
