@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /technician .
 RUN go install github.com/google/go-licenses@v1.6.0 && \
     PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh /THIRD_PARTY_LICENSES.txt
 
-FROM node:24-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
+FROM node:24-slim@sha256:235600a8101ab264e117b1768e925532262668dc9b581ef1dd7d96ced463b8e7
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
