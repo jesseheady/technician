@@ -328,9 +328,11 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
-### Budget `*` entry is a real fallback
+### Budget `*` thresholds are per-metric defaults
 
-`examples/budgets.yml` documented the `*` entry as "applied to any check not listed below", but `EvaluateAll` matched it against every check and appended its thresholds alongside the named entry's. A per-check budget could therefore never loosen a global default: a check with its own `duration: 30000` was still failed by the `*` entry's `duration: 10000` on the same run, with no config able to express the intent. Slow-by-nature checks (domain expiry via RDAP, traceroute) inherited a default sized for HTTP and reported violations while passing. A named entry now replaces the `*` entry rather than stacking with it, matching the documented behaviour.
+`examples/budgets.yml` documented the `*` entry as "applied to any check not listed below", but `EvaluateAll` matched it against every check and appended its thresholds alongside the named entry's. A per-check budget could therefore never loosen a global default: a check with its own `duration: 30000` was still failed by the `*` entry's `duration: 10000` on the same run, with no config able to express the intent. Slow-by-nature checks (domain expiry via RDAP, traceroute) inherited a default sized for HTTP and reported violations while passing.
+
+Thresholds now merge per metric — `*` supplies defaults and a named entry overrides them individually. Replacing the whole entry instead would have fixed the same bug but introduced a quieter one, where adding a single per-check threshold silently drops every default the entry omits; merging keeps that coverage. Violations record whether their threshold came from `*`, surfaced as `inherited from "*"` in text output and `"inherited": true` in JSON, so a tuned check is distinguishable from one still on the defaults.
 
 ### OTLP trace export wired into the worker
 

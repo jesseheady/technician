@@ -126,9 +126,9 @@ func TestEvaluateWildcard(t *testing.T) {
 }
 
 func TestEvaluateNamedEntryOverridesWildcard(t *testing.T) {
-	// A named entry replaces the "*" fallback instead of stacking with it,
-	// so a deliberately looser per-check budget is not re-tightened by the
-	// global default.
+	// A named threshold overrides the "*" default for that metric, so a
+	// deliberately looser per-check budget is not re-tightened by the global
+	// default.
 	budgets := []Budget{
 		{Check: "*", Thresholds: map[string]float64{"duration": 10000}},
 		{Check: "domain-check", Thresholds: map[string]float64{"duration": 30000}},
@@ -151,8 +151,47 @@ func TestEvaluateNamedEntryOverridesWildcard(t *testing.T) {
 		Success:  true,
 		Duration: 13 * time.Second,
 	}
-	if violations := Evaluate(unlisted, budgets); len(violations) != 1 {
+	violations := Evaluate(unlisted, budgets)
+	if len(violations) != 1 {
 		t.Fatalf("expected 1 violation from wildcard fallback, got %d", len(violations))
+	}
+	if !violations[0].Inherited {
+		t.Error("expected wildcard-sourced violation to be marked Inherited")
+	}
+}
+
+func TestEvaluateMergesWildcardPerMetric(t *testing.T) {
+	// A named entry that omits a metric still inherits the "*" default for
+	// it, so adding a per-check threshold cannot silently drop coverage.
+	budgets := []Budget{
+		{Check: "*", Thresholds: map[string]float64{"duration": 10000}},
+		{Check: "partial-check", Thresholds: map[string]float64{"ttfb": 800}},
+	}
+
+	result := &check.Result{
+		Name:         "partial-check",
+		Type:         config.CheckTypeHTTP,
+		Success:      true,
+		Duration:     13 * time.Second,
+		TTFBDuration: 100 * time.Millisecond,
+	}
+
+	violations := Evaluate(result, budgets)
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation (inherited duration), got %d: %v", len(violations), violations)
+	}
+	if violations[0].Metric != "duration" {
+		t.Errorf("expected metric=duration, got %s", violations[0].Metric)
+	}
+	if !violations[0].Inherited {
+		t.Error("expected inherited duration threshold to be marked Inherited")
+	}
+
+	// The check's own threshold is not marked inherited.
+	for _, c := range EvaluateAll(result, budgets) {
+		if c.Metric == "ttfb" && c.Inherited {
+			t.Error("expected ttfb threshold to be marked as the check's own")
+		}
 	}
 }
 
