@@ -2,7 +2,12 @@
 # Check names must match entries in your checks/ directory.
 # Copy to config/budgets.yml and customise thresholds for your targets.
 
-# Global defaults (applied to any check not listed below)
+# Fallback, applied only to checks with no entry of their own. A named entry
+# below replaces this one outright — its thresholds are not combined with these,
+# so a check that is legitimately slow only needs its own `duration` here.
+#
+# Thresholds for metrics a check never emits (lcp/inp/cls on an HTTP check, say)
+# are ignored, not failed.
 - check: "*"
   thresholds:
     duration: 10000   # 10s total request time

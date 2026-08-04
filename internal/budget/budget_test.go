@@ -125,6 +125,37 @@ func TestEvaluateWildcard(t *testing.T) {
 	}
 }
 
+func TestEvaluateNamedEntryOverridesWildcard(t *testing.T) {
+	// A named entry replaces the "*" fallback instead of stacking with it,
+	// so a deliberately looser per-check budget is not re-tightened by the
+	// global default.
+	budgets := []Budget{
+		{Check: "*", Thresholds: map[string]float64{"duration": 10000}},
+		{Check: "domain-check", Thresholds: map[string]float64{"duration": 30000}},
+	}
+
+	named := &check.Result{
+		Name:     "domain-check",
+		Type:     config.CheckTypeDomainExpiry,
+		Success:  true,
+		Duration: 13 * time.Second,
+	}
+	if violations := Evaluate(named, budgets); len(violations) != 0 {
+		t.Fatalf("expected 0 violations for named entry, got %d: %v", len(violations), violations)
+	}
+
+	// The fallback still applies to checks with no entry of their own.
+	unlisted := &check.Result{
+		Name:     "unlisted-check",
+		Type:     config.CheckTypeHTTP,
+		Success:  true,
+		Duration: 13 * time.Second,
+	}
+	if violations := Evaluate(unlisted, budgets); len(violations) != 1 {
+		t.Fatalf("expected 1 violation from wildcard fallback, got %d", len(violations))
+	}
+}
+
 func TestEvaluateNamedCheckOnly(t *testing.T) {
 	result := &check.Result{
 		Name:     "other-check",

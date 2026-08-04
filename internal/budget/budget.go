@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/jesseheady/technician/internal/check"
 	"go.yaml.in/yaml/v3"
@@ -80,11 +81,21 @@ func Evaluate(result *check.Result, budgets []Budget) []Violation {
 
 // EvaluateAll returns a CheckResult for every applicable budget metric,
 // including passing checks (Violated=false).
+//
+// The "*" entry is a fallback: it applies only to checks with no entry of
+// their own. A named entry replaces it outright rather than stacking with it.
 func EvaluateAll(result *check.Result, budgets []Budget) []CheckResult {
 	var checks []CheckResult
 
+	named := slices.ContainsFunc(budgets, func(b Budget) bool {
+		return b.Check == result.Name
+	})
+
 	for _, budget := range budgets {
 		if budget.Check != "*" && budget.Check != result.Name {
+			continue
+		}
+		if budget.Check == "*" && named {
 			continue
 		}
 

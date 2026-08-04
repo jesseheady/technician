@@ -328,6 +328,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Budget `*` entry is a real fallback
+
+`examples/budgets.yml` documented the `*` entry as "applied to any check not listed below", but `EvaluateAll` matched it against every check and appended its thresholds alongside the named entry's. A per-check budget could therefore never loosen a global default: a check with its own `duration: 30000` was still failed by the `*` entry's `duration: 10000` on the same run, with no config able to express the intent. Slow-by-nature checks (domain expiry via RDAP, traceroute) inherited a default sized for HTTP and reported violations while passing. A named entry now replaces the `*` entry rather than stacking with it, matching the documented behaviour.
+
 ### OTLP trace export wired into the worker
 
 `internal/metrics/otel.go` held a complete tracing implementation that nothing ever called, so `metrics.otel.endpoint` was accepted and silently ignored — spans were never emitted despite tracing being a documented feature. The worker now initializes the tracer at startup, emits a span per check result, and flushes the batcher on shutdown. Two defects surfaced while wiring it: spans were anchored at drain time (collapsing to ~0 duration, since results are traced after the check finishes) and the exporter always used TLS, so plaintext local/sidecar collectors could never receive traces. Spans now carry the check's real start and end, and the endpoint's scheme selects the transport.
