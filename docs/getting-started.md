@@ -332,6 +332,15 @@ go run . validate --config config/technician.yml --budget config/budgets.yml
 
 Output formats: `--output text` (default), `--output json`, `--output gha` (GitHub Actions annotations).
 
+### How budgets match a check
+
+- `check` matches a check `name` exactly. An entry matching no check is silently inert.
+- `- check: "*"` supplies **defaults**, and a named entry overrides them **per metric**. A check that is legitimately slow (domain expiry, traceroute) sets its own `duration` and keeps every other default, so adding a per-check threshold never silently drops coverage.
+- Thresholds for metrics a check never emits are ignored, not failed — `lcp`/`inp`/`cls` on an HTTP check do nothing, since only browser checks report Core Web Vitals.
+- Violations sourced from `"*"` are marked as inherited: `--output text` appends `inherited from "*"`, and `--output json` sets `"inherited": true`. That distinguishes a check you tuned from one still riding the defaults.
+
+See [examples/budgets.yml](../examples/budgets.yml) for the shape.
+
 ## Set up without the script
 
 The same steps [scripts/init.sh](../scripts/init.sh) runs, by hand:

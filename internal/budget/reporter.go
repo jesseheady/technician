@@ -46,6 +46,7 @@ type jsonViolation struct {
 	Metric    string  `json:"metric"`
 	Threshold float64 `json:"threshold"`
 	Actual    float64 `json:"actual"`
+	Inherited bool    `json:"inherited"`
 	Status    string  `json:"status"`
 }
 
@@ -65,6 +66,7 @@ func (r *JSONReporter) Report(violations []Violation) error {
 			Metric:    v.Metric,
 			Threshold: v.Threshold,
 			Actual:    v.Actual,
+			Inherited: v.Inherited,
 			Status:    "fail",
 		}
 	}

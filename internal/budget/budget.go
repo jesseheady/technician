@@ -2,8 +2,10 @@ package budget
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/jesseheady/technician/internal/check"
 	"go.yaml.in/yaml/v3"
@@ -20,10 +22,15 @@ type Violation struct {
 	Metric    string
 	Threshold float64
 	Actual    float64
+	Inherited bool // threshold came from the "*" entry, not this check's own
 }
 
 func (v Violation) String() string {
-	return fmt.Sprintf("%s: %s = %.2f (threshold: %.2f)", v.Check, v.Metric, v.Actual, v.Threshold)
+	s := fmt.Sprintf("%s: %s = %.2f (threshold: %.2f", v.Check, v.Metric, v.Actual, v.Threshold)
+	if v.Inherited {
+		s += ", inherited from \"*\""
+	}
+	return s + ")"
 }
 
 func LoadBudgets(path string) ([]Budget, error) {
@@ -60,6 +67,7 @@ type CheckResult struct {
 	Metric    string
 	Threshold float64
 	Actual    float64
+	Inherited bool // threshold came from the "*" entry, not this check's own
 	Violated  bool
 }
 
@@ -72,6 +80,7 @@ func Evaluate(result *check.Result, budgets []Budget) []Violation {
 				Metric:    c.Metric,
 				Threshold: c.Threshold,
 				Actual:    c.Actual,
+				Inherited: c.Inherited,
 			})
 		}
 	}
@@ -80,29 +89,49 @@ func Evaluate(result *check.Result, budgets []Budget) []Violation {
 
 // EvaluateAll returns a CheckResult for every applicable budget metric,
 // including passing checks (Violated=false).
+//
+// Thresholds merge per metric: the "*" entry supplies defaults and a named
+// entry overrides them one metric at a time. A check that needs a looser
+// duration keeps the rest of the defaults instead of dropping them, and
+// CheckResult.Inherited records which thresholds came from "*".
 func EvaluateAll(result *check.Result, budgets []Budget) []CheckResult {
-	var checks []CheckResult
+	actuals := extractMetrics(result)
 
+	thresholds := map[string]float64{}
+	inherited := map[string]bool{}
 	for _, budget := range budgets {
-		if budget.Check != "*" && budget.Check != result.Name {
+		if budget.Check != "*" {
 			continue
 		}
-
-		actuals := extractMetrics(result)
-
 		for metric, threshold := range budget.Thresholds {
-			actual, ok := actuals[metric]
-			if !ok {
-				continue
-			}
-			checks = append(checks, CheckResult{
-				Check:     result.Name,
-				Metric:    metric,
-				Threshold: threshold,
-				Actual:    actual,
-				Violated:  actual > threshold,
-			})
+			thresholds[metric] = threshold
+			inherited[metric] = true
 		}
+	}
+	for _, budget := range budgets {
+		if budget.Check != result.Name {
+			continue
+		}
+		for metric, threshold := range budget.Thresholds {
+			thresholds[metric] = threshold
+			inherited[metric] = false
+		}
+	}
+
+	var checks []CheckResult
+	for _, metric := range slices.Sorted(maps.Keys(thresholds)) {
+		actual, ok := actuals[metric]
+		if !ok {
+			continue
+		}
+		checks = append(checks, CheckResult{
+			Check:     result.Name,
+			Metric:    metric,
+			Threshold: thresholds[metric],
+			Actual:    actual,
+			Inherited: inherited[metric],
+			Violated:  actual > thresholds[metric],
+		})
 	}
 
 	return checks
