@@ -7,9 +7,10 @@
 <p align="center">
   <a href="https://github.com/jesseheady/technician/actions/workflows/ci.yml"><img src="https://github.com/jesseheady/technician/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pkg.go.dev/github.com/jesseheady/technician"><img src="https://pkg.go.dev/badge/github.com/jesseheady/technician.svg" alt="Go Reference"></a>
-  <a href="https://goreportcard.com/report/github.com/jesseheady/technician"><img src="https://goreportcard.com/badge/github.com/jesseheady/technician" alt="Go Report Card"></a>
-  <a href="https://github.com/jesseheady/technician/releases"><img src="https://img.shields.io/github/v/release/jesseheady/technician" alt="Release"></a>
+  <!-- <a href="https://github.com/jesseheady/technician/releases"><img src="https://img.shields.io/github/v/release/jesseheady/technician" alt="Release"></a> -->
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://ko-fi.com/jheady"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=kofi&logoColor=white" alt="Support on Ko-fi"></a>
+  <a href="https://www.buymeacoffee.com/jheady"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
 </p>
 
 A single Go binary that checks your infrastructure over the network. Thirteen check types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright), Prometheus-native metrics, OTLP traces, performance budgets for CI, and Grafana dashboards included. Deploy one worker per region, point Prometheus at them, done.
