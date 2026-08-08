@@ -13,7 +13,10 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /technician .
 
-
+# Generate the third-party license notice from the build's own module cache,
+# so it always matches the binary being shipped (no committed bundle to drift).
+RUN go install github.com/google/go-licenses@v1.6.0 && \
+    PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh /THIRD_PARTY_LICENSES.txt
 
 FROM node:24-slim@sha256:235600a8101ab264e117b1768e925532262668dc9b581ef1dd7d96ced463b8e7
 
@@ -54,7 +57,7 @@ RUN setcap cap_net_raw+ep /usr/local/bin/technician
 # dependencies, generated in the builder stage. Playwright's own notices ship
 # under /opt/technician/playwright/node_modules.
 COPY LICENSE /usr/local/share/technician/
-COPY THIRD_PARTY_LICENSES-linux.txt /usr/local/share/technician/THIRD_PARTY_LICENSES-linux.txt
+COPY --from=builder /THIRD_PARTY_LICENSES.txt /usr/local/share/technician/THIRD_PARTY_LICENSES.txt
 
 RUN mkdir -p /var/lib/technician /tmp/technician/artifacts /tmp/technician-videos && \
     chown -R technician:technician /var/lib/technician /tmp/technician /tmp/technician-videos
