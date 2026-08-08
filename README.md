@@ -49,25 +49,20 @@ graph LR
 
 ## Install
 
-**Release binary** (linux/darwin, amd64/arm64) — see [Releases](https://github.com/jesseheady/technician/releases) for the latest version:
-
-```bash
-VERSION=v0.1.0
-curl -fsSL "https://github.com/jesseheady/technician/releases/download/${VERSION}/technician-linux-amd64.tar.gz" | tar xz
-./technician --help
-```
-
-**Container image** (multi-arch, from GitHub Container Registry):
-
-```bash
-docker pull ghcr.io/jesseheady/technician:latest
-docker run --rm ghcr.io/jesseheady/technician:latest --help
-```
-
 **From source** (Go 1.26+):
 
 ```bash
 go install github.com/jesseheady/technician@latest
+```
+
+Prebuilt release binaries (linux/darwin, amd64/arm64) and a multi-arch container image (`ghcr.io/jesseheady/technician`) are published with each tagged release — see [Releases](https://github.com/jesseheady/technician/releases). Set `VERSION` to a tag from that page:
+
+```bash
+VERSION=<tag>   # a tag from the Releases page
+curl -fsSL "https://github.com/jesseheady/technician/releases/download/${VERSION}/technician-linux-amd64.tar.gz" | tar xz
+./technician --help
+
+docker run --rm ghcr.io/jesseheady/technician:${VERSION} --help
 ```
 
 ## Quick start
