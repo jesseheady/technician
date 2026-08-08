@@ -494,7 +494,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) with build, test (race dete
 
 ### Release workflow
 
-GitHub Actions workflow (`.github/workflows/release.yml`) triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached and auto-generated changelog categorized by PR labels (`.github/release.yml`). The first tagged release will be v0.1.0.
+GitHub Actions workflow (`.github/workflows/release.yml`) triggered on `v*` tag push. Builds binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64. Creates a GitHub Release with binaries attached and auto-generated changelog categorized by PR labels (`.github/release.yml`).
 
 ### Pre-commit hook
 

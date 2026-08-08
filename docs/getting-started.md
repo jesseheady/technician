@@ -100,7 +100,7 @@ image:
 
 ```bash
 # On the target host:
-export TECHNICIAN_VERSION=v0.1.0     # pin a release tag; defaults to :latest
+export TECHNICIAN_VERSION=<tag>     # pin a release tag; defaults to :latest
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
