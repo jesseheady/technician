@@ -30,6 +30,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	applyLogConfig(cfg)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
