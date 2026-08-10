@@ -2,6 +2,8 @@
 
 Use Technician as a CI pipeline step to enforce performance budgets, validate DOM structure, and capture visual artifacts as part of the build/deploy pipeline.
 
+> **Status (2026-08):** The run-once core of this proposal already ships as `technician validate`, which runs all checks once, evaluates budgets, and exits 0/1 (with `--output json`/`text`/`gha` for GitHub Actions annotations). The proposed `technician check` subcommand name is also taken now: `check run` runs a single check by name. What remains unbuilt is the CI-specific delta below: a `--base-url` override, JUnit and markdown/PR-comment reporters, visual regression, and a packaged GitHub Action. Read the interface below as the target for that delta, not as greenfield.
+
 ## Motivation
 
 Synthetic monitoring catches production regressions after deploy. CI runner mode catches them before merge. Same check definitions, same budget thresholds, same Playwright scripts — run in the pipeline against a preview/staging URL.

@@ -222,7 +222,7 @@ k6 (Grafana's open-source load testing tool) is a natural companion to Technicia
 **What's needed:**
 
 - **Docker Compose profile** — Add a `loadtest` profile to the existing stack (`docker compose --profile loadtest up`). Includes k6 configured to push metrics to the same Prometheus instance via `K6_PROMETHEUS_RW_SERVER_URL`. Off by default so it doesn't affect the standard monitoring stack.
-- **Grafana dashboard** — Pre-built k6 dashboard (provisioned alongside the existing five) showing request rate, response time distribution, error rate, VU count, and iteration throughput. Sourced from k6's official Prometheus dashboard with adjustments to match Technician's Grafana theme.
+- **Grafana dashboard** — Pre-built k6 dashboard (provisioned alongside the existing dashboards) showing request rate, response time distribution, error rate, VU count, and iteration throughput. Sourced from k6's official Prometheus dashboard with adjustments to match Technician's Grafana theme.
 - **Example scripts** — `examples/k6/` directory with sample load test scripts targeting the same services used in the sample check configs. Includes a basic HTTP load test, a ramping VU scenario, and a threshold-based test that mirrors Technician's performance budgets.
 - **CI workflow example** — GitHub Actions job showing the "load then validate" pattern: run a k6 scenario against a staging target, then run `technician validate` to check if performance budgets still pass under load.
 - **Documentation** — `docs/k6-companion.md` covering setup, the Docker Compose profile, dashboard walkthrough, and the recommended workflow for pairing load tests with synthetic monitoring.
@@ -476,4 +476,4 @@ Contributing guide with setup, pre-commit hooks, code style, and PR guidelines. 
 
 ### Mermaid architecture diagram
 
-README architecture diagram updated from ASCII art to Mermaid with all 13 check types. Renders natively on GitHub.
+README architecture diagram updated from ASCII art to Mermaid with all check types. Renders natively on GitHub.
