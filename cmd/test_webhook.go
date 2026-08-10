@@ -26,6 +26,7 @@ func runTestWebhook(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	applyLogConfig(cfg)
 
 	if len(cfg.Webhooks) == 0 {
 		return fmt.Errorf("no webhooks configured in %s", cfgFile)

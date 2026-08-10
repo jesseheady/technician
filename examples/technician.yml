@@ -33,6 +33,14 @@ metrics:
     #   endpoint: "http://localhost:4318"
     endpoint: ""
 
+logging:
+  # format: json emits one JSON object per line for Loki-native parsing;
+  # text (the default) is human-readable for local dev.
+  format: text
+  # Log level: debug, info, warn, error (default info). The --log-level flag
+  # overrides this when set.
+  level: info
+
 artifacts:
   # The local driver is for dev/inspection. /tmp is ephemeral (not on the
   # technician_data volume in Docker), so artifacts here do not survive a

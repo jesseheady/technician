@@ -2,7 +2,12 @@
 # Check names must match entries in your checks/ directory.
 # Copy to config/budgets.yml and customise thresholds for your targets.
 
-# Global defaults (applied to any check not listed below)
+# Defaults for every check. A named entry below overrides these one metric at
+# a time: set `duration` there and a check keeps the rest of these defaults, so
+# adding a per-check threshold can never silently drop coverage.
+#
+# Thresholds for metrics a check never emits (lcp/inp/cls on an HTTP check, say)
+# are ignored, not failed.
 - check: "*"
   thresholds:
     duration: 10000   # 10s total request time

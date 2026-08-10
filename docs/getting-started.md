@@ -64,6 +64,23 @@ also start the full Docker stack. See [scripts/init.sh](../scripts/init.sh) for
 exactly what it does, or [Set up without the script](#set-up-without-the-script)
 to do the same steps by hand.
 
+### Reproducing a release artifact
+
+Releases contain reproducible artifacts. To reproduce an artifact locally, use
+`scripts/build.sh` with appropriate values of GOOS and GOARCH for your target.
+For example, if you'd like to reproduce `technician-linux-arm64.tar.gz` from
+a release, run the script on a Linux system like this:
+
+```shell
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ./scripts/build.sh
+sha256sum technician-linux-arm64.tar.gz
+```
+
+The resulting digest should match the one shown on the release page for the
+corresponding tarball. A caveat: this is not expected to produce a matching
+tarball in cross-compiling environments. The Darwin tarball can be reproduced
+on a macOS system; the Linux tarball on a Linux host.
+
 ### Run the worker
 
 ```bash
@@ -100,7 +117,7 @@ image:
 
 ```bash
 # On the target host:
-export TECHNICIAN_VERSION=v0.1.0     # pin a release tag; defaults to :latest
+export TECHNICIAN_VERSION=<tag>     # pin a release tag; defaults to :latest
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
@@ -331,6 +348,15 @@ go run . validate --config config/technician.yml --budget config/budgets.yml
 ```
 
 Output formats: `--output text` (default), `--output json`, `--output gha` (GitHub Actions annotations).
+
+### How budgets match a check
+
+- `check` matches a check `name` exactly. An entry matching no check is silently inert.
+- `- check: "*"` supplies **defaults**, and a named entry overrides them **per metric**. A check that is legitimately slow (domain expiry, traceroute) sets its own `duration` and keeps every other default, so adding a per-check threshold never silently drops coverage.
+- Thresholds for metrics a check never emits are ignored, not failed — `lcp`/`inp`/`cls` on an HTTP check do nothing, since only browser checks report Core Web Vitals.
+- Violations sourced from `"*"` are marked as inherited: `--output text` appends `inherited from "*"`, and `--output json` sets `"inherited": true`. That distinguishes a check you tuned from one still riding the defaults.
+
+See [examples/budgets.yml](../examples/budgets.yml) for the shape.
 
 ## Set up without the script
 

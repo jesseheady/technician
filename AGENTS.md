@@ -34,7 +34,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality; otel: endpoint), `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)).
+- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality; otel: endpoint), `artifacts`, `playwright` (mode, server_url, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)), `logging` (format: json/text, level: debug/info/warn/error).
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex), `follow_redirects`, `ip_version`, `min_tls`/`max_tls`, `basic_auth`/`bearer_token` (mutually exclusive), and `proxy`. TCP checks support `min_tls`/`max_tls` (with `tls: true`). SMTP checks support `start_tls`, `skip_tls`, and `username`/`password` auth (auth requires `start_tls`). DNS checks support SOA alongside A/AAAA/MX/TXT/CNAME/NS/SRV.
   - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.
@@ -73,7 +73,7 @@ Three strategies (see `docs/alerting.md`):
 
 ## Conventions
 
-- **Logging**: `log/slog`; level set by `--log-level` in root command.
+- **Logging**: `log/slog`. Handler and level come from the `logging` config block (`format: json` for Loki-native, else text; `level`), applied after config load via `applyLogConfig`. The `--log-level` flag overrides `logging.level`; before config loads, a text baseline honors the flag.
 - **Errors**: Return with `fmt.Errorf("context: %w", err)` for wrapping.
 - **Tests**: Standard library `testing`; use httptest/mocks where appropriate; check tests live next to implementation (e.g. `http_test.go`).
 - **Go**: Module `github.com/jesseheady/technician`; keep `internal/` for non-exported code.
@@ -135,11 +135,11 @@ Reviews and conversation resolution are deliberately not required. Neither const
 
 ## Releases
 
-- Use annotated tags: `git tag -a v0.1.0 -m "Short summary"`.
+- Use annotated tags: `git tag -a vX.Y.Z -m "Short summary"`.
 - The release workflow builds multi-platform binaries and creates a GitHub Release with auto-generated notes.
 - Auto-generated notes are categorized by PR labels (configured in `.github/release.yml`).
 - For the tag annotation, write a short summary. For the GitHub Release, the auto-generated notes cover PR-level detail; add a hand-written summary at the top for major releases.
-- The first tagged release will be `v0.1.0`. Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
+- Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
 
 ## PR labels
 
