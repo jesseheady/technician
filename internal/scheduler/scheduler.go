@@ -217,6 +217,7 @@ func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckC
 		}
 
 		result = checker.Run(ctx, cfg, origin)
+		result.Retries = attempt
 		if result.Success {
 			return result
 		}

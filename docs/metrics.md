@@ -112,3 +112,22 @@ Extra label: `resource_type`.
 |---|---|---|
 | `technician_last_run_timestamp_seconds` | Gauge | Unix timestamp of the most recent recorded result (excludes infra errors) |
 | `technician_status_store_write_errors_total` | Counter | Status store persistence write failures since process start |
+
+## Runtime / self-health
+
+Technician's own health is exported by the standard Prometheus Go and process
+collectors (registered automatically), so no custom metrics duplicate them:
+
+| Metric | Type | Description |
+|---|---|---|
+| `go_goroutines` | Gauge | Goroutines currently running |
+| `go_memstats_alloc_bytes` | Gauge | Heap bytes in use |
+| `go_threads` | Gauge | OS threads created |
+| `process_resident_memory_bytes` | Gauge | Resident set size (RSS) |
+| `process_cpu_seconds_total` | Counter | Total CPU time |
+| `process_open_fds` | Gauge | Open file descriptors |
+
+Per-check execution is also logged as a structured `Check result` line (name,
+type, success, duration, region, degraded, retries, error) for Loki ingestion;
+when OTLP tracing is enabled it carries `trace_id`/`span_id` so logs link to
+their traces.

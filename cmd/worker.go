@@ -137,7 +137,7 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	go func() {
 		for result := range sched.Results() {
 			store.Push(result)
-			metrics.TraceCheckResult(ctx, result)
+			traceID, spanID := metrics.TraceCheckResult(ctx, result)
 			notifier.HandleResult(ctx, result)
 			notifier.HandleCertResult(ctx, result)
 
@@ -161,16 +161,25 @@ func runWorker(cmd *cobra.Command, args []string) error {
 			}
 
 			level := slog.LevelInfo
-			if !result.Success {
+			if !result.Success || result.Degraded {
 				level = slog.LevelWarn
 			}
-			slog.Log(ctx, level, "Check result",
+			attrs := []any{
 				"name", result.Name,
 				"type", result.Type,
 				"success", result.Success,
 				"duration", result.Duration,
+				"region", origin.ID,
+				"degraded", result.Degraded,
+				"retries", result.Retries,
 				"error", result.Error,
-			)
+			}
+			// Stamp trace/span IDs when OTLP tracing is enabled so Loki logs
+			// link to their trace (Loki↔Tempo correlation).
+			if traceID != "" {
+				attrs = append(attrs, "trace_id", traceID, "span_id", spanID)
+			}
+			slog.Log(ctx, level, "Check result", attrs...)
 		}
 	}()
 

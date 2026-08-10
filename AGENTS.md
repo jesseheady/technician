@@ -73,7 +73,7 @@ Three strategies (see `docs/alerting.md`):
 
 ## Conventions
 
-- **Logging**: `log/slog`. Handler and level come from the `logging` config block (`format: json` for Loki-native, else text; `level`), applied after config load via `applyLogConfig`. The `--log-level` flag overrides `logging.level`; before config loads, a text baseline honors the flag.
+- **Logging**: `log/slog`. Handler and level come from the `logging` config block (`format: json` for Loki-native, else text; `level`), applied after config load via `applyLogConfig`. The `--log-level` flag overrides `logging.level`; before config loads, a text baseline honors the flag. The worker's result-drain loop emits one structured `Check result` line per execution (name, type, success, duration, region, degraded, retries, error; WARN when down/degraded), and stamps `trace_id`/`span_id` from `TraceCheckResult` when OTLP tracing is on. Self-health (goroutines, memory, FDs, CPU) comes from the standard Prometheus Go/process collectors — don't add custom metrics for it.
 - **Errors**: Return with `fmt.Errorf("context: %w", err)` for wrapping.
 - **Tests**: Standard library `testing`; use httptest/mocks where appropriate; check tests live next to implementation (e.g. `http_test.go`).
 - **Go**: Module `github.com/jesseheady/technician`; keep `internal/` for non-exported code.

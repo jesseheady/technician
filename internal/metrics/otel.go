@@ -62,9 +62,12 @@ func InitOTEL(ctx context.Context, cfg *config.OTELConfig, serviceName string) (
 	return tp.Shutdown, nil
 }
 
-func TraceCheckResult(ctx context.Context, result *check.Result) {
+// TraceCheckResult emits an OTLP span for a check result and returns the span's
+// trace and span IDs (empty when tracing is disabled) so the caller can stamp
+// them onto the corresponding log line for Loki↔trace correlation.
+func TraceCheckResult(ctx context.Context, result *check.Result) (traceID, spanID string) {
 	if tracer == nil {
-		return
+		return "", ""
 	}
 
 	// Spans are emitted after the check has already run, so anchor them to when
@@ -85,6 +88,9 @@ func TraceCheckResult(ctx context.Context, result *check.Result) {
 		),
 	)
 	defer span.End(trace.WithTimestamp(start.Add(result.Duration)))
+
+	sc := span.SpanContext()
+	traceID, spanID = sc.TraceID().String(), sc.SpanID().String()
 
 	for k, v := range result.Labels {
 		span.SetAttributes(attribute.String(k, v))
@@ -127,4 +133,6 @@ func TraceCheckResult(ctx context.Context, result *check.Result) {
 			)
 		}
 	}
+
+	return traceID, spanID
 }

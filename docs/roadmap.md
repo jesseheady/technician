@@ -153,32 +153,6 @@ When a check or group has a declared maintenance window, Technician's own status
       reason: "Database migration"
 ```
 
-### Structured logging for Loki [#24](https://github.com/jesseheady/technician/issues/24)
-
-Technician already uses Go's `slog` for structured logging to stdout. Enhance the log output so it's immediately useful when consumed by Grafana Loki (or any log aggregation pipeline), giving visibility into how Technician itself is performing.
-
-**What's needed:**
-
-- **Health log line per check execution** — After each check run, emit a structured log with: check name, type, success, duration, region, degraded flag, retry count (if retried). This gives Loki a complete record of check execution independent of Prometheus metrics.
-- **Technician self-health metrics** — Log scheduler loop timing, goroutine count, memory usage, and config reload events. Useful for diagnosing "is Technician itself healthy?" without needing a separate monitoring stack.
-- **Log format config** — `logging.format` in `technician.yml`: `json` (default, Loki-native) or `text` (human-readable for local dev). `logging.level`: `debug`, `info` (default), `warn`, `error`.
-- **Correlation IDs** — Each check execution gets a trace ID logged alongside the result, linking slog output to OTLP traces when tracing is enabled.
-
-**Config shape:**
-
-```yaml
-logging:
-  format: json       # json | text
-  level: info        # debug | info | warn | error
-```
-
-**Example log output (JSON):**
-
-```json
-{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"check_complete","check":"API Health","type":"http","success":true,"duration_ms":142,"region":"us-east-1","degraded":false,"retries":0}
-{"time":"2026-03-11T10:00:30Z","level":"INFO","msg":"scheduler_tick","active_probes":12,"goroutines":28,"heap_mb":8.2}
-```
-
 ### Status page redesign [#25](https://github.com/jesseheady/technician/issues/25)
 
 Redesign the built-in status page. Reference layout based on Upptime, Cachet, and Gatus.
@@ -303,6 +277,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Structured logging for Loki [#24](https://github.com/jesseheady/technician/issues/24)
+
+`slog` output is now Loki-ready. Each check execution logs a structured `Check result` line — name, type, success, duration, region, degraded, retries, error — at INFO (WARN when down or degraded), giving a complete record independent of Prometheus. When OTLP tracing is enabled the line carries `trace_id`/`span_id` for Loki↔trace correlation. `logging.format` (`json`/`text`) and `logging.level` config landed earlier. Self-health (goroutines, memory, threads, FDs, CPU) is already exported by the standard Prometheus Go/process collectors, so no custom metrics were added. Scheduler-loop-timing and config-reload logging were dropped: per-check duration plus the runtime collectors already cover "is Technician healthy?", and there is no hot config reload to log.
 
 ### WebSocket check type [#23](https://github.com/jesseheady/technician/issues/23)
 
@@ -490,7 +468,7 @@ Main branch requires `CI Passed` status check. Admin bypass enabled for maintain
 
 ### Log level flag
 
-`--log-level` CLI flag (debug, info, warn, error) for controlling log verbosity. Default remains INFO. Part of the broader structured logging effort ([#24](https://github.com/jesseheady/technician/issues/24)); remaining work includes JSON format config, per-check health log lines, self-health metrics, and correlation IDs.
+`--log-level` CLI flag (debug, info, warn, error) for controlling log verbosity. Default remains INFO. Part of the broader structured logging effort ([#24](https://github.com/jesseheady/technician/issues/24)), now complete — see the [#24](https://github.com/jesseheady/technician/issues/24) entry above.
 
 ### CONTRIBUTING.md and SECURITY.md
 
