@@ -149,8 +149,8 @@ func (s *Scheduler) execute(ctx context.Context, checker check.Checker, cfg *con
 	result.Group = cfg.Group
 	result.Target = cfg.Target()
 
-	// Mark as degraded if duration exceeds threshold
-	if cfg.DegradedAfter > 0 && result.Success && result.Duration > cfg.DegradedAfter {
+	// Mark as degraded if latency exceeds threshold
+	if cfg.DegradedAfter > 0 && result.Success && result.DegradedLatency() > cfg.DegradedAfter {
 		result.Degraded = true
 	}
 

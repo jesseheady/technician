@@ -1,6 +1,11 @@
 package check
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/jesseheady/technician/internal/config"
+)
 
 func TestResultThresholdDefaults(t *testing.T) {
 	// Zero values fall back to the documented defaults.
@@ -38,5 +43,40 @@ func TestResultThresholdOverrides(t *testing.T) {
 	}
 	if got := r.DomainCriticalDays(); got != 14 {
 		t.Errorf("DomainCriticalDays = %d, want 14", got)
+	}
+}
+
+func TestDegradedLatencyUsesDurationByDefault(t *testing.T) {
+	// Non-ICMP checks time a single operation, so Duration is the latency.
+	r := &Result{Type: config.CheckTypeHTTP, Duration: 900 * time.Millisecond}
+	if got := r.DegradedLatency(); got != 900*time.Millisecond {
+		t.Errorf("DegradedLatency = %v, want 900ms", got)
+	}
+}
+
+func TestDegradedLatencyICMPUsesAvgRTT(t *testing.T) {
+	// Duration sums every probe; the threshold applies to one probe, so the
+	// result must not scale with count.
+	r := &Result{
+		Type:            config.CheckTypeICMP,
+		Duration:        250 * time.Millisecond, // 5 probes at ~50ms
+		ICMPPacketsRecv: 5,
+		ICMPAvgRTT:      50 * time.Millisecond,
+	}
+	if got := r.DegradedLatency(); got != 50*time.Millisecond {
+		t.Errorf("DegradedLatency = %v, want 50ms (per-probe, not the 250ms sum)", got)
+	}
+}
+
+func TestDegradedLatencyICMPWithoutRepliesFallsBack(t *testing.T) {
+	// No replies means ICMPAvgRTT was never computed; reporting 0 would read
+	// as a perfectly fast check.
+	r := &Result{
+		Type:            config.CheckTypeICMP,
+		Duration:        3 * time.Second,
+		ICMPPacketsRecv: 0,
+	}
+	if got := r.DegradedLatency(); got != 3*time.Second {
+		t.Errorf("DegradedLatency = %v, want 3s", got)
 	}
 }

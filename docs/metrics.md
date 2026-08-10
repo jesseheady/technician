@@ -21,7 +21,7 @@ which carries `metric` (the budget metric key) instead.
 |---|---|---|
 | `technician_check_healthy` | Gauge | 1 if the target responded successfully, 0 if the check failed |
 | `technician_check_duration_seconds` | Gauge | End-to-end check execution time in seconds |
-| `technician_check_degraded` | Gauge | Response time exceeds the `degraded_after` threshold (1=degraded, 0=ok) |
+| `technician_check_degraded` | Gauge | Latency exceeds the `degraded_after` threshold (1=degraded, 0=ok). Total duration for most types; average per-probe RTT for ICMP |
 | `technician_check_infra_error` | Gauge | 1 if the check's own infrastructure failed (not the target) |
 | `technician_budget_violation` | Gauge | Whether a performance budget is violated (1=violated, 0=ok) |
 

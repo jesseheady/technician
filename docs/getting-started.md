@@ -214,7 +214,9 @@ Backoff options: `none` (fixed delay), `linear` (delay × attempt), `exponential
 | TLS, Domain expiry | `0 0 */6 * * *` (6 hr) | Certificates and registrations change on day/week timescales |
 | Playwright | `0 */5 * * * *` (5 min) | Browser launches are heavy; balance with visibility needs |
 
-**Degraded thresholds**: The `degraded_after` field marks a check as degraded (yellow) when its duration exceeds the threshold — even though the check itself succeeded. Thresholds should be tuned to your deployment context, since network latency varies significantly between environments.
+**Degraded thresholds**: The `degraded_after` field marks a check as degraded (yellow) when its latency exceeds the threshold — even though the check itself succeeded. Thresholds should be tuned to your deployment context, since network latency varies significantly between environments.
+
+For most check types that latency is the check's total duration, which times a single operation. ICMP is the exception: it repeats the same probe `count` times, so it compares the threshold against the **average round-trip time of one probe**. An ICMP threshold means the same thing whatever `count` you set, and the values below are per-probe RTT.
 
 Recommended `degraded_after` by check type and deployment:
 
