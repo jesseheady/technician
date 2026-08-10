@@ -71,6 +71,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	applyLogConfig(cfg)
 
 	// loadFilteredChecks applies the technician.yml check_filter block. The
 	// --check-type / --exclude-type flags below layer on top of it (they are

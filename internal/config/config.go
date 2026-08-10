@@ -26,6 +26,12 @@ type Config struct {
 	Playwright  PlaywrightConfig `yaml:"playwright"`
 	Webhooks    []WebhookConfig  `yaml:"webhooks"`
 	CheckFilter CheckFilter      `yaml:"check_filter"`
+	Logging     LoggingConfig    `yaml:"logging"`
+}
+
+type LoggingConfig struct {
+	Format string `yaml:"format"` // "json" (Loki-native) or "text" (default)
+	Level  string `yaml:"level"`  // debug, info, warn, error; --log-level overrides
 }
 
 type WebhookConfig struct {
