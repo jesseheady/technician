@@ -180,7 +180,7 @@ This returns 0–1 (e.g. 0.997 = 99.7% uptime). Prometheus handles storage, rete
 
 The built-in status page at `:9590/` currently shows only what's in the in-memory ring buffer (90 entries per check — the visible window depends on check interval: ~45 min at 30s, ~3 hours at 2min, ~7.5 hours at 5min). To show 30-day uptime bars like the Grafana dashboards, two approaches:
 
-**Approach A: Query Prometheus API from the status page (recommended)**
+**Approach A: Query Prometheus API from the status page (deferred)**
 
 Add a `metrics.prometheus.url` config field. The status page handler queries the Prometheus HTTP API for historical uptime and response time aggregates, then renders them server-side. No new database — Prometheus (or AMP) already has the data.
 
@@ -208,10 +208,12 @@ SQLite adds ~2 MB to the binary size and negligible runtime overhead. It doesn't
 
 | Deploy | Historical data source | Why |
 |--------|----------------------|-----|
-| **Full stack (Prom + Grafana)** | Prometheus API (Approach A) | Prometheus already has the data. No new dependency. |
-| **AMP + AMG** | AMP API (Approach A) | Same as above — AMP exposes the standard Prometheus HTTP API. |
+| **Full stack (Prom + Grafana)** | SQLite (Approach B) for the page's bounded window; Grafana for the long tail | The page needs history of its own even when Prometheus has the data, and it keeps working when Prometheus is unreachable. |
+| **AMP + AMG** | Same as above | AMP exposes the standard Prometheus HTTP API, so the long tail is a Grafana query. |
 | **Standalone VPS worker** | SQLite (Approach B) | Worker is self-contained. Status page works without external dependencies. |
-| **Lambda / edge** | N/A | No long-lived status page. Metrics pushed to Prometheus/AMP; Grafana handles history. |
+| **Lambda / edge** | N/A | No durable disk and no long-lived status page. Metrics pushed to Prometheus/AMP; Grafana handles history. |
+
+Approach B is the decided path for the status page in every deployment that has a disk (see [roadmap](roadmap.md#status-page-historical-data) and [#16](https://github.com/jesseheady/technician/issues/16)). Approach A is deferred to whenever the long tail needs to be rendered by the page itself rather than by Grafana.
 
 ## Scaling the status page
 
