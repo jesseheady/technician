@@ -212,6 +212,47 @@ func TestInitOTELExportsToPlaintextCollector(t *testing.T) {
 	}
 }
 
+// TestInitOTELHonorsExplicitPath covers collectors mounted behind a path
+// prefix: an endpoint that spells out its own path must be used verbatim
+// rather than having the default /v1/traces substituted for it.
+func TestInitOTELHonorsExplicitPath(t *testing.T) {
+	received := make(chan string, 4)
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+
+	prev := tracer
+	t.Cleanup(func() { tracer = prev })
+
+	shutdown, err := InitOTEL(context.Background(), &config.OTELConfig{Endpoint: collector.URL + "/otlp/v1/traces"}, "test-service")
+	if err != nil {
+		t.Fatalf("InitOTEL: %v", err)
+	}
+
+	r := check.NewResult("exported-check", config.CheckTypeHTTP, nil)
+	r.Success = true
+	r.Timestamp = time.Now()
+	r.Duration = 5 * time.Millisecond
+	TraceCheckResult(context.Background(), r)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := shutdown(ctx); err != nil {
+		t.Fatalf("shutdown/flush: %v", err)
+	}
+
+	select {
+	case path := <-received:
+		if path != "/otlp/v1/traces" {
+			t.Errorf("expected spans posted to /otlp/v1/traces, got %q", path)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("collector received no spans — export never reached the endpoint")
+	}
+}
+
 // TestInitOTELDisabledByDefault verifies an empty endpoint leaves tracing off
 // and still returns a usable shutdown func.
 func TestInitOTELDisabledByDefault(t *testing.T) {
