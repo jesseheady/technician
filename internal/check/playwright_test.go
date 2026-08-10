@@ -11,7 +11,7 @@ import (
 )
 
 func TestPlaywrightCheckerDefaultMaxBrowsers(t *testing.T) {
-	p := NewPlaywrightChecker("/nonexistent/run.js", 0)
+	p := NewPlaywrightChecker("/nonexistent/run.js", 0, "")
 	if p.maxBrowsers != 2 {
 		t.Errorf("expected default max_browsers=2, got %d", p.maxBrowsers)
 	}
@@ -21,7 +21,7 @@ func TestPlaywrightCheckerDefaultMaxBrowsers(t *testing.T) {
 }
 
 func TestPlaywrightCheckerCustomMaxBrowsers(t *testing.T) {
-	p := NewPlaywrightChecker("/nonexistent/run.js", 5)
+	p := NewPlaywrightChecker("/nonexistent/run.js", 5, "")
 	if p.maxBrowsers != 5 {
 		t.Errorf("expected max_browsers=5, got %d", p.maxBrowsers)
 	}
@@ -31,7 +31,7 @@ func TestPlaywrightCheckerCustomMaxBrowsers(t *testing.T) {
 }
 
 func TestPlaywrightCheckerNilConfig(t *testing.T) {
-	p := NewPlaywrightChecker("/nonexistent/run.js", 2)
+	p := NewPlaywrightChecker("/nonexistent/run.js", 2, "")
 	result := p.Run(context.Background(), &config.CheckConfig{
 		Name: "test-nil-config",
 	}, nil)
@@ -46,7 +46,7 @@ func TestPlaywrightCheckerNilConfig(t *testing.T) {
 
 func TestPlaywrightCheckerSemaphoreBlocksOnFull(t *testing.T) {
 	// Create a checker with max 1 browser
-	p := NewPlaywrightChecker("/nonexistent/run.js", 1)
+	p := NewPlaywrightChecker("/nonexistent/run.js", 1, "")
 
 	// Manually occupy the semaphore slot
 	p.browserSem <- struct{}{}
@@ -74,7 +74,7 @@ func TestPlaywrightCheckerSemaphoreBlocksOnFull(t *testing.T) {
 
 func TestPlaywrightCheckerSemaphoreLimitsConcurrency(t *testing.T) {
 	maxBrowsers := 2
-	p := NewPlaywrightChecker("/nonexistent/run.js", maxBrowsers)
+	p := NewPlaywrightChecker("/nonexistent/run.js", maxBrowsers, "")
 
 	var (
 		maxConcurrent atomic.Int32
@@ -113,5 +113,16 @@ func TestPlaywrightCheckerSemaphoreLimitsConcurrency(t *testing.T) {
 
 	if got := maxConcurrent.Load(); got > int32(maxBrowsers) {
 		t.Errorf("max concurrent browsers exceeded limit: got %d, want <= %d", got, maxBrowsers)
+	}
+}
+
+func TestPlaywrightCheckerServerURL(t *testing.T) {
+	// Empty means launch locally; a set value is forwarded to the runner so it
+	// connects instead.
+	if got := NewPlaywrightChecker("/nonexistent/run.js", 2, "").ServerURL; got != "" {
+		t.Errorf("ServerURL = %q, want empty", got)
+	}
+	if got := NewPlaywrightChecker("/nonexistent/run.js", 2, "ws://pw:3000/").ServerURL; got != "ws://pw:3000/" {
+		t.Errorf("ServerURL = %q, want ws://pw:3000/", got)
 	}
 }

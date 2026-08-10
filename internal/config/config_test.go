@@ -191,3 +191,56 @@ func TestSiteLabels(t *testing.T) {
 		t.Errorf("expected country=US, got %s", labels["country"])
 	}
 }
+
+func TestPlaywrightModeValidation(t *testing.T) {
+	base := `
+service: technician
+origins:
+  - id: local
+    platform: docker
+`
+	tests := []struct {
+		name    string
+		pw      string
+		wantErr bool
+	}{
+		{"unset defaults to local", "", false},
+		{"local needs no server_url", "playwright:\n  mode: local\n", false},
+		{"managed with server_url", "playwright:\n  mode: managed\n  server_url: ws://pw:3000/\n", false},
+		{"managed without server_url", "playwright:\n  mode: managed\n", true},
+		{"unknown mode", "playwright:\n  mode: remote\n", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "technician.yml")
+			if err := os.WriteFile(path, []byte(base+tt.pw), 0o644); err != nil {
+				t.Fatalf("writing config: %v", err)
+			}
+
+			_, err := Load(path)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestPlaywrightModeDefaultsToLocal(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "technician.yml")
+	content := "service: technician\norigins:\n  - id: local\n    platform: docker\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Playwright.Mode != "local" {
+		t.Errorf("Playwright.Mode = %q, want %q", cfg.Playwright.Mode, "local")
+	}
+}

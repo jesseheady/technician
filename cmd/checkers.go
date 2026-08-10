@@ -31,8 +31,18 @@ func newCheckers(cfg *config.Config) map[config.CheckType]check.Checker {
 	if runner, err := playwright.NewRunner(); err != nil {
 		slog.Warn("Playwright unavailable, browser checks will be skipped", "error", err)
 	} else {
-		checkers[config.CheckTypePlaywright] = check.NewPlaywrightChecker(runner.RunnerPath(), cfg.Playwright.MaxBrowsers)
-		slog.Info("Playwright browser concurrency", "max_browsers", cfg.Playwright.MaxBrowsers)
+		// server_url is only honored in managed mode, so flipping mode back to
+		// local disables the sidecar without having to clear the URL too.
+		var serverURL string
+		if cfg.Playwright.Mode == "managed" {
+			serverURL = cfg.Playwright.ServerURL
+		}
+		checkers[config.CheckTypePlaywright] = check.NewPlaywrightChecker(runner.RunnerPath(), cfg.Playwright.MaxBrowsers, serverURL)
+		slog.Info("Playwright browser concurrency",
+			"max_browsers", cfg.Playwright.MaxBrowsers,
+			"mode", cfg.Playwright.Mode,
+			"server_url", serverURL,
+		)
 	}
 
 	return checkers

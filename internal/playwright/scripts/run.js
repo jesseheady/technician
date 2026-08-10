@@ -56,11 +56,20 @@ async function main() {
   let stage = 'setup';
 
   try {
-    // Launch browser
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    // Connect to a remote Playwright server when one is configured, otherwise
+    // launch a local browser. Launch args are deliberately not sent in connect
+    // mode: the remote server owns how its browser starts, and this client has
+    // no say over an already-running process.
+    if (config.server_url) {
+      browser = await chromium.connect(config.server_url, {
+        timeout: config.timeout_ms || 60000,
+      });
+    } else {
+      browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+    }
 
     // Create context with HAR recording
     const contextOpts = {

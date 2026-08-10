@@ -182,9 +182,9 @@ technician worker --config /etc/technician/browser/technician.yml --origin us-ea
 
 Prometheus scrapes both on different ports. Grafana sees all metrics with the same `region` label.
 
-### Stage 3: Remote browser service (future)
+### Stage 3: Remote browser service
 
-For teams running many browser checks across regions, a dedicated Playwright server that workers connect to over the network:
+Implemented. A dedicated Playwright server that workers connect to over the network, instead of each worker launching its own Chromium:
 
 ```mermaid
 graph LR
@@ -192,22 +192,28 @@ graph LR
     W2["Worker<br/>eu-west-1 :9590"] -->|gRPC| PS
 ```
 
-The config already has `playwright.mode` and `playwright.server_url` fields for this:
-
 ```yaml
 playwright:
-  mode: managed         # "local" (default) or "managed"
-  server_url: "http://playwright-server:3000"
+  mode: managed                        # "local" (default) or "managed"
+  server_url: "ws://playwright:3000/"  # required when mode is managed
   max_browsers: 10
 ```
 
-In `managed` mode, the worker sends check configs to the remote server instead of launching local Chromium instances. The server maintains a browser pool and handles concurrency internally. This decouples browser resource usage from the check worker entirely.
+In `managed` mode the runner calls `chromium.connect(server_url)` instead of `chromium.launch()`. Everything downstream (device emulation, network throttling, HAR capture, Web Vitals) is unchanged, since it all operates on the context and page rather than on how the browser started. `max_browsers` still applies locally, bounding how many concurrent sessions this worker opens against the server.
+
+The server is the **stock upstream Playwright image**, driven by a command the same way Prometheus and Grafana are in the base stack. Nothing forks or patches Playwright, and the technician image no longer has to own a browser. Run it with the overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
+```
+
+**Version pinning is required, not optional.** The sidecar image tag and the playwright version embedded in the binary (`internal/playwright/scripts/package.json`) must agree. A mismatched client and server fail the handshake, and it surfaces as a setup-stage infra error on every browser check rather than a clear version message. Bump both together.
 
 **When to move to managed mode:**
 - 10+ Playwright checks per region
 - Multiple workers sharing the same browser pool
 - Browser checks are the bottleneck and you want to scale them independently
-- You want to use Playwright's built-in server (`npx playwright run-server`) or a custom gRPC service
+- You want the browser to be a standard upstream artifact you can patch on its own cadence, or to run an engine other than Chromium
 
 ### Stage 4: Ephemeral browsers (future)
 
