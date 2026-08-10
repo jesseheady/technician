@@ -45,6 +45,8 @@ which carries `metric` (the budget metric key) instead.
 | `technician_tcp_tls_seconds` | Gauge | TCP TLS handshake duration in seconds |
 | `technician_udp_rtt_seconds` | Gauge | UDP round-trip time in seconds (send to response) |
 | `technician_udp_response_bytes` | Gauge | UDP response size in bytes |
+| `technician_ws_connect_seconds` | Gauge | WebSocket connection/handshake duration in seconds |
+| `technician_ws_message_seconds` | Gauge | WebSocket send-to-response round-trip duration in seconds |
 
 ## DNS and ICMP
 

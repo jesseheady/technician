@@ -73,6 +73,10 @@ type Result struct {
 	UDPRTT           time.Duration // round-trip time (send to response)
 	UDPResponseBytes int           // number of bytes received
 
+	// WebSocket-specific
+	WSConnectDuration time.Duration // handshake/connection time
+	WSMessageDuration time.Duration // send-to-response round trip
+
 	// BGP-specific
 	BGPOriginASN     int  // observed origin AS number
 	BGPPrefixVisible bool // prefix visible in global routing table

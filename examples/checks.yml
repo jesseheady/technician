@@ -670,3 +670,18 @@
     backoff: none
     delay: 5s
 
+
+# ── WebSocket ────────────────────────────────────────────────────
+- name: Echo WebSocket
+  group: Realtime
+  type: websocket
+  url: wss://echo.websocket.org
+  send: "ping"
+  expect_recv: "ping"
+  schedule: "0 */5 * * * *"
+  timeout: 10s
+  degraded_after: 3s
+  retry:
+    count: 1
+    backoff: none
+    delay: 2s

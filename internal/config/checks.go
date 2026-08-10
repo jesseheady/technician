@@ -76,6 +76,7 @@ const (
 	CheckTypeUDP          CheckType = "udp"
 	CheckTypeBGP          CheckType = "bgp"
 	CheckTypeDomainExpiry CheckType = "domain_expiry"
+	CheckTypeWebSocket    CheckType = "websocket"
 )
 
 type RetryPolicy struct {
@@ -106,6 +107,7 @@ type CheckConfig struct {
 	UDP           *UDPCheckConfig              `yaml:"-"`
 	BGP           *BGPCheckConfig              `yaml:"-"`
 	DomainExpiry  *DomainExpirationCheckConfig `yaml:"-"`
+	WebSocket     *WebSocketCheckConfig        `yaml:"-"`
 }
 
 // Target returns the canonical hostname or IP that this check targets.
@@ -166,6 +168,12 @@ func (p *CheckConfig) Target() string {
 	case CheckTypePlaywright:
 		if p.Playwright != nil {
 			if u, err := url.Parse(p.Playwright.BaseURL); err == nil {
+				raw = u.Hostname()
+			}
+		}
+	case CheckTypeWebSocket:
+		if p.WebSocket != nil {
+			if u, err := url.Parse(p.WebSocket.URL); err == nil {
 				raw = u.Hostname()
 			}
 		}
@@ -288,6 +296,14 @@ type TracerouteCheckConfig struct {
 	Host    string `yaml:"host"`
 	MaxHops int    `yaml:"max_hops"`
 	Count   int    `yaml:"count"`
+}
+
+type WebSocketCheckConfig struct {
+	URL        string            `yaml:"url"`         // ws:// or wss:// endpoint
+	Send       string            `yaml:"send"`        // optional message to send after connect
+	ExpectRecv string            `yaml:"expect_recv"` // optional substring expected in the reply
+	SkipTLS    bool              `yaml:"skip_tls"`    // skip TLS cert verification (wss)
+	Headers    map[string]string `yaml:"headers"`     // optional handshake headers (e.g. auth)
 }
 
 type PlaywrightCheckConfig struct {
@@ -678,6 +694,19 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 			Video:         r.Video,
 			Network:       r.Network,
 			Device:        r.Device,
+		}
+
+	case CheckTypeWebSocket:
+		c.WebSocket = &WebSocketCheckConfig{
+			URL:        r.URL,
+			Send:       r.Send,
+			ExpectRecv: r.ExpectRecv,
+			SkipTLS:    r.SkipTLS,
+			Headers:    r.Headers,
+		}
+		u, err := url.Parse(c.WebSocket.URL)
+		if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") || u.Host == "" {
+			return CheckConfig{}, fmt.Errorf("check %q: websocket url must be a ws:// or wss:// URL, got %q", c.Name, c.WebSocket.URL)
 		}
 
 	default:

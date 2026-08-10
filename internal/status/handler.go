@@ -34,7 +34,7 @@ func categoryForCheckType(t config.CheckType) string {
 		return "Network"
 	case config.CheckTypeHTTP, config.CheckTypePlaywright:
 		return "Web"
-	case config.CheckTypeGRPC, config.CheckTypeSMTP, config.CheckTypeNTP:
+	case config.CheckTypeGRPC, config.CheckTypeSMTP, config.CheckTypeNTP, config.CheckTypeWebSocket:
 		return "Services"
 	case config.CheckTypeTLS, config.CheckTypeBGP, config.CheckTypeDomainExpiry:
 		return "Security"
