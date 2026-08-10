@@ -104,6 +104,9 @@ type Result struct {
 	// Degraded flag (set when duration exceeds degraded_after threshold)
 	Degraded bool
 
+	// Retries is the number of retry attempts made before this result (0 = first try)
+	Retries int
+
 	// Extra metadata
 	Labels map[string]string
 }

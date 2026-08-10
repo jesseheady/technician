@@ -123,7 +123,8 @@ func TestTraceCheckResultRecordsFailure(t *testing.T) {
 }
 
 // TestTraceCheckResultNoTracer guards the disabled path: with no endpoint
-// configured, tracing must be an inert no-op rather than a nil-pointer panic.
+// configured, tracing must be an inert no-op rather than a nil-pointer panic,
+// and it must return empty IDs so the caller omits trace_id from the log line.
 func TestTraceCheckResultNoTracer(t *testing.T) {
 	prev := tracer
 	tracer = nil
@@ -131,7 +132,37 @@ func TestTraceCheckResultNoTracer(t *testing.T) {
 
 	r := check.NewResult("untraced", config.CheckTypeHTTP, nil)
 	r.Success = true
-	TraceCheckResult(context.Background(), r) // must not panic
+	traceID, spanID := TraceCheckResult(context.Background(), r) // must not panic
+	if traceID != "" || spanID != "" {
+		t.Errorf("expected empty IDs when tracing is disabled, got %q/%q", traceID, spanID)
+	}
+}
+
+// TestTraceCheckResultReturnsIDs pins the correlation contract: the returned
+// trace/span IDs identify the emitted span so a log line can link to its trace.
+func TestTraceCheckResultReturnsIDs(t *testing.T) {
+	exp := withRecordingTracer(t)
+
+	r := check.NewResult("correlated", config.CheckTypeHTTP, nil)
+	r.Success = true
+	r.Timestamp = time.Now()
+	r.Duration = 10 * time.Millisecond
+
+	traceID, spanID := TraceCheckResult(context.Background(), r)
+
+	spans := exp.GetSpans()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	if traceID != spans[0].SpanContext.TraceID().String() {
+		t.Errorf("returned trace_id %q does not match span %q", traceID, spans[0].SpanContext.TraceID())
+	}
+	if spanID != spans[0].SpanContext.SpanID().String() {
+		t.Errorf("returned span_id %q does not match span %q", spanID, spans[0].SpanContext.SpanID())
+	}
+	if traceID == "" || spanID == "" {
+		t.Error("expected non-empty IDs when tracing is enabled")
+	}
 }
 
 // TestInitOTELExportsToPlaintextCollector is the end-to-end path: an http://

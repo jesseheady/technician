@@ -49,6 +49,47 @@ func TestRunWithRetryNoRetryOnSuccess(t *testing.T) {
 	}
 }
 
+func TestRunWithRetryRecordsRetryCount(t *testing.T) {
+	// Fails twice, then succeeds on the third call (second retry).
+	m := &mockChecker{
+		results: []*check.Result{
+			{Success: false, Error: "boom"},
+			{Success: false, Error: "boom"},
+			{Success: true},
+		},
+	}
+	cfg := &config.CheckConfig{
+		Name:  "test-retry-count",
+		Retry: &config.RetryPolicy{Count: 3, Delay: time.Millisecond},
+	}
+
+	result := runWithRetry(context.Background(), m, cfg, nil)
+
+	if !result.Success {
+		t.Fatalf("expected eventual success, got error: %s", result.Error)
+	}
+	if result.Retries != 2 {
+		t.Errorf("expected 2 retries recorded, got %d", result.Retries)
+	}
+	if m.calls != 3 {
+		t.Errorf("expected 3 calls, got %d", m.calls)
+	}
+}
+
+func TestRunWithRetryZeroOnFirstTrySuccess(t *testing.T) {
+	m := &mockChecker{results: []*check.Result{{Success: true}}}
+	cfg := &config.CheckConfig{
+		Name:  "test-no-retry-count",
+		Retry: &config.RetryPolicy{Count: 2, Delay: time.Millisecond},
+	}
+
+	result := runWithRetry(context.Background(), m, cfg, nil)
+
+	if result.Retries != 0 {
+		t.Errorf("expected 0 retries on first-try success, got %d", result.Retries)
+	}
+}
+
 func TestRunWithRetryNoConfig(t *testing.T) {
 	m := &mockChecker{
 		results: []*check.Result{
