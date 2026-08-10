@@ -1,5 +1,7 @@
 # Proposal: Browser checker implementation options
 
+> **Status:** partially superseded. [#66](https://github.com/jesseheady/technician/issues/66) settled *where the browser runs*: `mode: managed` connects to a stock upstream Playwright server rather than launching Chromium in the worker image. This document still stands for the separate question of *which client library drives it* (Playwright Node vs rod vs chromedp), since the Node subprocess architecture below is unchanged in either mode.
+
 Evaluate alternatives for Technician's browser check runtime. The current implementation spawns a Node.js subprocess running Playwright. This proposal compares four paths forward.
 
 ## Current architecture

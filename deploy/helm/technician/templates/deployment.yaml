@@ -31,8 +31,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $root.Values.playwright.enabled }}
+      {{- if and $root.Values.playwright.enabled (not $root.Values.playwright.sidecar.enabled) }}
       # Lets PID 1 reap exited Chromium children (see docs/playwright-scaling.md).
+      # Unnecessary with the sidecar: those children belong to its PID 1.
       shareProcessNamespace: true
       {{- end }}
       securityContext:
@@ -83,6 +84,27 @@ spec:
             {{- with $root.Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+        {{- if and $root.Values.playwright.enabled $root.Values.playwright.sidecar.enabled }}
+        # Stock upstream Playwright image driven by a command, not a fork. The
+        # worker reaches it on localhost, so nothing is exposed outside the pod.
+        - name: playwright
+          image: "{{ $root.Values.playwright.sidecar.image.repository }}:{{ $root.Values.playwright.sidecar.image.tag }}"
+          imagePullPolicy: {{ $root.Values.playwright.sidecar.image.pullPolicy }}
+          command:
+            - npx
+            - -y
+            - playwright@{{ $root.Values.playwright.sidecar.image.tag | trimPrefix "v" | splitList "-" | first }}
+            - run-server
+            - --port
+            - {{ $root.Values.playwright.sidecar.port | quote }}
+            - --host
+            - "0.0.0.0"
+          ports:
+            - name: pw
+              containerPort: {{ $root.Values.playwright.sidecar.port }}
+          resources:
+            {{- toYaml $root.Values.playwright.sidecar.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:

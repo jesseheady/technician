@@ -62,6 +62,31 @@ playwright:
     limits:
       memory: 1Gi
 
+  # Managed mode runs the browser in a stock upstream Playwright image as a
+  # sidecar in the same pod, so the worker connects over localhost instead of
+  # launching Chromium itself. Set playwright.mode to "managed" and
+  # playwright.server_url to ws://localhost:3000/ in your config below.
+  #
+  # The sidecar image tag must match the playwright version the binary embeds
+  # (internal/playwright/scripts/package.json). A mismatch fails the handshake
+  # and surfaces as a setup-stage infra error on every browser check.
+  #
+  # With the sidecar enabled, shareProcessNamespace is unnecessary: Chromium
+  # children belong to the sidecar's PID 1, not the worker's.
+  sidecar:
+    enabled: false
+    image:
+      repository: mcr.microsoft.com/playwright
+      tag: v1.59.1-noble
+      pullPolicy: IfNotPresent
+    port: 3000
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
 # PodMonitor for prometheus-operator. Off by default. When off, scrape the
 # per-origin Services with a static/endpoints scrape config instead.
 podMonitor:
