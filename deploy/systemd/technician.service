@@ -1,0 +1,34 @@
+[Unit]
+Description=Technician check runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/technician worker --config /etc/technician/technician.yml
+# Must match an origin declared in technician.yml; becomes the `region` label.
+Environment=ORIGIN_ID=us-east-1
+Restart=always
+RestartSec=5
+WorkingDirectory=/var/lib/technician
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/technician
+PrivateTmp=true
+
+# Runs as root by default. To run unprivileged, add a User= and grant raw
+# sockets explicitly — ICMP checks otherwise fall back to unprivileged UDP ping
+# (host-dependent, via net.ipv4.ping_group_range) and mtr-based traceroute
+# checks fail outright:
+#
+#   User=technician
+#   AmbientCapabilities=CAP_NET_RAW
+#   CapabilityBoundingSet=CAP_NET_RAW
+#
+# The user must own /var/lib/technician and be able to read /etc/technician.
+
+[Install]
+WantedBy=multi-user.target
