@@ -56,13 +56,12 @@ Browser checks need Node.js + Chromium. Two approaches:
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: 22
+    node-version: 24
 
 - name: Install Playwright + Chromium
   run: |
     cd internal/playwright/scripts
-    npm init -y
-    npm install playwright
+    npm ci
     npx playwright install chromium
 ```
 
@@ -152,7 +151,7 @@ validate:
   image: node:24-slim
   before_script:
     - apt-get update && apt-get install -y ca-certificates
-    - cd internal/playwright/scripts && npm init -y && npm install playwright && npx playwright install chromium && cd -
+    - cd internal/playwright/scripts && npm ci && npx playwright install chromium && cd -
   script:
     - ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output json
   artifacts:
@@ -188,7 +187,7 @@ jobs:
           at: .
       - run: |
           cd internal/playwright/scripts
-          npm init -y && npm install playwright
+          npm ci
           npx playwright install chromium
       - run: ./technician validate --config examples/technician.yml --budget examples/budgets.yml --output json
       - store_artifacts:
@@ -228,18 +227,13 @@ pipeline {
 
 ## Validate without Playwright
 
-If your CI environment can't run Chromium (no graphical dependencies, limited RAM), you can still validate all non-browser checks. Create a check config that excludes the `playwright/` directory:
+If your CI environment can't run Chromium (no graphical dependencies, limited RAM), skip browser checks with `--exclude-type playwright` — no separate config needed:
 
 ```bash
-# Copy only non-browser checks
-mkdir -p ci-config/checks
-cp config/checks.yml ci-config/
-cp config/technician.yml ci-config/
-
-./technician validate --config ci-config/technician.yml --budget config/budgets.yml
+./technician validate --config config/technician.yml --budget config/budgets.yml --exclude-type playwright
 ```
 
-Or keep a dedicated CI config directory checked in with the right subset of checks.
+`--check-type playwright` does the inverse (browser checks only), which is how the two CI validate jobs split the work.
 
 ## Environment variables
 

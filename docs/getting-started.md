@@ -149,7 +149,7 @@ cp -r examples/ config/
 # Edit config/checks.yml, config/technician.yml, etc.
 ```
 
-Docker Compose mounts config and checks from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose sets `ORIGIN_ID=local` so the config's "local" site is used and labels stay distinct from real regions.
+Docker Compose mounts config and checks from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose sets `ORIGIN_ID=local` so the config's "local" origin is used and labels stay distinct from real regions.
 
 ## Check configuration
 
@@ -173,6 +173,8 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
 All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
+
+**Logging**: set `logging.format` (`json` for Loki-native, `text` for local dev) and `logging.level` (`debug`/`info`/`warn`/`error`) in `technician.yml`; the `--log-level` flag overrides the configured level.
 
 On startup every check runs once immediately (after a brief per-origin stagger) before settling into its schedule, so the status page, metrics, and alert rules have data within seconds of boot rather than waiting for the first scheduled tick.
 
@@ -335,7 +337,7 @@ If any assertion fails, the check is marked as failed and the failure message id
 ## Run a single check (debug)
 
 ```bash
-go run . check --name "example.com" --config config/technician.yml
+go run . check run --check "example.com" --config config/technician.yml
 ```
 
 Check name must match a `name` in your check definitions under `config/checks/`.

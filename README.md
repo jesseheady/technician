@@ -94,11 +94,11 @@ docker compose up
 | Command | Purpose |
 |---------|---------|
 | `technician worker` | Long-running worker: scheduled checks + metrics server |
-| `technician check --name <name>` | Run a single check (debugging) |
+| `technician check run --check <name>` | Run a single check (debugging) |
 | `technician serve` | Metrics server only (no scheduling) |
 | `technician validate` | Run all checks, check budgets, exit 0/1 (CI) |
 
-Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID` env), `--verbose` / `-v`.
+Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID` env), `--log-level` (debug, info, warn, error).
 
 ## Configuration
 
