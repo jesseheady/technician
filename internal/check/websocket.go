@@ -93,7 +93,7 @@ func (p *WebSocketChecker) Run(ctx context.Context, cfg *config.CheckConfig, ori
 		result.Error = fmt.Sprintf("connecting to %s: %v", wcfg.URL, err)
 		return result
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if wcfg.Send != "" {
 		msgStart := time.Now()
@@ -108,7 +108,7 @@ func (p *WebSocketChecker) Run(ctx context.Context, cfg *config.CheckConfig, ori
 			if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 				deadline = d
 			}
-			conn.SetReadDeadline(deadline)
+			_ = conn.SetReadDeadline(deadline)
 
 			var reply string
 			if err := websocket.Message.Receive(conn, &reply); err != nil {
