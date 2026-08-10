@@ -363,7 +363,9 @@ AMP uses remote-write ingestion, not pull-based scraping. Three ways to get metr
 
 **Option A: AMP managed scraper (simplest for ECS/EC2)**
 
-AMP can scrape ECS and EC2 targets natively via its managed scraper feature. Configure a scrape config in AMP that discovers Technician services by tag or service discovery. No sidecar, no code changes — Technician just exposes `/metrics` as usual.
+A VPC-connected managed collector scrapes ECS and EC2 targets natively. For ECS it discovers tasks through AWS Cloud Map using `dns_sd_configs`, so registering the service in Cloud Map is all Technician needs to do — no sidecar, no code changes, `/metrics` as usual.
+
+Note that it must be created via the API or CLI (`aws amp create-scraper` with `source.vpcConfiguration`). There is no CloudFormation resource for it: `AWS::APS::Scraper` accepts only `Source: EksConfiguration`. The [ECS template](../deploy/cloudformation/README.md) provisions the Cloud Map namespace the collector resolves, and documents the CLI step.
 
 **Option B: Sidecar agent (works anywhere)**
 

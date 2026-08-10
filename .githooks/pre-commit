@@ -105,8 +105,11 @@ command -v trivy >/dev/null 2>&1 || \
 echo "==> trivy fs (secret)"
 trivy_fs --scanners secret
 
+# --ignorefile matches what CI passes (trivy.yml). Trivy only auto-detects the
+# legacy plain-text .trivyignore, so without this the hook is stricter than CI
+# and blind to accepted findings recorded in .trivyignore.yaml.
 echo "==> trivy fs (misconfig)"
-trivy_fs --scanners misconfig --severity CRITICAL,HIGH
+trivy_fs --scanners misconfig --severity CRITICAL,HIGH --ignorefile .trivyignore.yaml
 
 echo "==> docker compose config"
 if staged | grep -qE '^(docker-compose.*\.yml|\.dockerignore|Dockerfile.*)$'; then
