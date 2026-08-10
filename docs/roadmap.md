@@ -44,9 +44,13 @@ Add native Prometheus remote-write support to Technician, configured via `metric
 
 The built-in status page shows recent results from an in-memory ring buffer (90 entries per check, ~45 min at 30s intervals), persisted to a JSON file on disk so history survives restarts and container rebuilds. For longer historical views (30-day uptime bars, etc.), two additional paths:
 
-**Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker.
+**Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker. **Deferred**, likely alongside SLA reporting: it serves the long tail (a year or more) and can be added later without disturbing Path B.
 
-**Path B: Embedded SQLite (recommended for public status page)** — Use `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~2 MB to the binary. Good for standalone workers without Prometheus access, and the key enabler for a public-facing status page with meaningful history.
+**Path B: Embedded SQLite — the decided path.** Use `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~2 MB to the binary.
+
+This is first-class regardless of whether the page is public. The ring buffer spans roughly 45 min at 30s intervals and ~90 min at 1 min intervals, so the page cannot answer "was this unstable last week" in *any* deployment, including full-stack ones where Prometheus holds the data. It also does two jobs at once: it sets how far back the page can look, and it keeps that history readable when Prometheus is unreachable.
+
+**Write-through, not sync.** Results are written to SQLite in the same push that feeds the ring buffer. A Prometheus → SQLite sync was considered and rejected: its only capability beyond write-through is backfilling results the worker never recorded, which is lossy by construction (HTTP timing breakdown and assertion detail are absent from the metrics) and would leave two tiers of row quality in one table.
 
 **Sizing estimates (30 checks, recommended production intervals):**
 
@@ -58,7 +62,11 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 
 Memory does not scale with retention. SQLite reads pages on demand; the page cache stays at 2–5 MB. At 100 checks and 12 months, disk reaches 2.5–5 GB. At 500 checks, 12–25 GB.
 
-**Implementation:** Single `probe_results` table, covering index on `(name, timestamp, success)`, configurable retention (`persistence.retention: 90d`), periodic prune with `PRAGMA auto_vacuum=incremental`. The existing ring buffer stays for real-time rendering; SQLite is queried for historical views.
+**Implementation:** Single `probe_results` table, covering index on `(name, timestamp, success)`, configurable retention (`persistence.retention`, 30d proposed default), periodic prune with `PRAGMA auto_vacuum=incremental`. Off by default, behind a narrow internal interface (append a result, query a window) with one implementation — no config-selectable database driver. The existing ring buffer stays for real-time rendering; SQLite is queried for historical views, and `status.json` continues to hold non-series state (order, budget state, down-since).
+
+**State the ceiling in the UI.** The page shows what window it covers and says that longer history lives in Grafana. Documenting the limit only in `docs/` is not enough, since the page is where someone forms the assumption that it is authoritative.
+
+Edge deployments (Lambda, Workers) have no durable disk, so the page must degrade to ring-buffer-only rather than assume local history.
 
 **Port separation:** A public-facing status page should not share a port with `/metrics`, `/probe`, and `/health`. These are internal operational endpoints. Options include a separate listen address (`status.listen: :8080`) or a config toggle to disable operational endpoints on the status port.
 
@@ -257,8 +265,6 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 ### Observability and export
 
 - **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Trace export is wired into the worker; metrics export is not. Medium priority.
-
-- **Prometheus backfill on startup** [#34](https://github.com/jesseheady/technician/issues/34) — If the local store is empty or stale, query Prometheus for recent check metrics and reconstruct the ring buffer. Limitation: HTTP timing breakdown and assertion details aren't in the metrics, so backfilled history would be partial.
 
 ### Status page and UI
 
