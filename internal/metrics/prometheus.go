@@ -194,6 +194,17 @@ var (
 		Help: "UDP response size in bytes",
 	}, []string{"name", "region", "city", "country"})
 
+	// WebSocket metrics
+	wsConnectDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_ws_connect_seconds",
+		Help: "WebSocket connection/handshake duration in seconds",
+	}, []string{"name", "region", "city", "country"})
+
+	wsMessageDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_ws_message_seconds",
+		Help: "WebSocket send-to-response round-trip duration in seconds",
+	}, []string{"name", "region", "city", "country"})
+
 	// TLS certificate metrics
 	tlsCertExpiryDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_tls_cert_expiry_days",
@@ -301,6 +312,8 @@ func init() {
 		ntpRTT,
 		udpRTT,
 		udpResponseBytes,
+		wsConnectDuration,
+		wsMessageDuration,
 		tlsCertExpiryDays,
 		tlsCertValid,
 		bgpPrefixVisible,
@@ -389,6 +402,8 @@ func RecordResult(result *check.Result) {
 		recordTLSMetrics(result, labels)
 	case config.CheckTypeUDP:
 		recordUDPMetrics(result, labels)
+	case config.CheckTypeWebSocket:
+		recordWebSocketMetrics(result, labels)
 	case config.CheckTypeBGP:
 		recordBGPMetrics(result, labels)
 	case config.CheckTypeDomainExpiry:
@@ -482,6 +497,11 @@ func recordNTPMetrics(result *check.Result, labels labelSet) {
 func recordUDPMetrics(result *check.Result, labels labelSet) {
 	udpRTT.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.UDPRTT.Seconds())
 	udpResponseBytes.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(float64(result.UDPResponseBytes))
+}
+
+func recordWebSocketMetrics(result *check.Result, labels labelSet) {
+	wsConnectDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.WSConnectDuration.Seconds())
+	wsMessageDuration.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(result.WSMessageDuration.Seconds())
 }
 
 func recordTLSMetrics(result *check.Result, labels labelSet) {

@@ -28,7 +28,7 @@ var allCheckTypes = map[CheckType]bool{
 	CheckTypePlaywright: true, CheckTypeTCP: true, CheckTypeDNS: true,
 	CheckTypeICMP: true, CheckTypeGRPC: true, CheckTypeNTP: true,
 	CheckTypeTLS: true, CheckTypeUDP: true, CheckTypeBGP: true,
-	CheckTypeDomainExpiry: true,
+	CheckTypeDomainExpiry: true, CheckTypeWebSocket: true,
 }
 
 // IsEmpty reports whether the filter restricts nothing.

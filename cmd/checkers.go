@@ -25,6 +25,7 @@ func newCheckers(cfg *config.Config) map[config.CheckType]check.Checker {
 		config.CheckTypeUDP:          check.NewUDPChecker(),
 		config.CheckTypeBGP:          check.NewBGPChecker(),
 		config.CheckTypeDomainExpiry: check.NewDomainExpirationChecker(),
+		config.CheckTypeWebSocket:    check.NewWebSocketChecker(),
 	}
 
 	if runner, err := playwright.NewRunner(); err != nil {

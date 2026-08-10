@@ -1,6 +1,6 @@
 # Technician – Agent guide
 
-Technician is a **multi-region check runner** — a single Go binary that checks your infrastructure over the network. Thirteen check types, Prometheus metrics on `/metrics`, OTLP traces, performance budgets for CI, and Playwright browser flows.
+Technician is a **multi-region check runner** — a single Go binary that checks your infrastructure over the network. Fourteen check types, Prometheus metrics on `/metrics`, OTLP traces, performance budgets for CI, and Playwright browser flows.
 
 ## Repository layout
 
@@ -8,7 +8,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 |------|--------|
 | `cmd/` | Cobra CLI: `root`, `worker`, `check`, `serve`, `validate` |
 | `internal/config/` | Main YAML config + check definitions; env var expansion `${VAR}` |
-| `internal/check/` | Check implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright |
+| `internal/check/` | Check implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, WebSocket, Playwright |
 | `internal/scheduler/` | Cron-expression scheduling (gronx + stdlib timer loop) with per-origin stagger and a once-on-startup run |
 | `internal/metrics/` | Prometheus gauges, OTLP trace export, HAR parsing |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
@@ -60,7 +60,7 @@ Three strategies (see `docs/alerting.md`):
 ## Check model
 
 - **Interface**: `internal/check.Checker`: `Type() config.CheckType` and `Run(ctx, cfg, origin) *Result`.
-- **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `playwright`.
+- **Types**: `http`, `tcp`, `udp`, `dns`, `icmp`, `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`, `websocket`, `playwright`.
 - **Result**: `check.Result` – `Name`, `Type`, `Success`, `Duration`, `Error`, `Degraded`, plus type-specific fields (HTTP timings/assertions, TCP conn/TLS durations, UDP RTT/response bytes, DNS answers/query time, ICMP packet loss/RTT stats, gRPC status, NTP offset/stratum/RTT, WebVitals, HAR, traceroute hops). `Labels` are populated from `origin.MetricLabels()`. **Browser (WebVitals)**: Core Web Vitals are LCP (≤2.5s), INP (≤200ms), CLS (≤0.1). See `docs/core-web-vitals.md`.
 - **Adding a check type: Implement `Checker`; add `CheckType` and config struct in `internal/config/checks.go`; add loader in `LoadChecks`; register in `cmd/worker.go` (and `validate`/serve paths if needed); record metrics in `internal/metrics/prometheus.go` (and OTLP if desired); document any new metric in `docs/metrics.md`.
 

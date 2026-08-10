@@ -445,7 +445,7 @@ func (s *Store) computeSnapshot() *Snapshot {
 	}
 
 	// Collect distinct types in stable order
-	typeOrder := []config.CheckType{config.CheckTypeHTTP, config.CheckTypeTCP, config.CheckTypeUDP, config.CheckTypeDNS, config.CheckTypeICMP, config.CheckTypeGRPC, config.CheckTypeNTP, config.CheckTypeTLS, config.CheckTypeSMTP, config.CheckTypeTraceroute, config.CheckTypeBGP, config.CheckTypeDomainExpiry, config.CheckTypePlaywright}
+	typeOrder := []config.CheckType{config.CheckTypeHTTP, config.CheckTypeTCP, config.CheckTypeUDP, config.CheckTypeDNS, config.CheckTypeICMP, config.CheckTypeGRPC, config.CheckTypeNTP, config.CheckTypeTLS, config.CheckTypeSMTP, config.CheckTypeTraceroute, config.CheckTypeBGP, config.CheckTypeDomainExpiry, config.CheckTypeWebSocket, config.CheckTypePlaywright}
 	for _, t := range typeOrder {
 		if typesSeen[string(t)] {
 			snap.Types = append(snap.Types, string(t))

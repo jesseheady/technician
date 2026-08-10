@@ -153,30 +153,6 @@ When a check or group has a declared maintenance window, Technician's own status
       reason: "Database migration"
 ```
 
-### WebSocket monitoring [#23](https://github.com/jesseheady/technician/issues/23)
-
-WS/WSS check type for real-time services. Connect, optionally send a message, assert on the response, measure connection time.
-
-**What's needed:**
-
-- New `WebSocketCheckConfig` struct: `url` (ws:// or wss://), `headers` (map), `send` (message to send after connect), `expect` (expected response substring or regex), `skip_tls` (bool).
-- WebSocket checker using `golang.org/x/net/websocket` or `nhooyr.io/websocket` (pure Go, no CGO). Connect, optionally write `send` payload, read first message, evaluate `expect` assertion, close.
-- Prometheus gauges: `technician_ws_connect_seconds`, `technician_ws_message_seconds`.
-- Check result fields: `WSConnDuration`, `WSMessageDuration`, `WSResponse`.
-- Blackbox `/probe` handler: `module=websocket`.
-
-**Config shape:**
-
-```yaml
-# config/checks/websocket.yml
-- name: Live Feed
-  url: wss://stream.example.com/feed
-  send: '{"type":"ping"}'
-  expect: '"type":"pong"'
-  timeout: 10s
-  schedule: "*/60 * * * * *"
-```
-
 ### Structured logging for Loki [#24](https://github.com/jesseheady/technician/issues/24)
 
 Technician already uses Go's `slog` for structured logging to stdout. Enhance the log output so it's immediately useful when consumed by Grafana Loki (or any log aggregation pipeline), giving visibility into how Technician itself is performing.
@@ -243,7 +219,7 @@ Technician's scope: **check execution, scheduling, metrics export, status page, 
 
 ### What Technician owns
 
-- **Check execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, Playwright (and planned: WebSocket).
+- **Check execution** — HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, WebSocket, Playwright.
 - **Scheduling** — Built-in cron with stagger/jitter. No external scheduler needed.
 - **Status page** — Built-in, no external dependencies.
 - **Notifications** — Webhook-based alerting for check state transitions, cert expiry, and budget violations with severity-based routing (warning/critical).
@@ -327,6 +303,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### WebSocket check type [#23](https://github.com/jesseheady/technician/issues/23)
+
+WS/WSS check type for real-time services: connect, optionally send a message, assert on the response, and record connection and message timing. Uses `golang.org/x/net/websocket` — already an indirect dependency via `golang.org/x/net`, so no new module was added. Config fields: `url` (ws:// or wss://), `send`, `expect_recv`, `skip_tls`, `headers`. Emits `technician_ws_connect_seconds` and `technician_ws_message_seconds`.
 
 ### Budget `*` thresholds are per-metric defaults
 

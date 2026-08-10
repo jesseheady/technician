@@ -49,7 +49,7 @@ so they cost nothing at runtime and never emit metrics from that worker.
 
 `types` are the built-in check types (`http`, `tcp`, `udp`, `dns`, `icmp`,
 `grpc`, `ntp`, `tls`, `smtp`, `traceroute`, `bgp`, `domain_expiry`,
-`playwright`). `groups` and `tags` are user-defined metadata on each check:
+`websocket`, `playwright`). `groups` and `tags` are user-defined metadata on each check:
 
 ```yaml
 - name: example.com
