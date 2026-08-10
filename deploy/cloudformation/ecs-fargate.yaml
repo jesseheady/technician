@@ -1,0 +1,363 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Technician worker on ECS Fargate. Creates a task definition, service, Cloud Map
+  DNS service discovery, and (optionally) an ADOT sidecar that scrapes the worker
+  and remote-writes to Amazon Managed Service for Prometheus.
+
+  Config is fetched from S3 at task start by an init container, so updating checks
+  means uploading new YAML and forcing a new deployment, not rebuilding an image.
+
+Metadata:
+  # W1030 resolves AmpWorkspaceArn to its empty default and reports it as a
+  # malformed ARN in AmpRemoteWritePolicy. That policy only exists when UseAdot
+  # is true, and the AmpArnRequiredForAdot rule rejects an empty value in that
+  # case. cfn-lint does not evaluate Rules, so the flagged state is unreachable.
+  cfn-lint:
+    config:
+      ignore_checks: [W1030]
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: {default: Image and configuration}
+        Parameters: [ImageUri, ConfigS3Uri, OriginId]
+      - Label: {default: Networking}
+        Parameters: [VpcId, SubnetIds, AssignPublicIp]
+      - Label: {default: Sizing}
+        Parameters: [TaskCpu, TaskMemory, EnablePlaywright, DesiredCount]
+      - Label: {default: Metrics delivery}
+        Parameters: [MetricsMode, AmpWorkspaceArn, AmpRegion]
+
+Parameters:
+  ImageUri:
+    Type: String
+    Default: ghcr.io/jesseheady/technician:latest
+    Description: Container image. Mirror to ECR if your tasks run in private subnets without a NAT path to ghcr.io.
+
+  ConfigS3Uri:
+    Type: String
+    AllowedPattern: ^s3://[a-z0-9.\-]{3,63}/.*$
+    Description: >-
+      S3 prefix holding technician.yml, checks.yml (or a checks/ directory), and
+      optional budgets.yml. Example: s3://my-bucket/technician/prod. Synced to
+      /etc/technician before the worker starts.
+
+  OriginId:
+    Type: String
+    Default: us-east-1
+    Description: Value for ORIGIN_ID. Must match an origin declared in technician.yml; it becomes the `region` metric label.
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two or more subnets. Private subnets require a NAT gateway or VPC endpoints for image pull, S3, and check targets.
+
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: ENABLED is required for public subnets without a NAT gateway.
+
+  EgressCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$
+    Description: >-
+      Outbound CIDR. A synthetic monitor probes arbitrary endpoints, so the default
+      is open. Narrow it when your check targets, registry, and S3 endpoints are all
+      inside known ranges.
+
+  TaskCpu:
+    Type: String
+    Default: "1024"
+    AllowedValues: ["256", "512", "1024", "2048", "4096"]
+
+  TaskMemory:
+    Type: String
+    Default: "2048"
+    Description: >-
+      Must be a valid Fargate pairing for TaskCpu. 1024 CPU allows 2048-8192.
+      Browser checks need headroom: the worker reserves 512 MB and each concurrent
+      Chromium adds roughly 300 MB.
+
+  EnablePlaywright:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Sets initProcessEnabled so exited Chromium children are reaped. Without it,
+      zombie processes accumulate and leak kernel memory.
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    Description: >-
+      Keep at 1 per origin. Additional tasks re-run every check from the same
+      origin, duplicating results under identical metric labels.
+
+  MetricsMode:
+    Type: String
+    Default: ScrapeEndpointOnly
+    AllowedValues: [ScrapeEndpointOnly, AdotSidecarToAmp]
+    Description: >-
+      ScrapeEndpointOnly exposes :9590/metrics for an external scraper (your own
+      Prometheus, or an agentless CloudWatch managed collector created out of band
+      — see the README, it has no CloudFormation resource). AdotSidecarToAmp adds
+      an ADOT sidecar that scrapes locally and remote-writes to AMP.
+
+  AmpWorkspaceArn:
+    Type: String
+    Default: ""
+    AllowedPattern: ^$|^arn:aws[a-zA-Z-]*:aps:[a-z0-9-]+:[0-9]{12}:workspace/ws-[0-9a-f-]+$
+    Description: Required when MetricsMode is AdotSidecarToAmp. Leave blank otherwise.
+
+  AmpRegion:
+    Type: String
+    Default: ""
+    Description: Region of the AMP workspace. Defaults to the stack region when blank.
+
+# Cross-parameter validation. Caught at stack-create time with a readable
+# message, rather than as an opaque IAM failure partway through the rollout.
+Rules:
+  AmpArnRequiredForAdot:
+    RuleCondition: !Equals [!Ref MetricsMode, AdotSidecarToAmp]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AmpWorkspaceArn, ""]]
+        AssertDescription: AmpWorkspaceArn must be set when MetricsMode is AdotSidecarToAmp.
+
+Conditions:
+  UseAdot: !Equals [!Ref MetricsMode, AdotSidecarToAmp]
+  PlaywrightOn: !Equals [!Ref EnablePlaywright, "true"]
+  AmpRegionGiven: !Not [!Equals [!Ref AmpRegion, ""]]
+
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+      RetentionInDays: 30
+
+  # Cloud Map gives every task an A record. This is both the ECS service
+  # discovery mechanism and the target list a managed collector resolves via
+  # dns_sd_configs, so one namespace serves both purposes.
+  Namespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: !Sub ${AWS::StackName}.local
+      Vpc: !Ref VpcId
+
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: technician
+      NamespaceId: !GetAtt Namespace.Id
+      DnsConfig:
+        DnsRecords:
+          - Type: A
+            TTL: 30
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName} technician worker
+      VpcId: !Ref VpcId
+      # Egress only. Checks are outbound, and nothing needs to reach the worker
+      # unless you scrape it. Add ingress on 9590 from your scraper's security
+      # group only — never open it to the VPC.
+      SecurityGroupEgress:
+        # Open by default because probing arbitrary endpoints is the function.
+        # Narrow per deployment via EgressCidr. Accepted in .trivyignore.yaml
+        # (AVD-AWS-0104), scoped to this file.
+        - IpProtocol: -1
+          CidrIp: !Ref EgressCidr
+          Description: Outbound check traffic, image pull, S3, and metrics delivery
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: read-config
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket]
+                Resource:
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${Bucket}
+                    - Bucket: !Select [0, !Split ["/", !Select [1, !Split ["s3://", !Ref ConfigS3Uri]]]]
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${Bucket}/*
+                    - Bucket: !Select [0, !Split ["/", !Select [1, !Split ["s3://", !Ref ConfigS3Uri]]]]
+
+  # Separate resource rather than an Fn::If inside TaskRole: the ARN only exists
+  # when the sidecar is enabled, and a resource-level Condition keeps it out of
+  # the template entirely otherwise.
+  AmpRemoteWritePolicy:
+    Type: AWS::IAM::Policy
+    Condition: UseAdot
+    Properties:
+      PolicyName: amp-remote-write
+      Roles: [!Ref TaskRole]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: [aps:RemoteWrite, aps:GetSeries, aps:GetLabels, aps:GetMetricMetadata]
+            Resource: !Ref AmpWorkspaceArn
+
+  # The only volume is task-scoped scratch shared between config-init and the
+  # worker. No EFS mount, so no in-transit leg to encrypt. Accepted in
+  # .trivyignore.yaml (AVD-AWS-0035), scoped to this file.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-technician
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      Volumes:
+        # Shared so config-init can write what technician reads. The data dir
+        # needs no volume: only one container touches it, and the container's
+        # own writable layer is exactly as ephemeral as a task-scoped volume.
+        - Name: config
+      ContainerDefinitions:
+        # Fetches config before the worker starts. Runs to completion; the worker
+        # waits on it via dependsOn, so a bad S3 path fails the task loudly at
+        # startup instead of leaving the worker running with no checks.
+        - Name: config-init
+          Image: public.ecr.aws/aws-cli/aws-cli:latest
+          Essential: false
+          EntryPoint: [/bin/sh, -c]
+          Command:
+            - !Sub aws s3 sync ${ConfigS3Uri} /etc/technician --exact-timestamps && test -f /etc/technician/technician.yml
+          MountPoints:
+            - {SourceVolume: config, ContainerPath: /etc/technician}
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: config-init
+
+        - Name: technician
+          Image: !Ref ImageUri
+          Essential: true
+          # Soft floor honored under contention. The hard ceiling is the task's
+          # Memory; leaving container-level Memory unset lets a browser spike use
+          # task headroom rather than being OOM-killed at a fixed line.
+          MemoryReservation: 512
+          LinuxParameters:
+            InitProcessEnabled: !If [PlaywrightOn, true, false]
+          PortMappings:
+            - ContainerPort: 9590
+              Protocol: tcp
+          Environment:
+            - {Name: ORIGIN_ID, Value: !Ref OriginId}
+            - {Name: TECHNICIAN_DATA_DIR, Value: /var/lib/technician}
+            - {Name: GOMAXPROCS, Value: "2"}
+          MountPoints:
+            - {SourceVolume: config, ContainerPath: /etc/technician, ReadOnly: true}
+          DependsOn:
+            - {ContainerName: config-init, Condition: SUCCESS}
+          HealthCheck:
+            Command: [CMD-SHELL, "wget --spider -q http://localhost:9590/health || exit 1"]
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 10
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: technician
+
+        - !If
+          - UseAdot
+          - Name: adot
+            Image: public.ecr.aws/aws-observability/aws-otel-collector:latest
+            Essential: false
+            MemoryReservation: 128
+            Environment:
+              - {Name: AMP_ENDPOINT, Value: !Sub ["${Arn}/api/v1/remote_write", {Arn: !Ref AmpWorkspaceArn}]}
+              - {Name: AMP_REGION, Value: !If [AmpRegionGiven, !Ref AmpRegion, !Ref "AWS::Region"]}
+            Command: ["--config=/etc/ecs/ecs-amp-prometheus.yaml"]
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: !Ref LogGroup
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: adot
+          - !Ref AWS::NoValue
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub ${AWS::StackName}-technician
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      EnableExecuteCommand: true
+      # A worker holds only a ring buffer and a status file, so replacing it
+      # outright is cheaper than draining. 0/100 avoids two tasks briefly running
+      # every check from the same origin.
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 100
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          SecurityGroups: [!Ref SecurityGroup]
+          Subnets: !Ref SubnetIds
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+
+Outputs:
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !GetAtt Service.Name
+  MetricsDnsName:
+    Description: Resolve this for the task A records. Use it as the dns_sd_configs target of an external or managed collector.
+    Value: !Sub technician.${AWS::StackName}.local
+  SecurityGroupId:
+    Description: Grant this group ingress on 9590 from your scraper's security group when scraping externally.
+    Value: !Ref SecurityGroup
+  LogGroupName:
+    Value: !Ref LogGroup

@@ -48,6 +48,10 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           exit-code: '1'
+          # Accepted architectural findings in IaC we publish, scoped by `paths`
+          # to the file that justifies each one. Trivy only auto-detects the
+          # legacy plain-text .trivyignore, so this must be explicit.
+          trivyignores: .trivyignore.yaml
 
   container-changes:
     name: Detect container changes

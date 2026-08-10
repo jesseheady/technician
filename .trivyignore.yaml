@@ -1,5 +1,6 @@
-# Trivy vulnerability ignores.
+# Trivy ignores. Two sections with deliberately different rules.
 #
+# ── vulnerabilities ──────────────────────────────────────────────────
 # Only for FIXABLE CVEs that we cannot resolve yet because the fix has not
 # reached our base image. Unfixable upstream CVEs are handled by
 # `ignore-unfixed: true` in the trivy workflow, not here.
@@ -8,10 +9,42 @@
 # the suppression lapses and the CVE fails CI again (a re-triage tripwire).
 # The `trivy-ignore-audit` workflow watches these dates: when an entry is due
 # it re-scans and either opens a PR to remove it (fix landed) or an issue to
-# re-triage (still vulnerable). See docs below.
+# re-triage (still vulnerable).
 #
 # Currently empty: the runtime image strips npm, corepack, and yarn after the
 # build uses them (see Dockerfile), which removed every fixable CVE the image
 # scan was reporting — those all came from npm's bundled dependency tree, not
 # from anything we ship or can patch.
 vulnerabilities: []
+
+# ── misconfigurations ────────────────────────────────────────────────
+# Accepted architectural decisions in IaC we publish, NOT deferred fixes.
+# These do not expire: a date on "a synthetic monitor makes outbound
+# connections" would only guarantee CI breaks again later for no reason.
+# `trivy-ignore-audit` reads `vulnerabilities` only, so nothing here is
+# subject to the CVE expiry machinery.
+#
+# Every entry MUST have a `statement` and a `paths` list. `paths` is not
+# optional: an unscoped entry suppresses the rule across the whole repo, so a
+# future template with a genuine mistake would pass silently. Scope each entry
+# to the file whose design justifies it.
+#
+# Trivy does not honor inline `trivy:ignore` comments in CloudFormation (they
+# work for Terraform), so this file is the only mechanism available.
+misconfigurations:
+  - id: AVD-AWS-0104
+    paths:
+      - deploy/cloudformation/ecs-fargate.yaml
+    statement: >-
+      Unrestricted egress is the function, not an oversight: a synthetic monitor
+      exists to probe arbitrary endpoints, and also needs the registry, S3, and
+      its metrics destination. The template exposes an EgressCidr parameter so
+      deployments with a known target range can narrow it.
+
+  - id: AVD-AWS-0035
+    paths:
+      - deploy/cloudformation/ecs-fargate.yaml
+    statement: >-
+      The only volume is task-scoped scratch shared between the config-init and
+      worker containers. There is no EFS mount, so no in-transit leg exists to
+      encrypt; Fargate encrypts ephemeral storage at rest by default.
