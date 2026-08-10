@@ -11,6 +11,8 @@
 | **Central Grafana** | Source of record for dashboards and alerts for deployed checks. | Datasource = central Prometheus. |
 | **Edge (Workers / Lambda)** | Run checks from edge; no long‑lived `/metrics` to scrape. | Push to central (Pushgateway or remote‑write) when a check runs, or via an aggregator that Prometheus scrapes. |
 
+**Running a central-only host:** the repo's `docker-compose.yml` is already this stack, plus a worker. For a host that only stores and renders metrics, delete the `technician` service (and its `technician_data` volume) and point the scrape config at your deployed workers as shown below. There is no separate "central" compose file on purpose: duplicating the Prometheus, Alertmanager, and Grafana service definitions would leave two copies to keep in sync.
+
 ## Getting metrics to central Prometheus
 
 Prometheus is **pull** by default: it scrapes HTTP endpoints. So the shape of your config depends on where the workers run.
