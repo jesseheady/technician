@@ -42,7 +42,7 @@ Create a config set used only for local development runs.
 
 The repo includes a ready-made local config under `examples/local/`:
 
-- `technician.yml` – single site `local`, metrics and local artifacts.
+- `technician.yml` – single origin `local`, metrics and local artifacts.
 - `checks.yml` – one HTTP check to `http://localhost:8080/`.
 - `budgets.yml` – relaxed thresholds so `validate` passes.
 

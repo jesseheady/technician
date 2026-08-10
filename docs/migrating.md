@@ -39,7 +39,7 @@ Old Prometheus series will stop updating and expire after your retention period 
 
 ### Preserving historical data
 
-If you need dashboards to show both old and new data during the transition, add temporary recording rules that alias the old label names to the new ones. For example, if `site_code` was renamed to `region`:
+If you need dashboards to show both old and new data during the transition, add temporary recording rules that alias the old label names to the new ones. For example, if a `regional` label was renamed to `region`:
 
 ```yaml
 # Add to prometheus/rules.yml temporarily
@@ -48,8 +48,8 @@ If you need dashboards to show both old and new data during the transition, add 
     technician_check_healthy
     or
     label_replace(
-      technician_check_healthy{site_code!=""},
-      "region", "$1", "site_code", "(.*)"
+      technician_check_healthy{regional!=""},
+      "region", "$1", "regional", "(.*)"
     )
 ```
 

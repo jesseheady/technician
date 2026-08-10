@@ -8,13 +8,13 @@ Technician is a static Go binary (29 MB, stripped) with no database, no runtime 
 
 ## Measured resource usage
 
-Numbers below were measured with 34 checks active across all 13 check types (6 HTTP, 3 TCP, 2 UDP, 4 DNS, 2 ICMP, 3 NTP, 4 TLS, 1 SMTP, 2 traceroute, 2 BGP, 2 domain expiry, 3 Playwright) on a Docker Compose stack, exporting 35 Prometheus metric families.
+Numbers below were measured with 34 checks active across a representative mix of types (6 HTTP, 3 TCP, 2 UDP, 4 DNS, 2 ICMP, 3 NTP, 4 TLS, 1 SMTP, 2 traceroute, 2 BGP, 2 domain expiry, 3 Playwright) on a Docker Compose stack.
 
 ### Runtime memory
 
 | Component | RSS | Notes |
 |-----------|-----|-------|
-| Technician (Go process) | ~35 MB | 34 checks (13 types), status store, Prometheus registry |
+| Technician (Go process) | ~35 MB | 34 checks, status store, Prometheus registry |
 | Prometheus | ~150 MB | 90-day retention, scraping one target |
 | Grafana | ~215 MB | 6 provisioned dashboards, anonymous viewer |
 | **Full stack total** | **~425 MB** | |

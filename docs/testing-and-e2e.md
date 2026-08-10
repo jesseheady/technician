@@ -41,13 +41,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 ```bash
 go vet ./...
-```
-
-Add static analysis (optional):
-
-```bash
-go install golang.org/x/lint/golint@latest
-golint ./...
+golangci-lint run ./...   # same linters as CI; installed by scripts/init.sh, also runs in the pre-commit hook
 ```
 
 ## Test layout
@@ -87,7 +81,7 @@ Use a **dedicated e2e config** that points at stable or mock targets so results 
 Sanity-check one check by name:
 
 ```bash
-go run . check --name "Example Website" --config config/technician.yml
+go run . check run --check "Example Website" --config config/technician.yml
 ```
 
 Inspect stdout for success/failure and timing fields.

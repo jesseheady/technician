@@ -26,7 +26,7 @@ Numbers measured with 3 Playwright checks (desktop, mobile 4G, mobile 3G) at 5-m
 | Chromium | 602 MB | - |
 | Headless shell | 323 MB | - |
 | Node.js + system deps | ~700 MB | - |
-| Go binary | 15 MB | 15 MB |
+| Go binary | ~30 MB | ~30 MB |
 
 The image size is fixed regardless of check count -- Chromium is installed once.
 
@@ -70,7 +70,7 @@ playwright:
 
 ## Concurrency control
 
-The `max_browsers` config field controls how many Chromium instances can run simultaneously across all Playwright checks on a single worker. This is enforced by a channel-based semaphore in `PlaywrightProber`.
+The `max_browsers` config field controls how many Chromium instances can run simultaneously across all Playwright checks on a single worker. This is enforced by a channel-based semaphore in `PlaywrightChecker`.
 
 When all slots are occupied:
 - New checks wait for a slot to open
