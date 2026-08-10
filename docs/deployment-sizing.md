@@ -226,36 +226,11 @@ ssh yourserver 'ORIGIN_ID=us-east-1 technician worker --config /etc/technician/t
 
 This is a valid production deployment for teams that just need uptime monitoring with webhook alerts. The status page and `/api/status` endpoint work independently. Add Prometheus + Grafana later when you want historical trends and dashboards — the worker is already exporting metrics.
 
-**systemd unit file:**
-
-```ini
-[Unit]
-Description=Technician check runner
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/technician worker --config /etc/technician/technician.yml
-Environment=ORIGIN_ID=us-east-1
-Restart=always
-RestartSec=5
-WorkingDirectory=/var/lib/technician
-
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/technician
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-```
+**systemd unit file:** [`deploy/systemd/technician.service`](../deploy/systemd/technician.service), hardened and ready to copy. Set `ORIGIN_ID` to match an origin in your `technician.yml`; the file also documents what to add if you want it running unprivileged.
 
 ```bash
 # Install and start
-sudo cp technician.service /etc/systemd/system/
+sudo cp deploy/systemd/technician.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now technician
 sudo journalctl -u technician -f  # tail logs

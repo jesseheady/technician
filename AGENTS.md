@@ -21,7 +21,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 | `examples/` | Reference configs with placeholder values |
 | `dashboards/` | Grafana JSON dashboards |
 | `prometheus/` | Prometheus config, rules, Grafana provisioning |
-| `deploy/` | Deployment artifacts: Helm chart (`helm/`), CloudFormation for ECS Fargate (`cloudformation/`) |
+| `deploy/` | Deployment artifacts: Helm chart (`helm/`), CloudFormation for ECS Fargate (`cloudformation/`), systemd unit (`systemd/`) |
 
 ## Commands
 
