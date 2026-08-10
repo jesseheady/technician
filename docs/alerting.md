@@ -164,7 +164,7 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 
 | Category | Warning | Critical |
 |----------|---------|----------|
-| Check health (all 13 types) | Single check failing 3m; >25% error rate 5m | >50% error rate 10m |
+| Check health (all 14 types) | Single check failing 3m; >25% error rate 5m | >50% error rate 10m |
 | Web Vitals (LCP/INP/CLS) | Google "needs improvement" (15m avg) | Google "poor" threshold, >50% of checks (15m avg) |
 | HTTP timing (TTFB/DNS/TLS) | Degraded (15m avg) | Functionally broken, >50% of checks (15m avg) |
 | TCP (connect/TLS) | Connect >1s, TLS >1s (15m avg) | Connect >5s / TLS >3s, >50% of checks (15m avg) |

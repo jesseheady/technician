@@ -169,6 +169,7 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 | `udp.yml` | UDP | Datagram send/receive, payload matching |
 | `bgp.yml` | BGP | Origin AS validation, prefix hijack detection |
 | `domain_expiry.yml` | Domain expiry | RDAP-based registration expiry, warn/critical thresholds |
+| `websocket.yml` | WebSocket | ws/wss connect, optional message send + response assertion, connection/message timing |
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
 All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
