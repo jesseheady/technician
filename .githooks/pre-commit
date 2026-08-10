@@ -49,6 +49,20 @@ if [ -n "$GO_FILES" ]; then
     fi
 fi
 
+echo "==> golangci-lint"
+if staged | grep -q '\.go$'; then
+    if skip_slow; then
+        echo "    SKIP_HOOKS=1 — skipped"
+    elif command -v golangci-lint >/dev/null 2>&1; then
+        golangci-lint run --timeout=5m ./...
+    else
+        echo "    golangci-lint not installed, using Docker (install to skip the daemon: https://golangci-lint.run/welcome/install/)"
+        require_docker
+        docker run --rm -v "$REPO_ROOT:/work" -w /work \
+            golangci/golangci-lint:"${GOLANGCI_VERSION:-v2.12.2}" golangci-lint run --timeout=5m ./...
+    fi
+fi
+
 echo "==> promtool check rules"
 if staged | grep -q '^prometheus/.*\.yml$'; then
     if skip_slow; then

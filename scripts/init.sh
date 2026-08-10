@@ -25,12 +25,14 @@ PLATFORM="unknown"
 MTR_HINT="install mtr with your package manager"
 TRIVY_HINT="see https://trivy.dev/latest/getting-started/installation/"
 SHELLCHECK_HINT="install shellcheck with your package manager"
+GOLANGCI_HINT="see https://golangci-lint.run/welcome/install/"
 case "$(uname -s)" in
   Darwin)
     PLATFORM="macOS"
     MTR_HINT="brew install mtr"
     TRIVY_HINT="brew install trivy"
     SHELLCHECK_HINT="brew install shellcheck"
+    GOLANGCI_HINT="brew install golangci-lint"
     ;;
   Linux)
     if grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
@@ -93,6 +95,12 @@ else
   warn "shellcheck not found. Staging shell scripts will fall back to Docker. Install with: $SHELLCHECK_HINT"
 fi
 
+if command -v golangci-lint &>/dev/null; then
+  info "golangci-lint found"
+else
+  warn "golangci-lint not found. Lint hook will fall back to Docker. Install with: $GOLANGCI_HINT"
+fi
+
 if command -v node &>/dev/null; then
   info "Node: $(node -v)"
   info "Installing Playwright + Chromium for browser checks..."
@@ -121,6 +129,7 @@ if [ -d .githooks ]; then
     hook_images="prom/prometheus:latest prom/alertmanager:latest"
     command -v trivy &>/dev/null || hook_images="aquasec/trivy:latest $hook_images"
     command -v shellcheck &>/dev/null || hook_images="koalaman/shellcheck:stable $hook_images"
+    command -v golangci-lint &>/dev/null || hook_images="golangci/golangci-lint:v2.12.2 $hook_images"
     for image in $hook_images; do
       if docker pull --quiet "$image" >/dev/null; then
         info "  pulled $image"
