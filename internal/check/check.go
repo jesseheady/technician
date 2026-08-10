@@ -111,6 +111,18 @@ type Result struct {
 	Labels map[string]string
 }
 
+// DegradedLatency returns the latency that degraded_after is compared against.
+// For most check types that is Duration, which times a single operation. ICMP
+// repeats the same probe `count` times, so its Duration is the sum of every
+// probe (and of any probe that timed out); the per-probe average is the value
+// a latency threshold is meaningfully expressed in.
+func (r *Result) DegradedLatency() time.Duration {
+	if r.Type == config.CheckTypeICMP && r.ICMPPacketsRecv > 0 {
+		return r.ICMPAvgRTT
+	}
+	return r.Duration
+}
+
 type WebVitals struct {
 	TTFB        float64 `json:"ttfb"`
 	FCP         float64 `json:"fcp"` // First Contentful Paint (optional; Core Web Vitals are LCP, INP, CLS)

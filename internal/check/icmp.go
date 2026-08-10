@@ -51,6 +51,11 @@ func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 		count = 3
 	}
 
+	// Budget the timeout across probes. Waiting the full check timeout on the
+	// first unanswered probe would spend the whole budget on one lost packet
+	// and skip the rest of the sequence, losing the packet-loss signal.
+	probeTimeout := timeout / time.Duration(count)
+
 	// Determine IP version and resolve the host.
 	ipNetwork := "ip"
 	switch icfg.IPVersion {
@@ -115,7 +120,7 @@ func (p *ICMPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *
 			break
 		}
 
-		rtt, err := p.sendPing(ctx, conn, dst, icmpType, echoID, seq, timeout, isIPv6)
+		rtt, err := p.sendPing(ctx, conn, dst, icmpType, echoID, seq, probeTimeout, isIPv6)
 		sent++
 		if err != nil {
 			slog.Debug("ICMP ping failed",
