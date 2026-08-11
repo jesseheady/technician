@@ -207,7 +207,16 @@ The server is the **stock upstream Playwright image**, driven by a command the s
 docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
 ```
 
-**Version pinning is required, not optional.** The sidecar image tag and the playwright version embedded in the binary (`internal/playwright/scripts/package.json`) must agree. A mismatched client and server fail the handshake, and it surfaces as a setup-stage infra error on every browser check rather than a clear version message. Bump both together.
+**Version pinning is required, not optional.** The sidecar image tag and the playwright version embedded in the binary (`internal/playwright/scripts/package.json`) must agree, and the npm dependency is pinned exactly rather than to a caret range for that reason. A range lets `npm ci` resolve a client newer than the sidecar, and Playwright rejects the connection outright:
+
+```
+<ws unexpected response> ws://playwright:3000/ 428 Precondition Required
+Playwright version mismatch:
+  - server version: v1.59
+  - client version: v1.62
+```
+
+That surfaces as a setup-stage infra error on every browser check. Renovate groups the npm client and the sidecar image under a single `playwright` update so they move together; do not bump one alone.
 
 **When to move to managed mode:**
 - 10+ Playwright checks per region

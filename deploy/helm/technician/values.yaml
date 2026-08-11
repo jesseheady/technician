@@ -77,7 +77,7 @@ playwright:
     enabled: false
     image:
       repository: mcr.microsoft.com/playwright
-      tag: v1.59.1-noble
+      tag: v1.62.1-noble
       pullPolicy: IfNotPresent
     port: 3000
     resources:

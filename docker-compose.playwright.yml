@@ -16,10 +16,10 @@
 # stage infra error on every browser check rather than a clear version message.
 services:
   playwright:
-    image: mcr.microsoft.com/playwright:v1.59.1-noble
+    image: mcr.microsoft.com/playwright:v1.62.1-noble
     # Unmodified upstream image driven by a command, the same way Prometheus and
     # Grafana are configured in the base stack. Nothing here forks Playwright.
-    command: npx -y playwright@1.59.1 run-server --port 3000 --host 0.0.0.0
+    command: npx -y playwright@1.62.1 run-server --port 3000 --host 0.0.0.0
     init: true
     expose:
       - "3000"
