@@ -244,3 +244,20 @@ func TestPlaywrightModeDefaultsToLocal(t *testing.T) {
 		t.Errorf("Playwright.Mode = %q, want %q", cfg.Playwright.Mode, "local")
 	}
 }
+
+func TestExpandEnvVarsDefaults(t *testing.T) {
+	t.Setenv("TECH_SET", "value")
+	tests := []struct{ in, want string }{
+		{"${TECH_SET}", "value"},
+		{"${TECH_SET:-fallback}", "value"},
+		{"${TECH_UNSET:-fallback}", "fallback"},
+		{"${TECH_UNSET:-}", ""},
+		{"${TECH_UNSET}", "${TECH_UNSET}"}, // no default: placeholder kept, as before
+		{"ws://${TECH_UNSET:-host}:3000/", "ws://host:3000/"},
+	}
+	for _, tt := range tests {
+		if got := expandEnvVars(tt.in); got != tt.want {
+			t.Errorf("expandEnvVars(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

@@ -18,6 +18,10 @@ services:
     environment:
       - ORIGIN_ID=local
       - GOMAXPROCS=2
+      # The stack ships a playwright service, so use it. The example config
+      # defaults to local, which is what a bare binary needs.
+      - PLAYWRIGHT_MODE=managed
+      - PLAYWRIGHT_SERVER_URL=ws://playwright:3000/
     deploy:
       resources:
         # Browsers run in the playwright service, but each concurrent check still

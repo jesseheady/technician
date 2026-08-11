@@ -172,7 +172,7 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 | `websocket.yml` | WebSocket | ws/wss connect, optional message send + response assertion, connection/message timing |
 | `playwright/playwright.yml` | Playwright | Browser flows, Core Web Vitals, HAR capture |
 
-All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
+All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion, and `${ENV_VAR:-default}` to supply a fallback when the variable is unset.
 
 **Browser checks**: the `playwright` block in `technician.yml` chooses where the browser runs.
 

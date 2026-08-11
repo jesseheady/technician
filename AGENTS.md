@@ -43,7 +43,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 - **Budgets**: Optional `budgets.yml` next to main config (used by `validate`).
 - **Webhooks**: Optional `webhooks` list in `technician.yml`. Each entry has `url`, `type` (discord/slack/generic), `events` (check_down/check_up/budget_violation/cert_expiring), `severities` (warning/critical — omit for all), and `cooldown` (default 5m). Notifications fire on state transitions, not every check run. Events carry severity: check_down=critical, budget_violation=warning, cert_expiring=warning or critical based on days vs thresholds. Multiple webhook entries with different `severities` filters enable routing warnings to Slack and critical to PagerDuty.
 - **Config layout**: `examples/` has reference configs with placeholder values (checked in). Copy to `config/` for local/production use (gitignored). Docker Compose mounts from `config/`.
-- All YAML supports `${ENV_VAR}` expansion.
+- All YAML supports `${ENV_VAR}` and `${ENV_VAR:-default}` expansion. Without a default an unset variable keeps the literal placeholder.
 
 ## Alerting
 

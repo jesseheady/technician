@@ -52,8 +52,8 @@ artifacts:
 playwright:
   # managed connects to the playwright service in docker-compose.yml. Use local
   # to launch Chromium in-process when running the binary without that service.
-  mode: managed
-  server_url: ws://playwright:3000/
+  mode: ${PLAYWRIGHT_MODE:-local}
+  server_url: ${PLAYWRIGHT_SERVER_URL:-}
   # max_browsers: 2
 
 # Check filter (optional). Run only a subset of the checks/ directory, so one
