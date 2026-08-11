@@ -469,7 +469,7 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 | RAM | 1 GB (no Playwright) | 2 GB (with Playwright) |
 | Disk | 5 GB | 10 GB (90d Prometheus retention + Grafana + artifacts) |
 
-A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest image (~1.0 GB); Technician is the heaviest process (~500 MB RSS with Playwright idle). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~1 GB of image + ~215 MB of RAM.
+A VPS in the $4–12/mo range handles this comfortably without browser checks. The playwright image is the heaviest at ~2.8 GB, and its container is the heaviest process (~300 MB RSS idle, more per concurrent Chromium); Grafana is next at ~1.0 GB. Dropping the playwright service when you run no browser checks saves the most of any single change. If you use hosted Grafana (Grafana Cloud, etc.), drop it too and save ~1 GB of image + ~215 MB of RAM.
 
 #### Per-container memory budget (Docker Compose)
 
