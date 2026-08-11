@@ -20,11 +20,13 @@ services:
       - GOMAXPROCS=2
     deploy:
       resources:
-        # Browsers run in the playwright service. Raise to 1G/512M if you switch
-        # playwright.mode to local.
+        # Browsers run in the playwright service, but each concurrent check still
+        # holds a Node client here (~55 MB measured). The limit has to cover
+        # max_browsers of those, not just the ~20 MB Go process. Raise to 1G/512M
+        # if you switch playwright.mode to local.
         limits:
           cpus: "1.0"
-          memory: 256M
+          memory: 512M
         reservations:
           memory: 128M
     restart: unless-stopped
@@ -150,7 +152,7 @@ services:
     deploy:
       resources:
         limits:
-          # ~300 MB idle; roughly 300 MB more per concurrent Chromium.
+          # ~257 MB idle; ~564 MB measured with four concurrent trivial pages.
           memory: 1G
         reservations:
           memory: 512M

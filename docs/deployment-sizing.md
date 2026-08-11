@@ -477,13 +477,13 @@ The default `docker-compose.yml` ships with `deploy.resources` set on each servi
 
 | Container | Reservation | Limit | Why |
 |---|---|---|---|
-| technician | 128 MB | 256 MB | Go process (~18 MB) plus a Node client holding a WebSocket; browsers run in the playwright service |
-| playwright | 512 MB | 1 GB | ~300 MB idle, plus roughly 300 MB per concurrent Chromium |
+| technician | 128 MB | 512 MB | ~11–20 MB idle, plus ~55 MB per concurrent check for its Node client; the limit must cover `max_browsers` of those, so raise it if you raise `max_browsers` |
+| playwright | 512 MB | 1 GB | ~257 MB idle; measured ~564 MB with four concurrent browsers on a trivial page. Heavier pages cost considerably more, so treat the per-browser figure as a floor |
 | prometheus | 256 MB | 512 MB | ~145 MB observed at 90-day retention; headroom for query bursts |
 | grafana | 768 MB | 1 GB | p50 ~560 MB / p90 ~712 MB observed during dashboard activity; reservation covers steady state, limit absorbs transient peaks |
 | alertmanager | 64 MB | 128 MB | ~49 MB observed |
 
-Sum: ~1.7 GB reserved, ~2.9 GB ceiling. The browser allowance moved from technician to playwright rather than being added, so the total is close to what the single-container stack used. Fits the 2 GB recommended host RAM under normal load, with limits absorbing transient spikes before the OOM killer fires.
+Sum: ~1.7 GB reserved, ~3.2 GB ceiling. The browser allowance moved from technician to playwright rather than being added, so reserved memory is close to what the single-container stack used. Fits the 2 GB recommended host RAM under normal load, with limits absorbing transient spikes before the OOM killer fires.
 
 Running `playwright.mode: local` instead puts Chromium back in the worker: raise technician to 512 MB / 1 GB and drop the playwright service.
 
