@@ -153,7 +153,13 @@ Go orchestrator
 - Latest release February 2026
 
 **Cons:**
-- **Still ships Node.js** — embeds ~50 MB Node.js runtime. Does not eliminate the Node.js dependency.
+- **Still ships Node.js** — embeds ~50 MB Node.js runtime. Does not eliminate the Node.js dependency. **Verified**, including against a remote server: `Connect()` is only reachable through `playwright.Run()`, which fails outright without a local driver.
+
+  ```
+  playwright.Run failed: please install the driver (v1.61.1) first
+  ```
+
+  Tested with `playwright-go v0.6100.0` against a running `playwright run-server`, on a machine with no driver installed. Sources claiming a remote endpoint removes the local driver requirement are wrong. That version pairing also shows the maintenance cost: the binding wanted driver v1.61.1 while the server ran 1.62.1, so adopting it adds a third version to keep in lockstep with the npm client and the server image.
 - Community-maintained, **actively seeking new maintainers** (sustainability risk)
 - Incomplete test coverage
 - Parallel execution with multiple browser engines can thrash small systems
@@ -177,6 +183,20 @@ Go orchestrator
 | **Auto-waiting** | Yes | No | Yes | Yes |
 | **Maintenance risk** | Low (Microsoft) | Low (active) | Medium (release pace) | High (seeking maintainers) |
 | **Migration effort** | None | Medium | Medium | Medium |
+
+## What the sidecar changed
+
+#66 moved the browser out of the worker, which splits the size question into three tiers rather than two. Measured inside the current image:
+
+| Tier | Size | Requires |
+|---|---|---|
+| Today | 1.71 GB | Node + client + Chromium |
+| Browsers dropped (managed mode) | ~730 MB | Node + client, no Chromium — this is what [#213](https://github.com/jesseheady/technician/issues/213) now buys |
+| No Node driver | ~80 MB | Replacing the Node subprocess — this document's decision |
+
+Chromium is **984 MB** of the image; Node plus the playwright client is **~136 MB**. So the large win needs no driver change, and dropping Node is a second, much smaller step. That ordering argues for doing #213 first and treating this document as a later decision, not a prerequisite.
+
+It also raises the cost of Options B and C. They speak CDP, not the Playwright protocol, so the sidecar would stop being `playwright run-server` and become a plain Chrome debugging endpoint — a change to the deployment contract, not just the client library. Web Vitals are unaffected either way, since they are injected JS.
 
 ## Recommendation
 
