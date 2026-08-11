@@ -189,13 +189,9 @@ playwright:
   max_browsers: 2
 ```
 
-Managed mode runs the browser in a stock upstream Playwright image alongside the worker, so browser patching follows its own cadence and running a different engine is an image-tag change. Start it with the overlay:
+Managed is the default in the Compose stack, which ships a `playwright` service alongside Prometheus and Grafana. Browser patching then follows its own cadence and switching engines is an image-tag change. Use `local` when running the binary directly, where no such service exists.
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
-```
-
-The sidecar's image tag and the playwright version the binary embeds must match, or the client and server fail their handshake. An invalid mode, or `managed` without a `server_url`, is rejected at startup. See [Playwright scaling](playwright-scaling.md).
+The service's image tag and the playwright version the binary embeds must match, or the connection is rejected. An invalid mode, or `managed` without a `server_url`, fails at startup. See [Playwright scaling](playwright-scaling.md).
 
 **Logging**: set `logging.format` (`json` for Loki-native, `text` for local dev) and `logging.level` (`debug`/`info`/`warn`/`error`) in `technician.yml`; the `--log-level` flag overrides the configured level.
 
