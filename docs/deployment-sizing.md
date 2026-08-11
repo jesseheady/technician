@@ -433,6 +433,8 @@ Not all checks need the same frequency. Shorter intervals increase request volum
 
 A typical production deployment with 30 checks using the intervals above generates ~350 requests/hour — well within the capacity of a single worker and comfortable for third-party targets.
 
+**Cadence interacts with alert sensitivity.** The `CheckFailing` alert uses `for: 3m`, and `technician_check_healthy` holds its value between runs, so a fast check (30s–1min) rides out a single failed run before 3m of continuous failure elapses, while a slow check (5min+) holds `healthy=0` across the whole interval and can page on one transient. Run checks whose outages must page quickly at 30s–1min; for slower-cadence checks that you don't want firing on a single blip, add a `retry` (`count: 1` is usually enough). See [alerting § Down-detection sensitivity](alerting.md#down-detection-sensitivity).
+
 ## Sizing by deployment mode
 
 ### Checks only, no Playwright

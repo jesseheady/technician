@@ -184,6 +184,14 @@ SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
+#### Down-detection sensitivity
+
+Availability alerts (`CheckFailing`) are **not** smoothed — they key off the binary `technician_check_healthy == 0`, with a `for: 3m` debounce. Three things determine how fast a real outage pages and how well transients are absorbed:
+
+- **Retries run before a failure is recorded, and default to none.** A `retry` block (`count`, `backoff`, `delay`) is opt-in per check; without it, one failed run sets `healthy=0` immediately. Set `retry: {count: 1}` on checks where a single transient failure shouldn't count.
+- **The gauge holds between runs.** `healthy=0` persists in Prometheus until the next check run flips it, so `for: 3m` interacts with cadence: a fast check (30s–1min) sees `healthy` recover before 3m of continuous `0`, so a single blip won't page; a slow check (5min+) holds `0` across the whole interval, so `for: 3m` can fire on a *single* failed sample. Give slow-cadence checks a `retry`, or run critical checks fast enough that `for: 3m` spans several samples.
+- **Infra errors don't mark a check down.** When a check can't reach its own data source or runtime (BGP via RIPE, domain expiry via RDAP, Playwright runner), the result is an *infra error*: `technician_check_infra_error=1`, and `healthy` is left frozen at its last value — the target was never tested, so scoring it "down" would be false. A brief infra error pages as a warning (`CheckInfraError`, `for: 5m`); a **sustained** one escalates to critical (`SustainedInfraError`, `for: 15m`), because a check that's been blind for 15 minutes is a potential outage hiding behind "couldn't measure". Note that `avg_over_time(technician_check_healthy)` reads 100% during an infra blind spot — use `technician_check_infra_error` to exclude those windows from uptime SLOs.
+
 #### Staleness grace period
 
 After a data gap — process restart, connectivity loss, or host downtime — the first check results carry inflated latencies: stale DNS caches, cold TCP connections, and NTP clock drift. These spike the 15-minute rolling averages and would trip the timing alerts for ~10 minutes before the averages re-stabilize. They are artifacts, not real degradation.

@@ -284,6 +284,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Sustained infra-error escalation + sensitivity docs [#333](https://github.com/jesseheady/technician/issues/333)
+
+First tranche of the detection-sensitivity review. An infra error freezes `technician_check_healthy` (the target was never tested), so `CheckFailing` can't fire for BGP/domain-expiry/Playwright checks — a prolonged blind spot could hide behind a warning. Added `SustainedInfraError` (`infra_error == 1 for: 15m` → critical), which inhibits the warning tier for the same check. Documented the down-detection sensitivity model (retry defaults off, the `for: 3m` debounce, and the cadence interaction) in `docs/alerting.md` and `docs/deployment-sizing.md`, and the retry rationale in `examples/checks.yml`. Covered by new `promtool test rules` cases. [#333](https://github.com/jesseheady/technician/issues/333) stays open for the remaining decisions (default retry, criticality tiering).
+
 ### Browser alert window matches browser cadence [#324](https://github.com/jesseheady/technician/issues/324)
 
 The Web Vitals alerts (`HighLCP`/`HighINP`/`HighCLS` and their `*Critical` variants) averaged over `[15m]` while browser checks run every 5–10 min, so the window held 1–3 samples and a single bad render paged for the length of the lookback. Widened to `[1h]` with `for: 15m` (≥6 samples at a 10-min cadence). Documented that the anti-flap window must span several check intervals, and that the Web Vitals alerts track the absolute Google CWV thresholds — `BudgetViolation` is the budget-relative signal. Covered by new `promtool test rules` cases.
