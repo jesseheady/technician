@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
-	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -28,25 +26,18 @@ func InitOTEL(ctx context.Context, cfg *config.OTELConfig, serviceName string) (
 		return func(context.Context) error { return nil }, nil
 	}
 
-	// A scheme-qualified endpoint decides its own transport: http:// exports in
-	// plaintext (the usual local/sidecar collector), https:// over TLS. A bare
-	// "host:port" keeps the OTel default of TLS rather than silently
-	// downgrading traces onto the wire unencrypted.
-	opts := []otlptracehttp.Option{otlptracehttp.WithEndpoint(cfg.Endpoint)}
-	if strings.Contains(cfg.Endpoint, "://") {
-		u, err := url.Parse(cfg.Endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("parsing OTLP endpoint: %w", err)
-		}
-		// Not WithEndpointURL: since otlptracehttp v1.45.0 a path-less URL there
-		// posts to "/" instead of the default /v1/traces.
-		opts = []otlptracehttp.Option{otlptracehttp.WithEndpoint(u.Host)}
-		if u.Path != "" && u.Path != "/" {
-			opts = append(opts, otlptracehttp.WithURLPath(u.Path))
-		}
-		if u.Scheme != "https" {
-			opts = append(opts, otlptracehttp.WithInsecure())
-		}
+	ep, err := parseOTLPEndpoint(cfg.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	// Not WithEndpointURL: since otlptracehttp v1.45.0 a path-less URL there
+	// posts to "/" instead of the default /v1/traces.
+	opts := []otlptracehttp.Option{otlptracehttp.WithEndpoint(ep.host)}
+	if ep.path != "" {
+		opts = append(opts, otlptracehttp.WithURLPath(ep.path))
+	}
+	if ep.insecure {
+		opts = append(opts, otlptracehttp.WithInsecure())
 	}
 
 	exporter, err := otlptracehttp.New(ctx, opts...)

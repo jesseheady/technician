@@ -10,6 +10,13 @@ All metrics carry the labels `name` (the check name), plus `region`, `city`, and
 Check names are capped by `metrics.prometheus.max_check_cardinality`; checks past
 the limit are dropped rather than silently blowing up Prometheus.
 
+**OTLP export.** Setting `metrics.otel.metrics: true` (with `metrics.otel.endpoint`)
+also pushes every `technician_*` metric below to an OTLP collector, in addition to
+the `/metrics` endpoint — for OTel-native backends or AMP-over-OTLP without a
+Prometheus scrape. It bridges this same registry, so the OTLP stream stays in
+parity automatically; the `go_*`/`process_*` self-health collectors are exported
+on `/metrics` only. Labels become OTLP attributes unchanged.
+
 ## Universal
 
 Emitted for every check type. SMTP, traceroute, and gRPC checks emit only these.

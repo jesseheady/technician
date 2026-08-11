@@ -26,12 +26,17 @@ metrics:
     # this and need metrics for all of them (default 500).
     max_check_cardinality: 500
   otel:
-    # OTLP/HTTP trace endpoint. Empty disables tracing entirely.
-    # The scheme picks the transport: http:// exports in plaintext (typical for
-    # a local or sidecar collector), https:// over TLS. A bare "host:port" is
-    # treated as TLS.
+    # OTLP/HTTP endpoint for traces (and metrics, if enabled below). Empty
+    # disables OTLP entirely. The scheme picks the transport: http:// exports in
+    # plaintext (typical for a local or sidecar collector), https:// over TLS. A
+    # bare "host:port" is treated as TLS. A collector accepts traces and metrics
+    # on the same endpoint (different default paths).
     #   endpoint: "http://localhost:4318"
     endpoint: ""
+    # Export the same technician_* metrics via OTLP, in addition to /metrics.
+    # Opt-in (traces are enabled by endpoint alone). Useful for OTel-native
+    # backends or AMP-over-OTLP without a Prometheus scrape.
+    metrics: false
 
 logging:
   # format: json emits one JSON object per line for Loki-native parsing;

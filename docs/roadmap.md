@@ -262,10 +262,6 @@ k6 load generation is CPU and memory intensive, unlike Technician's lightweight 
 
 Items here are either partially covered by Grafana dashboards, low priority, or would add complexity that isn't justified yet. Each item includes a rationale for deferral.
 
-### Observability and export
-
-- **Full OTel metrics export** [#33](https://github.com/jesseheady/technician/issues/33) — Push check metrics via OpenTelemetry in addition to Prometheus. Trace export is wired into the worker; metrics export is not. Medium priority.
-
 ### Status page and UI
 
 - **Public/private visibility toggle** [#39](https://github.com/jesseheady/technician/issues/39) — Control which checks are visible on the public status page vs internal-only.
@@ -283,6 +279,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### OTLP metric export [#33](https://github.com/jesseheady/technician/issues/33)
+
+`metrics.otel.metrics: true` pushes every `technician_*` metric via OTLP, in addition to the `/metrics` endpoint, over the same collector endpoint as traces. Implemented as a registry bridge (`go.opentelemetry.io/contrib/bridges/prometheus`) rather than a second set of instruments, so OTLP stays in parity with Prometheus automatically as metrics are added. A prefix filter keeps the stream to check metrics; `go_*`/`process_*` self-health stays on `/metrics`. Opt-in — traces remain gated on the endpoint alone.
 
 ### Sustained infra-error escalation + sensitivity docs [#333](https://github.com/jesseheady/technician/issues/333)
 

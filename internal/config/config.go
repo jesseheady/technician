@@ -64,6 +64,10 @@ type PrometheusConfig struct {
 
 type OTELConfig struct {
 	Endpoint string `yaml:"endpoint"`
+	// Metrics enables OTLP metric export (in addition to Prometheus /metrics)
+	// over the same endpoint. Traces are gated on endpoint alone; metrics are
+	// opt-in so enabling them is a deliberate choice.
+	Metrics bool `yaml:"metrics"`
 }
 
 type ArtifactsConfig struct {
