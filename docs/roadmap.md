@@ -284,6 +284,16 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Managed Playwright mode: browser as a sidecar [#66](https://github.com/jesseheady/technician/issues/66)
+
+`playwright.mode: managed` connects to a Playwright server over `server_url` instead of launching Chromium in the worker. This is Stage 3 in [Playwright scaling](playwright-scaling.md), and it settles how Technician provides a browser: the server is the **stock upstream Playwright image** driven by a command, the same way Prometheus and Grafana are in the base stack, so nothing here forks or patches Playwright.
+
+The decisive argument was getting out of the business of shipping a browser rather than relocating it. Baking Chromium in means owning its build, system dependencies, and patch cadence permanently; a sidecar makes the browser a standard upstream artifact patched on its own cadence, and turns running a different engine into an image-tag change instead of an image rebuild. CVE posture becomes "monitor the sidecar" rather than "our artifact ships known CVEs".
+
+Everything downstream of the browser handle is unchanged — device emulation, network throttling, HAR capture, and Web Vitals all operate on the context and page, not on how the browser started — so managed mode reuses the whole existing probe path. `mode: local` remains the default, `max_browsers` still bounds concurrent sessions, and an invalid mode or a managed mode without a `server_url` is rejected at startup rather than failing once per browser check. Ships with a Compose overlay and an optional Helm sidecar; with the sidecar enabled `shareProcessNamespace` is dropped, since Chromium children belong to the sidecar's PID 1.
+
+The npm client is pinned exactly rather than to a caret range: end-to-end testing caught a shipped handshake failure where `npm ci` resolved a client newer than the sidecar and Playwright rejected the connection with `428 Precondition Required`. Renovate now groups the npm client and the sidecar image so they can never be bumped apart. Slimming the worker image, which no longer needs a browser in managed mode, is tracked in [#213](https://github.com/jesseheady/technician/issues/213).
+
 ### Structured logging for Loki [#24](https://github.com/jesseheady/technician/issues/24)
 
 `slog` output is now Loki-ready. Each check execution logs a structured `Check result` line — name, type, success, duration, region, degraded, retries, error — at INFO (WARN when down or degraded), giving a complete record independent of Prometheus. When OTLP tracing is enabled the line carries `trace_id`/`span_id` for Loki↔trace correlation. `logging.format` (`json`/`text`) and `logging.level` config landed earlier. Self-health (goroutines, memory, threads, FDs, CPU) is already exported by the standard Prometheus Go/process collectors, so no custom metrics were added. Scheduler-loop-timing and config-reload logging were dropped: per-check duration plus the runtime collectors already cover "is Technician healthy?", and there is no hot config reload to log.
