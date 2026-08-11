@@ -119,6 +119,21 @@ groups:
           summary: "{{ $labels.name }} has infrastructure errors"
           description: "Check {{ $labels.name }} ({{ $labels.type }}) has been failing due to infrastructure errors from {{ $labels.region }} for 5 minutes. The check is not testing its target — check logs for details (missing dependencies, network access, permissions)."
 
+      # An infra error keeps technician_check_healthy frozen at its last value
+      # (the target was never tested), so CheckFailing cannot fire for the checks
+      # that use it (BGP, domain expiry, Playwright). A brief blip is a warning
+      # (above); a *sustained* blind spot is a potential outage hiding behind
+      # "couldn't measure", so it escalates to a page. Inhibits the warning for
+      # the same check via the severity inhibit rule. See #333.
+      - alert: SustainedInfraError
+        expr: technician_check_infra_error == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.name }} blind for 15m+ (infrastructure error)"
+          description: "Check {{ $labels.name }} ({{ $labels.type }}) has been unable to reach its data source or runtime for over 15 minutes, so the target's true state is unknown and check_healthy is frozen at its last value. Treat as a potential outage."
+
       - alert: StatusStoreWriteFailing
         expr: increase(technician_status_store_write_errors_total[10m]) >= 5
         for: 0m

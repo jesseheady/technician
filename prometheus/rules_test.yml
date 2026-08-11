@@ -105,3 +105,39 @@ tests:
             exp_annotations:
               summary: "High CLS for homepage"
               description: "CLS for homepage is 0.300 (1h avg, good ≤0.1)."
+
+  # #333: an infra error freezes check_healthy, so CheckFailing can't fire. A
+  # brief blip is a warning (CheckInfraError); a sustained blind spot escalates.
+  - name: SustainedInfraError escalates a prolonged blind spot
+    interval: 1m
+    input_series:
+      - series: 'technician_check_infra_error{type="domain_expiry",name="example.com",region="local"}'
+        values: '1+0x20'
+    alert_rule_test:
+      # Under the 15m threshold: only the warning tier is active, not critical.
+      - eval_time: 10m
+        alertname: SustainedInfraError
+        exp_alerts: []
+      # Past 15m: escalates to a page.
+      - eval_time: 16m
+        alertname: SustainedInfraError
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              type: domain_expiry
+              name: example.com
+              region: local
+            exp_annotations:
+              summary: "example.com blind for 15m+ (infrastructure error)"
+              description: "Check example.com (domain_expiry) has been unable to reach its data source or runtime for over 15 minutes, so the target's true state is unknown and check_healthy is frozen at its last value. Treat as a potential outage."
+
+  - name: SustainedInfraError does not fire on a brief infra blip
+    interval: 1m
+    input_series:
+      # Infra error for 8 min, then recovers — under the 15m threshold.
+      - series: 'technician_check_infra_error{type="bgp",name="prefix",region="local"}'
+        values: '1+0x7 0+0x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: SustainedInfraError
+        exp_alerts: []

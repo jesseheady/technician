@@ -16,6 +16,12 @@
 # `group` and `tags` are optional metadata used by check_filter (see
 # technician.yml) so one checks/ directory can serve many deployment targets.
 # A check matches a tag filter if it carries any of the requested tags.
+
+# `retry` is optional and defaults to OFF (count: 0) — a single failed run marks
+# the check down. The CheckFailing alert's 3m debounce absorbs a blip on fast
+# checks (30s–1min) but not on slow ones (5min+), where healthy=0 holds across
+# the whole interval. Give slow-cadence or critical checks a retry so one
+# transient failure doesn't page. See docs/alerting.md § Down-detection sensitivity.
 - name: example.com
   type: http
   group: Marketing
