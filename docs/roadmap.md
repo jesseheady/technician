@@ -284,6 +284,14 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Browser alert window matches browser cadence [#324](https://github.com/jesseheady/technician/issues/324)
+
+The Web Vitals alerts (`HighLCP`/`HighINP`/`HighCLS` and their `*Critical` variants) averaged over `[15m]` while browser checks run every 5–10 min, so the window held 1–3 samples and a single bad render paged for the length of the lookback. Widened to `[1h]` with `for: 15m` (≥6 samples at a 10-min cadence). Documented that the anti-flap window must span several check intervals, and that the Web Vitals alerts track the absolute Google CWV thresholds — `BudgetViolation` is the budget-relative signal. Covered by new `promtool test rules` cases.
+
+### WebSocket alerting coverage documented [#313](https://github.com/jesseheady/technician/issues/313)
+
+`docs/alerting.md` now lists WebSocket alongside SMTP/Traceroute/gRPC as check-health-only (no shipped threshold alerts), noting its `technician_ws_connect_seconds`/`technician_ws_message_seconds` timing metrics remain available for custom rules, dashboards, or budgets. Rules and docs now agree.
+
 ### Managed Playwright mode: browser as a sidecar [#66](https://github.com/jesseheady/technician/issues/66)
 
 `playwright.mode: managed` connects to a Playwright server over `server_url` instead of launching Chromium in the worker. This is Stage 3 in [Playwright scaling](playwright-scaling.md), and it settles how Technician provides a browser: the server is the **stock upstream Playwright image** driven by a command, the same way Prometheus and Grafana are in the base stack, so nothing here forks or patches Playwright.

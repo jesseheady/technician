@@ -1,10 +1,16 @@
 # ── Anti-flap strategy ───────────────────────────────────────────
 #
-# Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP)
-# use avg_over_time(...[15m]) to smooth transient spikes. A single
-# bad check cannot fire an alert — the 15-minute rolling average
-# must exceed the threshold, combined with a `for` duration that
-# requires the condition to hold across multiple evaluation cycles.
+# Timing-based alerts smooth transient spikes with avg_over_time so a
+# single bad check cannot fire an alert — the rolling average must
+# exceed the threshold, combined with a `for` duration that requires
+# the condition to hold across multiple evaluation cycles.
+#
+# The window must span several check intervals or the average smooths
+# nothing. HTTP/TCP/DNS/ICMP/UDP checks run every 1–5 min, so [15m]
+# holds enough points. Browser (Web Vitals) checks are heavy and run
+# every 5–10 min (see docs/deployment-sizing.md), so they use [1h] with
+# for:15m — a 15m window there would hold 1–3 samples and report one bad
+# render as a sustained condition (#324).
 #
 # Critical alerts additionally require >50% of checks (regions) to
 # exceed the threshold (aggregate), so a single flapping region
@@ -126,67 +132,67 @@ groups:
   - name: technician_web_vitals
     rules:
       - alert: HighLCP
-        expr: avg_over_time(technician_browser_lcp_ms[15m]) > 2500
-        for: 5m
+        expr: avg_over_time(technician_browser_lcp_ms[1h]) > 2500
+        for: 15m
         labels:
           severity: warning
         annotations:
           summary: "High LCP for {{ $labels.name }}"
-          description: "LCP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (15m avg, good ≤2500ms)."
+          description: "LCP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (1h avg, good ≤2500ms)."
 
       - alert: HighLCPCritical
         expr: |
-          count by (name) (avg_over_time(technician_browser_lcp_ms[15m]) > 4000)
-          / count by (name) (avg_over_time(technician_browser_lcp_ms[15m]))
+          count by (name) (avg_over_time(technician_browser_lcp_ms[1h]) > 4000)
+          / count by (name) (avg_over_time(technician_browser_lcp_ms[1h]))
           > 0.5
-        for: 5m
+        for: 15m
         labels:
           severity: critical
         annotations:
           summary: "LCP critical for {{ $labels.name }}"
-          description: "More than 50% of checks for {{ $labels.name }} have LCP above 4000ms (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have LCP above 4000ms (1h avg, Google 'poor' threshold)."
 
       - alert: HighINP
-        expr: avg_over_time(technician_browser_inp_ms[15m]) > 200
-        for: 5m
+        expr: avg_over_time(technician_browser_inp_ms[1h]) > 200
+        for: 15m
         labels:
           severity: warning
         annotations:
           summary: "High INP for {{ $labels.name }}"
-          description: "INP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (15m avg, good ≤200ms)."
+          description: "INP for {{ $labels.name }} is {{ $value | printf \"%.0f\" }}ms (1h avg, good ≤200ms)."
 
       - alert: HighINPCritical
         expr: |
-          count by (name) (avg_over_time(technician_browser_inp_ms[15m]) > 500)
-          / count by (name) (avg_over_time(technician_browser_inp_ms[15m]))
+          count by (name) (avg_over_time(technician_browser_inp_ms[1h]) > 500)
+          / count by (name) (avg_over_time(technician_browser_inp_ms[1h]))
           > 0.5
-        for: 5m
+        for: 15m
         labels:
           severity: critical
         annotations:
           summary: "INP critical for {{ $labels.name }}"
-          description: "More than 50% of checks for {{ $labels.name }} have INP above 500ms (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have INP above 500ms (1h avg, Google 'poor' threshold)."
 
       - alert: HighCLS
-        expr: avg_over_time(technician_browser_cls[15m]) > 0.1
-        for: 5m
+        expr: avg_over_time(technician_browser_cls[1h]) > 0.1
+        for: 15m
         labels:
           severity: warning
         annotations:
           summary: "High CLS for {{ $labels.name }}"
-          description: "CLS for {{ $labels.name }} is {{ $value | printf \"%.3f\" }} (15m avg, good ≤0.1)."
+          description: "CLS for {{ $labels.name }} is {{ $value | printf \"%.3f\" }} (1h avg, good ≤0.1)."
 
       - alert: HighCLSCritical
         expr: |
-          count by (name) (avg_over_time(technician_browser_cls[15m]) > 0.25)
-          / count by (name) (avg_over_time(technician_browser_cls[15m]))
+          count by (name) (avg_over_time(technician_browser_cls[1h]) > 0.25)
+          / count by (name) (avg_over_time(technician_browser_cls[1h]))
           > 0.5
-        for: 5m
+        for: 15m
         labels:
           severity: critical
         annotations:
           summary: "CLS critical for {{ $labels.name }}"
-          description: "More than 50% of checks for {{ $labels.name }} have CLS above 0.25 (15m avg, Google 'poor' threshold)."
+          description: "More than 50% of checks for {{ $labels.name }} have CLS above 0.25 (1h avg, Google 'poor' threshold)."
 
   # ── HTTP timing ──────────────────────────────────────────────────
   - name: technician_http_timing
