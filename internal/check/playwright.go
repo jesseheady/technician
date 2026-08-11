@@ -14,20 +14,26 @@ import (
 )
 
 type PlaywrightChecker struct {
-	RunnerPath  string
+	RunnerPath string
+	// ServerURL, when set, makes the runner connect to a remote Playwright
+	// server instead of launching a local browser.
+	ServerURL   string
 	browserSem  chan struct{} // limits concurrent Chromium instances
 	maxBrowsers int
 }
 
 // NewPlaywrightChecker creates a Playwright checker with a concurrency limit.
-// maxBrowsers controls how many Chromium instances can run simultaneously.
-// If maxBrowsers <= 0, it defaults to 2.
-func NewPlaywrightChecker(runnerPath string, maxBrowsers int) *PlaywrightChecker {
+// maxBrowsers controls how many browsers can run simultaneously; it bounds
+// local Chromium processes and, in managed mode, concurrent sessions against
+// the remote server. If maxBrowsers <= 0, it defaults to 2. An empty serverURL
+// means launch locally.
+func NewPlaywrightChecker(runnerPath string, maxBrowsers int, serverURL string) *PlaywrightChecker {
 	if maxBrowsers <= 0 {
 		maxBrowsers = 2
 	}
 	return &PlaywrightChecker{
 		RunnerPath:  runnerPath,
+		ServerURL:   serverURL,
 		browserSem:  make(chan struct{}, maxBrowsers),
 		maxBrowsers: maxBrowsers,
 	}
@@ -113,6 +119,9 @@ func (p *PlaywrightChecker) Run(ctx context.Context, cfg *config.CheckConfig, or
 	}
 	if pcfg.Device != "" {
 		runnerConfig["device"] = pcfg.Device
+	}
+	if p.ServerURL != "" {
+		runnerConfig["server_url"] = p.ServerURL
 	}
 
 	configJSON, err := json.Marshal(runnerConfig)

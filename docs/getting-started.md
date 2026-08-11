@@ -174,6 +174,29 @@ Checks are defined in YAML files under the checks directory (see `examples/check
 
 All check types support optional `retry` (count, backoff, delay) and `degraded_after` (duration threshold for degraded state). All YAML files support `${ENV_VAR}` expansion.
 
+**Browser checks**: the `playwright` block in `technician.yml` chooses where the browser runs.
+
+```yaml
+playwright:
+  mode: local        # launch Chromium in this container (default)
+  max_browsers: 2    # concurrent browsers; queued beyond this
+```
+
+```yaml
+playwright:
+  mode: managed                        # connect to a Playwright server instead
+  server_url: ws://playwright:3000/    # required when mode is managed
+  max_browsers: 2
+```
+
+Managed mode runs the browser in a stock upstream Playwright image alongside the worker, so browser patching follows its own cadence and running a different engine is an image-tag change. Start it with the overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
+```
+
+The sidecar's image tag and the playwright version the binary embeds must match, or the client and server fail their handshake. An invalid mode, or `managed` without a `server_url`, is rejected at startup. See [Playwright scaling](playwright-scaling.md).
+
 **Logging**: set `logging.format` (`json` for Loki-native, `text` for local dev) and `logging.level` (`debug`/`info`/`warn`/`error`) in `technician.yml`; the `--log-level` flag overrides the configured level.
 
 On startup every check runs once immediately (after a brief per-origin stagger) before settling into its schedule, so the status page, metrics, and alert rules have data within seconds of boot rather than waiting for the first scheduled tick.

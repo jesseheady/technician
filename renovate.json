@@ -25,6 +25,11 @@
       "groupName": "go toolchain"
     },
     {
+      "description": "Update the playwright npm client and the playwright sidecar image together. In managed mode they are two ends of one connection: a mismatch fails the handshake and breaks every browser check, so they must never be bumped separately",
+      "matchDepNames": ["playwright", "mcr.microsoft.com/playwright"],
+      "groupName": "playwright"
+    },
+    {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
       "automerge": true

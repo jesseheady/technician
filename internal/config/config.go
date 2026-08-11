@@ -112,8 +112,27 @@ func Load(path string) (*Config, error) {
 	if err := validateWebhooks(cfg.Webhooks); err != nil {
 		return nil, err
 	}
+	if err := validatePlaywright(cfg.Playwright); err != nil {
+		return nil, err
+	}
 
 	return &cfg, nil
+}
+
+// validatePlaywright rejects a managed mode with nowhere to connect. Caught at
+// load time rather than as a per-check infra error on every browser run.
+func validatePlaywright(pw PlaywrightConfig) error {
+	switch pw.Mode {
+	case "local":
+		return nil
+	case "managed":
+		if pw.ServerURL == "" {
+			return fmt.Errorf("playwright.server_url is required when playwright.mode is \"managed\"")
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid playwright.mode %q (want \"local\" or \"managed\")", pw.Mode)
+	}
 }
 
 var validWebhookTypes = map[string]bool{"discord": true, "slack": true, "generic": true}

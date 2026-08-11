@@ -1,0 +1,38 @@
+# Playwright sidecar overlay: run browser checks against a stock upstream
+# Playwright server instead of launching Chromium inside the technician
+# container.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
+#
+# Then set the following in your technician.yml:
+#
+#   playwright:
+#     mode: managed
+#     server_url: ws://playwright:3000/
+#
+# The image tag below and the playwright version embedded in the binary
+# (internal/playwright/scripts/package.json) must agree. A client and server on
+# different versions fail the handshake, and the mismatch surfaces as a setup
+# stage infra error on every browser check rather than a clear version message.
+services:
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.62.1-noble
+    # Unmodified upstream image driven by a command, the same way Prometheus and
+    # Grafana are configured in the base stack. Nothing here forks Playwright.
+    command: npx -y playwright@1.62.1 run-server --port 3000 --host 0.0.0.0
+    init: true
+    expose:
+      - "3000"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Browsers moved out of the technician container, so the ceiling moves
+          # with them. Roughly 300 MB per concurrent Chromium plus the server.
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  technician:
+    depends_on:
+      - playwright

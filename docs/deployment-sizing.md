@@ -43,6 +43,8 @@ Each Playwright check launches a separate Chromium instance via Node.js:
 
 Chromium instances are not pooled — each check invocation launches and closes a browser. The `max_browsers` setting (default 2) caps concurrent instances via a semaphore. Checks queue for a slot and fail with an infra error if their timeout expires while waiting. The container **must** run an init process (e.g. `init: true` in Compose) to reap exited Chromium children — without it, zombie processes accumulate and leak kernel memory. See [Playwright scaling](playwright-scaling.md) for detailed resource projections and dedicated runner architecture.
 
+The figures above assume `mode: local`, where Chromium runs inside the worker. In `mode: managed` the browser memory moves to the Playwright sidecar and the worker's own footprint drops to roughly the Go process plus the Node client. Budget the browser allowance against the sidecar instead, and note that the init-process requirement moves with it: Chromium children belong to the sidecar's PID 1, so the worker no longer needs `init: true` on its own account.
+
 ### TLS check overhead
 
 The TLS check is minimal: a single outbound TCP connection + TLS handshake per check, with no subprocess or external dependency. Memory overhead is negligible (~1 KB per check run). Resource usage is comparable to a TCP check with TLS enabled.
