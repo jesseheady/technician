@@ -36,3 +36,13 @@ services:
   technician:
     depends_on:
       - playwright
+    # Chromium moved to the sidecar, so the worker's browser allowance moves with
+    # it. What is left is the Go process plus a Node client holding a WebSocket.
+    # Values from #133's split-topology table.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          memory: 128M

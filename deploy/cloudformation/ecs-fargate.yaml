@@ -23,7 +23,9 @@ Metadata:
       - Label: {default: Networking}
         Parameters: [VpcId, SubnetIds, AssignPublicIp]
       - Label: {default: Sizing}
-        Parameters: [TaskCpu, TaskMemory, EnablePlaywright, DesiredCount]
+        Parameters: [TaskCpu, TaskMemory, DesiredCount]
+      - Label: {default: Browser checks}
+        Parameters: [EnablePlaywright, PlaywrightMode, PlaywrightImage, PlaywrightVersion]
       - Label: {default: Metrics delivery}
         Parameters: [MetricsMode, AmpWorkspaceArn, AmpRegion]
 
@@ -87,7 +89,35 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: >-
       Sets initProcessEnabled so exited Chromium children are reaped. Without it,
-      zombie processes accumulate and leak kernel memory.
+      zombie processes accumulate and leak kernel memory. Not needed when
+      PlaywrightMode is managed: those children belong to the sidecar's PID 1.
+
+  PlaywrightMode:
+    Type: String
+    Default: local
+    AllowedValues: [local, managed]
+    Description: >-
+      local runs Chromium inside the worker container. managed adds a stock
+      upstream Playwright sidecar in the same task; set playwright.mode to
+      "managed" and playwright.server_url to ws://localhost:3000/ in your config,
+      since awsvpc tasks share a network namespace.
+
+  PlaywrightImage:
+    Type: String
+    Default: mcr.microsoft.com/playwright:v1.62.1-noble
+    Description: >-
+      Sidecar image, used only when PlaywrightMode is managed. The tag must match
+      the playwright version the worker image embeds, or the client and server
+      fail their handshake on every browser check.
+
+  PlaywrightVersion:
+    Type: String
+    Default: 1.62.1
+    AllowedPattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+    Description: >-
+      Version the sidecar serves. Keep in lockstep with PlaywrightImage's tag and
+      with internal/playwright/scripts/package.json; all three are two ends of one
+      connection and a mismatch is rejected with 428 Precondition Required.
 
   DesiredCount:
     Type: Number
@@ -131,6 +161,11 @@ Conditions:
   UseAdot: !Equals [!Ref MetricsMode, AdotSidecarToAmp]
   PlaywrightOn: !Equals [!Ref EnablePlaywright, "true"]
   AmpRegionGiven: !Not [!Equals [!Ref AmpRegion, ""]]
+  UsePlaywrightSidecar: !Equals [!Ref PlaywrightMode, managed]
+  # Only reap in-container children when the browser actually runs here.
+  ReapBrowserChildren: !And
+    - !Condition PlaywrightOn
+    - !Not [!Condition UsePlaywrightSidecar]
 
 Resources:
   Cluster:
@@ -282,7 +317,7 @@ Resources:
           # task headroom rather than being OOM-killed at a fixed line.
           MemoryReservation: 512
           LinuxParameters:
-            InitProcessEnabled: !If [PlaywrightOn, true, false]
+            InitProcessEnabled: !If [ReapBrowserChildren, true, false]
           PortMappings:
             - ContainerPort: 9590
               Protocol: tcp
@@ -306,6 +341,39 @@ Resources:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: technician
+
+        # Stock upstream Playwright image driven by a command, not a fork. Same
+        # task, so the worker reaches it on localhost under awsvpc and nothing is
+        # exposed outside the task. Not Essential: a browser server dying should
+        # fail browser checks, not kill a worker still running every other type.
+        - !If
+          - UsePlaywrightSidecar
+          - Name: playwright
+            Image: !Ref PlaywrightImage
+            Essential: false
+            # Takes over the browser allowance the worker no longer needs.
+            MemoryReservation: 512
+            LinuxParameters:
+              InitProcessEnabled: true
+            Command:
+              - npx
+              - "-y"
+              - !Sub playwright@${PlaywrightVersion}
+              - run-server
+              - --port
+              - "3000"
+              - --host
+              - 0.0.0.0
+            PortMappings:
+              - ContainerPort: 3000
+                Protocol: tcp
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: !Ref LogGroup
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: playwright
+          - !Ref AWS::NoValue
 
         - !If
           - UseAdot
