@@ -11,6 +11,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 | `internal/check/` | Check implementations: HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, WebSocket, Playwright |
 | `internal/scheduler/` | Cron-expression scheduling (gronx + stdlib timer loop) with per-origin stagger and a once-on-startup run |
 | `internal/metrics/` | Prometheus gauges, OTLP trace + metric export, HAR parsing |
+| `internal/remotewrite/` | Prometheus remote-write push client (protowire + snappy, optional SigV4) |
 | `internal/artifact/` | Artifact backends: local, S3, stdout, noop |
 | `internal/budget/` | YAML budgets, threshold evaluation, reporters (text, JSON, GHA) |
 | `internal/exporter/` | Blackbox-exporter–compatible `/probe` handler |
@@ -35,7 +36,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality; otel: endpoint, metrics — the latter opt-in to also push `technician_*` via OTLP), `artifacts`, `playwright` (mode: local/managed, server_url — required for managed, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)), `logging` (format: json/text, level: debug/info/warn/error).
+- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality, remote_write_* — push `technician_*` to a Prometheus-compatible endpoint on a timer, optional SigV4 for AMP; otel: endpoint, metrics — opt-in to also push `technician_*` via OTLP), `artifacts`, `playwright` (mode: local/managed, server_url — required for managed, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)), `logging` (format: json/text, level: debug/info/warn/error).
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex), `follow_redirects`, `ip_version`, `min_tls`/`max_tls`, `basic_auth`/`bearer_token` (mutually exclusive), and `proxy`. TCP checks support `min_tls`/`max_tls` (with `tls: true`). SMTP checks support `start_tls`, `skip_tls`, and `username`/`password` auth (auth requires `start_tls`). DNS checks support SOA alongside A/AAAA/MX/TXT/CNAME/NS/SRV.
   - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.

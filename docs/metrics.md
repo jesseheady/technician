@@ -17,6 +17,14 @@ Prometheus scrape. It bridges this same registry, so the OTLP stream stays in
 parity automatically; the `go_*`/`process_*` self-health collectors are exported
 on `/metrics` only. Labels become OTLP attributes unchanged.
 
+**Remote write.** Setting `metrics.prometheus.remote_write_url` pushes the same
+`technician_*` metrics to a Prometheus-compatible endpoint (AMP, Grafana Cloud,
+Mimir, Thanos) on a timer (`remote_write_interval`, default 15s) — for Lambda,
+Workers, or locked-down VPCs that Prometheus can't scrape. AMP auth is AWS SigV4
+(`remote_write_sigv4` + `remote_write_region`); other backends use
+`remote_write_headers`. Delivery is best-effort: since these are gauges, a failed
+push is retried by the next tick rather than queued.
+
 ## Universal
 
 Emitted for every check type. SMTP, traceroute, and gRPC checks emit only these.

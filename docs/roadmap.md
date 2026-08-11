@@ -29,17 +29,6 @@ Designed in [proposals/cloudflare-workers.md](proposals/cloudflare-workers.md). 
 
 ## Metrics and persistence
 
-### Prometheus remote-write [#19](https://github.com/jesseheady/technician/issues/19)
-
-Add native Prometheus remote-write support to Technician, configured via `metrics.prometheus.remote_write_url` in `technician.yml`. This lets workers push metrics directly to AWS Managed Prometheus (AMP), Grafana Cloud, Thanos, or Mimir without needing a sidecar agent.
-
-**What's needed:**
-
-- New config field: `metrics.prometheus.remote_write_url` (and optional `remote_write_sigv4` for AMP auth).
-- Remote-write client using the Prometheus remote-write protocol (protobuf over HTTP).
-- Push after each check result, or batch on a timer (e.g. every 15s).
-- SigV4 signing for AMP endpoints (AWS SDK is already a dependency).
-
 ### Status page historical data
 
 The built-in status page shows recent results from an in-memory ring buffer (90 entries per check, ~45 min at 30s intervals), persisted to a JSON file on disk so history survives restarts and container rebuilds. For longer historical views (30-day uptime bars, etc.), two additional paths:
@@ -279,6 +268,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### Prometheus remote-write [#19](https://github.com/jesseheady/technician/issues/19)
+
+`metrics.prometheus.remote_write_url` pushes the `technician_*` metrics to a Prometheus-compatible endpoint (AMP, Grafana Cloud, Mimir, Thanos) on a timer, for Lambda/Workers/locked-down VPCs that Prometheus can't scrape. The remote-write 1.0 protobuf is encoded directly with `google.golang.org/protobuf/encoding/protowire` (no `prometheus/prometheus` client) plus `golang/snappy`; AMP auth is AWS SigV4 (`remote_write_sigv4` + `remote_write_region`), other backends use `remote_write_headers`. Delivery is best-effort — the metrics are gauges, so a failed push is superseded by the next tick rather than queued, which is why there's no WAL.
 
 ### OTLP metric export [#33](https://github.com/jesseheady/technician/issues/33)
 
