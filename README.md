@@ -20,9 +20,10 @@ A single Go binary that checks your infrastructure over the network. Fourteen ch
 ## What it does
 
 - **Scheduled checks** — HTTP (with full httptrace timing: DNS, TLS, connect, TTFB, transfer), SMTP (mail server connectivity), traceroute (mtr), and browser (Playwright with Core Web Vitals and HAR recording).
-- **Prometheus metrics** — uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations, exposed on `/metrics`. See [docs/metrics.md](docs/metrics.md) for the full reference.
+- **Prometheus metrics** — uptime, latency breakdowns, Web Vitals, HAR resource analysis, and budget violations, exposed on `/metrics` (and pushable via OTLP with `metrics.otel.metrics`). See [docs/metrics.md](docs/metrics.md) for the full reference.
 - **Blackbox-compatible `/probe` endpoint** — Accepts `?target=&module=` queries so Prometheus can scrape ad-hoc probe targets via relabeling, the same contract as [prometheus/blackbox_exporter](https://github.com/prometheus/blackbox_exporter).
 - **OTLP traces** — One span per check run with timing attributes and HAR entries as span events.
+- **Structured logs** — `slog` output (`logging.format: json` for Loki, else text), one `Check result` line per run carrying `trace_id`/`span_id` when tracing is on. Verbosity via `logging.level` or `--log-level`.
 - **Performance budgets** — Define thresholds (duration, TTFB, LCP, INP, CLS, etc.) in YAML. The `validate` command runs all checks, evaluates budgets, and exits 0/1 for CI. Reporters: text, JSON, GitHub Actions annotations.
 - **Grafana dashboards** — Five pre-built dashboards (uptime overview, performance vitals, HTTP timing, HAR analysis, budget violations) with Prometheus provisioning configs.
 
@@ -41,11 +42,13 @@ graph LR
 
     checkers --> metrics["/metrics"]
     checkers --> traces["OTLP traces"]
+    checkers --> logs["structured logs · stdout"]
     checkers --> artifacts["Artifacts · S3"]
     checkers --> check_ep["/probe · blackbox compat"]
 
     metrics --> prom[Prometheus] --> grafana[Grafana]
     traces --> jaeger[Jaeger / etc.]
+    logs --> loki[Loki / etc.]
 ```
 
 ## Install
@@ -102,7 +105,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID` 
 
 ## Configuration
 
-- **Main config** — `technician.yml`: service name, origins (id, city, country, platform, labels), metrics listen address, artifact storage, Playwright mode.
+- **Main config** — `technician.yml`: service name, origins (id, city, country, platform, labels), metrics listen address, artifact storage, Playwright mode, and logging (`format`, `level`).
 - **Checks** — `checks.yml`: a single YAML list of all check definitions with name, type, target, schedule (cron), timeout, and retry policy. Supports all 14 check types (HTTP, TCP, UDP, DNS, ICMP, gRPC, NTP, TLS, SMTP, traceroute, BGP, domain expiry, WebSocket, Playwright). Alternatively, split into multiple files under a `checks/` directory — Technician merges them automatically.
 - **Budgets** — Optional `budgets.yml` with per-check thresholds for `validate`.
 - **Stability** — All checks support `retry` (count, backoff, delay) to absorb transient failures. Native webhooks require 3 consecutive failures before firing `check_down`. See [alerting](docs/alerting.md) for details.

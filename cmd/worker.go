@@ -75,13 +75,21 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("initializing OTLP tracing: %w", err)
 	}
+	// Metric export is additionally gated on metrics.otel.metrics.
+	shutdownOTELMetrics, err := metrics.InitOTELMetrics(ctx, &cfg.Metrics.OTEL, cfg.Service)
+	if err != nil {
+		return fmt.Errorf("initializing OTLP metrics: %w", err)
+	}
 	defer func() {
 		// The run context is cancelled by the time this fires, so give the
-		// batch exporter its own deadline to flush pending spans.
+		// exporters their own deadline to flush pending spans and metrics.
 		flushCtx, flushCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer flushCancel()
 		if err := shutdownOTEL(flushCtx); err != nil {
-			slog.Warn("OTLP shutdown failed", "error", err)
+			slog.Warn("OTLP trace shutdown failed", "error", err)
+		}
+		if err := shutdownOTELMetrics(flushCtx); err != nil {
+			slog.Warn("OTLP metric shutdown failed", "error", err)
 		}
 	}()
 
