@@ -1,9 +1,15 @@
 package metrics
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/jesseheady/technician/internal/config"
 )
 
 func TestParseOTLPEndpoint(t *testing.T) {
@@ -55,5 +61,66 @@ func TestPrefixGathererKeepsOnlyTechnicianFamilies(t *testing.T) {
 	}
 	if got := mfs[0].GetName(); got != "technician_check_healthy" {
 		t.Errorf("kept %q, want technician_check_healthy", got)
+	}
+}
+
+// TestInitOTELMetricsExportsToCollector is the end-to-end path: with metrics
+// enabled, a technician_* sample must reach the collector's /v1/metrics on
+// shutdown (which flushes the periodic reader).
+func TestInitOTELMetricsExportsToCollector(t *testing.T) {
+	received := make(chan string, 4)
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+
+	g := prometheus.NewGauge(prometheus.GaugeOpts{Name: "technician_test_export", Help: "test"})
+	prometheus.MustRegister(g)
+	t.Cleanup(func() { prometheus.Unregister(g) })
+	g.Set(1)
+
+	shutdown, err := InitOTELMetrics(context.Background(),
+		&config.OTELConfig{Endpoint: collector.URL, Metrics: true}, "test-service")
+	if err != nil {
+		t.Fatalf("InitOTELMetrics: %v", err)
+	}
+
+	// Shutdown collects and exports a final time.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := shutdown(ctx); err != nil {
+		t.Fatalf("shutdown/flush: %v", err)
+	}
+
+	select {
+	case path := <-received:
+		if path != "/v1/metrics" {
+			t.Errorf("expected metrics posted to /v1/metrics, got %q", path)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("collector received no metrics — export never reached the endpoint")
+	}
+}
+
+// TestInitOTELMetricsDisabled covers the no-op paths: no endpoint, and an
+// endpoint with metrics off (traces may run, metrics must not).
+func TestInitOTELMetricsDisabled(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		cfg  config.OTELConfig
+	}{
+		{"no endpoint", config.OTELConfig{}},
+		{"endpoint set but metrics off", config.OTELConfig{Endpoint: "http://127.0.0.1:4318", Metrics: false}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			shutdown, err := InitOTELMetrics(context.Background(), &tt.cfg, "svc")
+			if err != nil {
+				t.Fatalf("InitOTELMetrics: %v", err)
+			}
+			if err := shutdown(context.Background()); err != nil {
+				t.Fatalf("noop shutdown: %v", err)
+			}
+		})
 	}
 }
