@@ -19,8 +19,10 @@ GOLICENSES_VERSION="${GOLICENSES_VERSION:-v1.6.0}"
 # (Re)install when missing or when the binary's build-Go differs from the active
 # toolchain: go-licenses resolves stdlib module info with build-time logic, so a
 # stale binary fails on every std package ("does not have module info") after a
-# Go upgrade.
-unset GOOS GOARCH
+# Go upgrade. The install must be host-native (GOOS/GOARCH cleared for that one
+# command) so the tool actually runs, but GOOS/GOARCH otherwise flow through to
+# `go-licenses save`/`report` below, which honor them — a cross-compile's notice
+# must reflect the target's dependency set, not the host's.
 want="$(go env GOVERSION)"
 have=""
 if command -v go-licenses >/dev/null 2>&1; then
@@ -28,7 +30,7 @@ if command -v go-licenses >/dev/null 2>&1; then
 fi
 if [ -z "${have:-}" ] || [ "$have" != "$want" ]; then
   echo "installing go-licenses ${GOLICENSES_VERSION} (built for ${want})..." >&2
-  go install "github.com/google/go-licenses@${GOLICENSES_VERSION}"
+  env -u GOOS -u GOARCH go install "github.com/google/go-licenses@${GOLICENSES_VERSION}"
   PATH="$PATH:$(go env GOPATH)/bin"
 fi
 

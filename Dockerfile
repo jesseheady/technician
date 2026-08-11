@@ -11,7 +11,7 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /technician .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /technician .
 
 # Generate the third-party license notice from the build's own module cache,
 # so it always matches the binary being shipped (no committed bundle to drift).

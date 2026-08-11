@@ -16,6 +16,7 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       playwright: ${{ steps.filter.outputs.playwright }}
+      docker: ${{ steps.filter.outputs.docker }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -31,12 +32,14 @@ jobs:
           if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "playwright=true" >> "$GITHUB_OUTPUT"
+            echo "docker=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if ! changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null); then
             echo "Could not diff $BASE_SHA..$HEAD_SHA; running the full suite to be safe."
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "playwright=true" >> "$GITHUB_OUTPUT"
+            echo "docker=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # code: any change outside docs/config -> build / test / lint / validate
@@ -50,6 +53,13 @@ jobs:
             echo "playwright=true" >> "$GITHUB_OUTPUT"
           else
             echo "playwright=false" >> "$GITHUB_OUTPUT"
+          fi
+          # docker: image inputs -> build the container image on PRs too, so a
+          # broken Dockerfile fails before merge instead of only on main push.
+          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|internal/playwright/scripts/)'; then
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docker=false" >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -65,7 +75,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Build binary
-        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o technician .
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o technician .
 
       - name: Upload binary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -194,7 +204,11 @@ jobs:
     name: Docker build
     runs-on: ubuntu-latest
     needs: changes
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    # On main pushes when code changed, and on any PR that touches image inputs
+    # so a broken Dockerfile is caught before merge (feeds the CI Passed gate).
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true')
+      || needs.changes.outputs.docker == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -217,7 +231,7 @@ jobs:
     name: CI Passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [changes, build, test, lint, validate, validate-playwright]
+    needs: [changes, build, test, lint, validate, validate-playwright, docker]
     steps:
       - name: Check results
         env:
