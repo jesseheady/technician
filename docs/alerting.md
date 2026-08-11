@@ -156,7 +156,7 @@ Alert rules are defined in `prometheus/rules.yml`. Rules are organized into warn
 
 #### Anti-flap treatment
 
-Timing-based alerts (Web Vitals, HTTP, TCP, DNS, ICMP RTT, UDP) use `avg_over_time(...[15m])` — a 15-minute rolling average that smooths transient spikes. A single bad check cannot fire an alert; the average must exceed the threshold and the `for` duration must elapse across multiple evaluation cycles.
+Timing-based alerts smooth transient spikes with `avg_over_time`, so a single bad check cannot fire one — the rolling average must exceed the threshold and the `for` duration must elapse across multiple evaluation cycles. The window scales with check cadence: HTTP, TCP, DNS, ICMP RTT, and UDP checks run every 1–5 min and use `[15m]`; browser (Web Vitals) checks are heavier and run every 5–10 min, so they use `[1h]` with `for: 15m`. A window narrower than a few check intervals smooths nothing and reports a single bad sample as a sustained condition.
 
 Critical-severity performance alerts additionally require **>50% of checks** (regions) to exceed the critical threshold. A single flapping region cannot page on-call. In single-region setups this degrades gracefully to per-check behavior.
 
@@ -165,7 +165,7 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | Category | Warning | Critical |
 |----------|---------|----------|
 | Check health (all 14 types) | Single check failing 3m; >25% error rate 5m | >50% error rate 10m |
-| Web Vitals (LCP/INP/CLS) | Google "needs improvement" (15m avg) | Google "poor" threshold, >50% of checks (15m avg) |
+| Web Vitals (LCP/INP/CLS) | Google "needs improvement" (1h avg) | Google "poor" threshold, >50% of checks (1h avg) |
 | HTTP timing (TTFB/DNS/TLS) | Degraded (15m avg) | Functionally broken, >50% of checks (15m avg) |
 | TCP (connect/TLS) | Connect >1s, TLS >1s (15m avg) | Connect >5s / TLS >3s, >50% of checks (15m avg) |
 | DNS (check) | Query >500ms (15m avg) | Query >2s, >50% of checks (15m avg) |
@@ -175,10 +175,12 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | TLS cert expiry | <30 days | ≤7 days |
 | Domain expiry | <60 days | ≤7 days |
 | BGP / TLS invalid / domain gone | — | Immediate (binary failure) |
-| SMTP / Traceroute / gRPC | CheckFailing (warn) | HighErrorRate (crit) |
+| SMTP / Traceroute / gRPC / WebSocket | CheckFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
-SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_healthy`, `technician_check_duration_seconds`). They receive full check health coverage (CheckFailing, HighErrorRate, CheckInfraError) but do not have check-specific threshold alerts.
+The Web Vitals alerts use the absolute Google Core Web Vitals thresholds (good / needs-improvement / poor), not your per-check budgets — they fire on the same numbers in every deployment. For alerting relative to a check's *own* configured budget, use `BudgetViolation`, which fires whenever a check exceeds any threshold in its `budgets.yml`.
+
+SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_healthy`, `technician_check_duration_seconds`); WebSocket additionally emits `technician_ws_connect_seconds` and `technician_ws_message_seconds`. None of them ship check-specific threshold alerts — all four get full check-health coverage (CheckFailing, HighErrorRate, CheckInfraError), and WebSocket's timing metrics are available for your own alert rules, dashboards, or a `budgets.yml` entry.
 
 Inhibition rules prevent noise: critical alerts automatically suppress their warning counterparts for the same check, aggregate error rate warnings suppress individual check failure warnings, and invalid/gone states suppress expiry alerts (e.g. `TLSCertInvalid` suppresses `TLSCertExpiringSoon` and `TLSCertExpiryCritical`, `DomainNotRegistered` suppresses both domain expiry tiers).
 
