@@ -58,10 +58,20 @@ config:
 
 ## Browser (Playwright) checks
 
-Set `playwright.enabled=true` to turn on `shareProcessNamespace` (so PID 1
-reaps exited Chromium children) and apply the heavier resource profile. See
-`docs/playwright-scaling.md`. A dedicated browser-worker topology is tracked in
-[#133](https://github.com/jesseheady/technician/issues/133).
+Set `playwright.enabled=true` to apply the heavier resource profile.
+
+Two topologies:
+
+- **In-worker (default)** — Chromium runs in the technician container.
+  `shareProcessNamespace` is set so PID 1 reaps exited Chromium children.
+- **Sidecar** — set `playwright.sidecar.enabled=true` to add a stock upstream
+  Playwright server to the pod, and point your config at it with
+  `playwright.mode: managed` / `server_url: ws://localhost:3000/`.
+  `shareProcessNamespace` is dropped automatically, since those children belong
+  to the sidecar's PID 1.
+
+The sidecar image tag must match the playwright version the worker image embeds
+or the connection is rejected. See `docs/playwright-scaling.md`.
 
 ## Scraping
 

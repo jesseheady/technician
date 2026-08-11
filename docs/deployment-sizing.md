@@ -469,7 +469,7 @@ Everything on one host — good for a single VPS or self-contained monitoring in
 | RAM | 1 GB (no Playwright) | 2 GB (with Playwright) |
 | Disk | 5 GB | 10 GB (90d Prometheus retention + Grafana + artifacts) |
 
-A VPS in the $4–12/mo range handles this comfortably without Playwright. Grafana is the heaviest image (~1.0 GB); Technician is the heaviest process (~500 MB RSS with Playwright idle). If you use hosted Grafana (Grafana Cloud, etc.), drop it from the stack and save ~1 GB of image + ~215 MB of RAM.
+A VPS in the $4–12/mo range handles this comfortably without browser checks. The playwright image is the heaviest at ~2.8 GB, and its container is the heaviest process (~300 MB RSS idle, more per concurrent Chromium); Grafana is next at ~1.0 GB. Dropping the playwright service when you run no browser checks saves the most of any single change. If you use hosted Grafana (Grafana Cloud, etc.), drop it too and save ~1 GB of image + ~215 MB of RAM.
 
 #### Per-container memory budget (Docker Compose)
 
@@ -477,14 +477,17 @@ The default `docker-compose.yml` ships with `deploy.resources` set on each servi
 
 | Container | Reservation | Limit | Why |
 |---|---|---|---|
-| technician | 512 MB | 1 GB | Go process (~18 MB) + up to 2 concurrent Chromium (~300 MB each); peak ~505 MB observed under three concurrent browser checks |
+| technician | 128 MB | 512 MB | ~11–20 MB idle, plus ~55 MB per concurrent check for its Node client; the limit must cover `max_browsers` of those, so raise it if you raise `max_browsers` |
+| playwright | 512 MB | 1 GB | ~257 MB idle; measured ~564 MB with four concurrent browsers on a trivial page. Heavier pages cost considerably more, so treat the per-browser figure as a floor |
 | prometheus | 256 MB | 512 MB | ~145 MB observed at 90-day retention; headroom for query bursts |
 | grafana | 768 MB | 1 GB | p50 ~560 MB / p90 ~712 MB observed during dashboard activity; reservation covers steady state, limit absorbs transient peaks |
 | alertmanager | 64 MB | 128 MB | ~49 MB observed |
 
-Sum: ~1.6 GB reserved, ~2.6 GB ceiling. Fits inside the 2 GB recommended host RAM under normal load, with the limits absorbing transient spikes (Chromium launches, Grafana dashboard renders, Prometheus query fan-out) before the OOM killer would fire.
+Sum: ~1.7 GB reserved, ~3.2 GB ceiling. The browser allowance moved from technician to playwright rather than being added, so reserved memory is close to what the single-container stack used. Fits the 2 GB recommended host RAM under normal load, with limits absorbing transient spikes before the OOM killer fires.
 
-To run with tighter host RAM (e.g. 1 GB box, no Playwright), drop the technician limit to 256 MB and disable browser checks in your config — the reservations on the other services already total ~1.1 GB.
+Running `playwright.mode: local` instead puts Chromium back in the worker: raise technician to 512 MB / 1 GB and drop the playwright service.
+
+To run with tighter host RAM (e.g. 1 GB box, no browser checks), drop the playwright service entirely — the remaining reservations total ~1.2 GB.
 
 ### Full spread, multi-region
 

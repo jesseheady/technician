@@ -201,11 +201,9 @@ playwright:
 
 In `managed` mode the runner calls `chromium.connect(server_url)` instead of `chromium.launch()`. Everything downstream (device emulation, network throttling, HAR capture, Web Vitals) is unchanged, since it all operates on the context and page rather than on how the browser started. `max_browsers` still applies locally, bounding how many concurrent sessions this worker opens against the server.
 
-The server is the **stock upstream Playwright image**, driven by a command the same way Prometheus and Grafana are in the base stack. Nothing forks or patches Playwright, and the technician image no longer has to own a browser. Run it with the overlay:
+The server is the **stock upstream Playwright image**, driven by a command the same way Prometheus and Grafana are, and it ships as a `playwright` service in `docker-compose.yml`. Nothing forks or patches Playwright.
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.playwright.yml up -d
-```
+Idle cost is memory rather than CPU: `run-server` launches Chromium per connection and tears it down on disconnect, so an idle server measures ~300 MB at 0% CPU with no browser process running.
 
 **Version pinning is required, not optional.** The sidecar image tag and the playwright version embedded in the binary (`internal/playwright/scripts/package.json`) must agree, and the npm dependency is pinned exactly rather than to a caret range for that reason. A range lets `npm ci` resolve a client newer than the sidecar, and Playwright rejects the connection outright:
 

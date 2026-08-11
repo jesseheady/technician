@@ -18,13 +18,21 @@ services:
     environment:
       - ORIGIN_ID=local
       - GOMAXPROCS=2
+      # The stack ships a playwright service, so use it. The example config
+      # defaults to local, which is what a bare binary needs.
+      - PLAYWRIGHT_MODE=managed
+      - PLAYWRIGHT_SERVER_URL=ws://playwright:3000/
     deploy:
       resources:
+        # Browsers run in the playwright service, but each concurrent check still
+        # holds a Node client here (~55 MB measured). The limit has to cover
+        # max_browsers of those, not just the ~20 MB Go process. Raise to 1G/512M
+        # if you switch playwright.mode to local.
         limits:
-          cpus: "2.0"
-          memory: 1G
-        reservations:
+          cpus: "1.0"
           memory: 512M
+        reservations:
+          memory: 128M
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9590/health"]
@@ -131,8 +139,32 @@ services:
       prometheus:
         condition: service_healthy
 
+  # Browser runtime for Playwright checks. Stock upstream image, driven by a
+  # command like the services above. Tag must match the client version in
+  # internal/playwright/scripts/package.json; a mismatch is rejected with 428.
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    command: npx -y playwright@1.62.1 run-server --port 3000 --host 0.0.0.0
+    init: true
+    expose:
+      - "3000"
+    volumes:
+      # Unlike the other services, this image ships the browsers but not the
+      # playwright package, so npx fetches it at start. Caching makes restarts
+      # work offline; without it every restart needs registry.npmjs.org.
+      - playwright_npm:/root/.npm
+    deploy:
+      resources:
+        limits:
+          # ~257 MB idle; ~564 MB measured with four concurrent trivial pages.
+          memory: 1G
+        reservations:
+          memory: 512M
+    restart: unless-stopped
+
 volumes:
   technician_data:
+  playwright_npm:
   prometheus_data:
   alertmanager_data:
   grafana_data:

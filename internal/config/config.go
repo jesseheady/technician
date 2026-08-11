@@ -161,13 +161,21 @@ func validateWebhooks(webhooks []WebhookConfig) error {
 	return nil
 }
 
-var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+// Matches ${VAR} and ${VAR:-default}. The default lets one config serve both a
+// bare binary and an orchestrator that sets the variable, without leaving a
+// literal ${VAR} behind when it is unset.
+var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}`)
 
 func expandEnvVars(s string) string {
 	return envVarPattern.ReplaceAllStringFunc(s, func(match string) string {
-		varName := strings.TrimSuffix(strings.TrimPrefix(match, "${"), "}")
-		if val, ok := os.LookupEnv(varName); ok {
+		groups := envVarPattern.FindStringSubmatch(match)
+		if val, ok := os.LookupEnv(groups[1]); ok {
 			return val
+		}
+		// Distinguish "no default given" from an empty default: the former keeps
+		// the placeholder, preserving the existing behavior for plain ${VAR}.
+		if strings.Contains(match, ":-") {
+			return groups[2]
 		}
 		return match
 	})

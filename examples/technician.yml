@@ -50,17 +50,11 @@ artifacts:
   retention: 72h
 
 playwright:
-  # local  – launch Chromium inside this container (default)
-  # managed – connect to a Playwright server; requires server_url below
-  mode: local
-  # max_browsers: 2  # max concurrent browsers (default 2, increase for CI or dedicated runners)
-  #
-  # Managed mode runs the browser in a stock upstream Playwright image as a
-  # sidecar, so this image ships no browser of its own. See
-  # docker-compose.playwright.yml. The sidecar's image tag and the playwright
-  # version this binary embeds must match, or the client and server disagree
-  # over the protocol.
-  # server_url: ws://playwright:3000/
+  # managed connects to the playwright service in docker-compose.yml. Use local
+  # to launch Chromium in-process when running the binary without that service.
+  mode: ${PLAYWRIGHT_MODE:-local}
+  server_url: ${PLAYWRIGHT_SERVER_URL:-}
+  # max_browsers: 2
 
 # Check filter (optional). Run only a subset of the checks/ directory, so one
 # check config can serve many deployment targets from a single per-target

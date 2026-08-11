@@ -116,7 +116,34 @@ spike can use task headroom instead of being OOM-killed at a fixed line.
 
 `EnablePlaywright=true` sets `initProcessEnabled` so exited Chromium children are
 reaped. Without it zombie processes accumulate and leak kernel memory. Set it
-whenever browser checks are configured.
+whenever browser checks run **in the worker**.
+
+### Browser topology
+
+`PlaywrightMode` chooses where the browser runs.
+
+| | `local` (default) | `managed` |
+|---|---|---|
+| Browser | Chromium inside the worker container | Stock upstream Playwright sidecar in the same task |
+| Worker reservation | 512 MB (holds the browser allowance) | 512 MB stays with the sidecar; the worker needs far less |
+| `initProcessEnabled` | On the worker | On the sidecar; the template drops it from the worker automatically |
+| Task memory | 2048 MB with browser checks | Same total, split across two containers |
+| Browser patching | Rebuild the worker image | Bump `PlaywrightImage` and `PlaywrightVersion` |
+
+In `managed` mode set your config to:
+
+```yaml
+playwright:
+  mode: managed
+  server_url: ws://localhost:3000/
+```
+
+`localhost` is correct here: `awsvpc` tasks share a network namespace, so the
+sidecar is reachable on loopback and nothing is exposed outside the task.
+
+`PlaywrightImage`, `PlaywrightVersion`, and the playwright version the worker
+image embeds must all agree. A mismatch is rejected with
+`428 Precondition Required` on every browser check.
 
 See [deployment sizing](../../docs/deployment-sizing.md) for the measurements
 behind these numbers.
