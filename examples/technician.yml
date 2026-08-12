@@ -57,6 +57,13 @@ logging:
   # overrides this when set.
   level: info
 
+# Optional long-term history in an embedded SQLite DB at
+# ${TECHNICIAN_DATA_DIR}/results.db, beyond the in-memory ring buffer. Off by
+# default. Written asynchronously from the hot path; pruned to `retention`.
+persistence:
+  enabled: false
+  retention: 720h   # 30d (default when enabled)
+
 artifacts:
   # The local driver is for dev/inspection. /tmp is ephemeral (not on the
   # technician_data volume in Docker), so artifacts here do not survive a

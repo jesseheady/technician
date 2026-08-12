@@ -17,6 +17,7 @@ Technician is a **multi-region check runner** — a single Go binary that checks
 | `internal/exporter/` | Blackbox-exporter–compatible `/probe` handler |
 | `internal/notify/` | Webhook notifications: Discord, Slack, generic HTTP |
 | `internal/status/` | In-memory check store, budget badge tracking, status page + JSON API |
+| `internal/history/` | Optional SQLite long-term history (async write-through, retention prune) |
 | `internal/playwright/` | Go orchestrator + embedded Node.js run script |
 | `config/` | Local/production configs (gitignored — copy from `examples/`) |
 | `examples/` | Reference configs with placeholder values |
@@ -36,7 +37,7 @@ Flags: `--config` / `-c` (default `technician.yml`), `--origin` (or `ORIGIN_ID`)
 
 ## Configuration
 
-- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality, remote_write_* — push `technician_*` to a Prometheus-compatible endpoint on a timer, optional SigV4 for AMP; otel: endpoint, metrics — opt-in to also push `technician_*` via OTLP), `artifacts`, `playwright` (mode: local/managed, server_url — required for managed, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)), `logging` (format: json/text, level: debug/info/warn/error).
+- **Main config**: `technician.yml` – `service`, `hostname`, `origins`, `metrics` (prometheus: listen, max_check_cardinality, remote_write_* — push `technician_*` to a Prometheus-compatible endpoint on a timer, optional SigV4 for AMP; otel: endpoint, metrics — opt-in to also push `technician_*` via OTLP), `artifacts`, `playwright` (mode: local/managed, server_url — required for managed, max_browsers), `webhooks`, `check_filter` (types/groups/tags — load-time subset so one checks dir serves many targets; see [docs/multi-target-deployment.md](docs/multi-target-deployment.md)), `logging` (format: json/text, level: debug/info/warn/error), `persistence` (enabled, retention — optional SQLite long-term history at `${TECHNICIAN_DATA_DIR}/results.db`, off by default).
 - **Checks**: Loaded from directory next to config: `<config_dir>/checks.yml` (or `<config_dir>/checks/` directory):
   - `http.yml`, `tcp.yml`, `udp.yml`, `dns.yml`, `icmp.yml`, `grpc.yml`, `ntp.yml`, `tls.yml`, `smtp.yml`, `traceroute.yml`, `bgp.yml`, `domain_expiry.yml` – list of checks per type. HTTP checks support `assertions` (body: contains, not_contains, regex; header: header_contains, header_not_contains, header_regex), `follow_redirects`, `ip_version`, `min_tls`/`max_tls`, `basic_auth`/`bearer_token` (mutually exclusive), and `proxy`. TCP checks support `min_tls`/`max_tls` (with `tls: true`). SMTP checks support `start_tls`, `skip_tls`, and `username`/`password` auth (auth requires `start_tls`). DNS checks support SOA alongside A/AAAA/MX/TXT/CNAME/NS/SRV.
   - Playwright: `checks.yml` (or `checks/playwright.yml`) + script files.
