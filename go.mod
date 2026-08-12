@@ -4,8 +4,10 @@ go 1.26.5
 
 require (
 	github.com/adhocore/gronx v1.20.0
+	github.com/aws/aws-sdk-go-v2 v1.43.3
 	github.com/aws/aws-sdk-go-v2/config v1.32.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.4
+	github.com/golang/snappy v1.0.0
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2
@@ -20,10 +22,10 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/net v0.57.0
 	google.golang.org/grpc v1.83.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.3 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.33 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.34 // indirect
@@ -62,5 +64,4 @@ require (
 	golang.org/x/tools v0.47.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )

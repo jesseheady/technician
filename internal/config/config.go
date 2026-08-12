@@ -60,6 +60,15 @@ type PrometheusConfig struct {
 	// MaxCheckCardinality caps the number of distinct check names recorded as
 	// Prometheus labels; beyond it, new names are dropped (0 = default 500).
 	MaxCheckCardinality int `yaml:"max_check_cardinality"`
+
+	// Remote write pushes technician_* metrics to a Prometheus-compatible
+	// endpoint (AMP, Grafana Cloud, Mimir, Thanos) on a timer, for deployments
+	// Prometheus can't scrape. Empty URL disables it.
+	RemoteWriteURL      string            `yaml:"remote_write_url"`
+	RemoteWriteInterval time.Duration     `yaml:"remote_write_interval"` // default 15s
+	RemoteWriteSigV4    bool              `yaml:"remote_write_sigv4"`    // AWS SigV4 signing (AMP)
+	RemoteWriteRegion   string            `yaml:"remote_write_region"`   // AWS region for SigV4
+	RemoteWriteHeaders  map[string]string `yaml:"remote_write_headers"`  // auth/tenancy headers (${ENV} expanded)
 }
 
 type OTELConfig struct {
@@ -102,6 +111,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Metrics.Prometheus.MaxCheckCardinality <= 0 {
 		cfg.Metrics.Prometheus.MaxCheckCardinality = DefaultMaxCheckCardinality
+	}
+	if cfg.Metrics.Prometheus.RemoteWriteURL != "" && cfg.Metrics.Prometheus.RemoteWriteInterval <= 0 {
+		cfg.Metrics.Prometheus.RemoteWriteInterval = 15 * time.Second
 	}
 	if cfg.Artifacts.Driver == "" {
 		cfg.Artifacts.Driver = "none"

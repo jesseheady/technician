@@ -16,6 +16,7 @@ import (
 	"github.com/jesseheady/technician/internal/exporter"
 	"github.com/jesseheady/technician/internal/metrics"
 	"github.com/jesseheady/technician/internal/notify"
+	"github.com/jesseheady/technician/internal/remotewrite"
 	"github.com/jesseheady/technician/internal/scheduler"
 	"github.com/jesseheady/technician/internal/server"
 	"github.com/jesseheady/technician/internal/status"
@@ -92,6 +93,21 @@ func runWorker(cmd *cobra.Command, args []string) error {
 			slog.Warn("OTLP metric shutdown failed", "error", err)
 		}
 	}()
+
+	// Remote-write pushes a metric snapshot on a timer when a URL is configured.
+	if rwURL := cfg.Metrics.Prometheus.RemoteWriteURL; rwURL != "" {
+		rw, err := remotewrite.New(ctx, remotewrite.Options{
+			URL:      rwURL,
+			Interval: cfg.Metrics.Prometheus.RemoteWriteInterval,
+			SigV4:    cfg.Metrics.Prometheus.RemoteWriteSigV4,
+			Region:   cfg.Metrics.Prometheus.RemoteWriteRegion,
+			Headers:  cfg.Metrics.Prometheus.RemoteWriteHeaders,
+		})
+		if err != nil {
+			return fmt.Errorf("initializing remote-write: %w", err)
+		}
+		go rw.Run(ctx)
+	}
 
 	sched := scheduler.New(cfg, checks, registry, originID)
 	if err := sched.Start(ctx); err != nil {
