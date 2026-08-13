@@ -6,7 +6,7 @@ require (
 	github.com/adhocore/gronx v1.20.1
 	github.com/aws/aws-sdk-go-v2 v1.43.4
 	github.com/aws/aws-sdk-go-v2/config v1.32.35
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.5
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.0
 	github.com/golang/snappy v1.0.0
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.24.1
