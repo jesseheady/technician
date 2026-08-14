@@ -186,17 +186,17 @@ Add a `metrics.prometheus.url` config field. The status page handler queries the
 
 This keeps Technician stateless and avoids introducing a persistence layer. The tradeoff is that the status page requires a reachable Prometheus to show history — but if Prometheus is down, you have bigger problems.
 
-**Approach B: Embedded SQLite for local persistence**
+**Approach B: Embedded SQLite for local persistence** — the persistence layer ships today ([#16](https://github.com/jesseheady/technician/issues/16)); the status-page rendering of that history is a follow-up.
 
-For environments where the status page should work independently of Prometheus (standalone VPS, edge deploys, or when you want the worker to be fully self-contained):
+Enable it with `persistence.enabled: true` (off by default); results are written to `${TECHNICIAN_DATA_DIR}/results.db`. For environments where the status page should work independently of Prometheus (standalone VPS, edge deploys, or a fully self-contained worker):
 
-- Use [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) — a pure-Go SQLite implementation. No CGO, no external dependencies, compiles to the same static binary.
-- Store check results in a local SQLite file (e.g. `/var/lib/technician/results.db`).
-- Schema is simple: one table (`probe_results`) with timestamp, name, type, success, duration, and HTTP timing columns.
+- Uses [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) — a pure-Go SQLite implementation. No CGO, compiles into the same static binary.
+- One table (`probe_results`): timestamp, name, type, success, degraded, duration, and status code, indexed on `(name, ts, success)`.
+- Writes are **asynchronous write-through** from the status store's hot path — results go to a buffered channel and a single writer goroutine batches the inserts, so a slow disk never adds latency to result draining; a full buffer drops rather than blocks. Infra errors are not recorded (the target was never tested).
+- Rows older than `persistence.retention` (default 30d) are pruned by a periodic sweep.
 - At 30s check intervals, 10 checks over 30 days = ~864,000 rows. SQLite handles this trivially — the file stays under 100 MB.
-- Prune rows older than the configured retention on each insert (or via a periodic goroutine).
 
-SQLite adds ~2 MB to the binary size and negligible runtime overhead. It doesn't replace Prometheus for metrics and alerting — it just gives the status page its own local history so it can render 30-day uptime bars without querying an external service.
+SQLite adds ~4 MB to the binary and negligible runtime overhead. It doesn't replace Prometheus for metrics and alerting — it gives the status page its own local history so it can (once the rendering lands) show 30-day uptime bars without querying an external service.
 
 **What you don't need:**
 

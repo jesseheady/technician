@@ -18,15 +18,23 @@ import (
 const DefaultMaxCheckCardinality = 500
 
 type Config struct {
-	Service     string           `yaml:"service"`
-	Hostname    string           `yaml:"hostname"`
-	Origins     []Origin         `yaml:"origins"`
-	Metrics     MetricsConfig    `yaml:"metrics"`
-	Artifacts   ArtifactsConfig  `yaml:"artifacts"`
-	Playwright  PlaywrightConfig `yaml:"playwright"`
-	Webhooks    []WebhookConfig  `yaml:"webhooks"`
-	CheckFilter CheckFilter      `yaml:"check_filter"`
-	Logging     LoggingConfig    `yaml:"logging"`
+	Service     string            `yaml:"service"`
+	Hostname    string            `yaml:"hostname"`
+	Origins     []Origin          `yaml:"origins"`
+	Metrics     MetricsConfig     `yaml:"metrics"`
+	Artifacts   ArtifactsConfig   `yaml:"artifacts"`
+	Playwright  PlaywrightConfig  `yaml:"playwright"`
+	Webhooks    []WebhookConfig   `yaml:"webhooks"`
+	CheckFilter CheckFilter       `yaml:"check_filter"`
+	Logging     LoggingConfig     `yaml:"logging"`
+	Persistence PersistenceConfig `yaml:"persistence"`
+}
+
+// PersistenceConfig controls the optional SQLite store for long-term check
+// history (beyond the in-memory ring buffer). Off by default.
+type PersistenceConfig struct {
+	Enabled   bool          `yaml:"enabled"`
+	Retention time.Duration `yaml:"retention"` // how far back to keep results; default 30d
 }
 
 type LoggingConfig struct {
@@ -123,6 +131,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Playwright.MaxBrowsers <= 0 {
 		cfg.Playwright.MaxBrowsers = 2
+	}
+	if cfg.Persistence.Enabled && cfg.Persistence.Retention <= 0 {
+		cfg.Persistence.Retention = 30 * 24 * time.Hour
 	}
 
 	if err := validateWebhooks(cfg.Webhooks); err != nil {

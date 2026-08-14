@@ -14,6 +14,7 @@ import (
 	"github.com/jesseheady/technician/internal/budget"
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/exporter"
+	"github.com/jesseheady/technician/internal/history"
 	"github.com/jesseheady/technician/internal/metrics"
 	"github.com/jesseheady/technician/internal/notify"
 	"github.com/jesseheady/technician/internal/remotewrite"
@@ -120,6 +121,21 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	}
 	store := status.NewStore(cfg.Service, cfg.ResolveOrigin(originID), filepath.Join(dataDir, "status.json"))
 	store.Reconcile(checks)
+
+	// Optional long-term history (SQLite). Off unless persistence.enabled.
+	if cfg.Persistence.Enabled {
+		hist, err := history.New(filepath.Join(dataDir, "results.db"), cfg.Persistence.Retention)
+		if err != nil {
+			return fmt.Errorf("initializing history store: %w", err)
+		}
+		store.SetHistory(hist)
+		defer func() {
+			if err := hist.Close(); err != nil {
+				slog.Warn("history store close failed", "error", err)
+			}
+		}()
+		slog.Info("Long-term history enabled", "retention", cfg.Persistence.Retention)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())

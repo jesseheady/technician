@@ -35,7 +35,7 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 
 **Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker. **Deferred**, likely alongside SLA reporting: it serves the long tail (a year or more) and can be added later without disturbing Path B.
 
-**Path B: Embedded SQLite — the decided path.** Use `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~2 MB to the binary.
+**Path B: Embedded SQLite — the decided path.** Uses `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~4 MB to the binary. **The persistence layer has shipped** ([#16](https://github.com/jesseheady/technician/issues/16), see Recently completed) — `persistence.enabled` writes results to `results.db` with retention. What remains is *rendering* that history on the status page (30-day uptime bars), which is coupled to the status-page redesign (#25) and the public-exposure question (#39).
 
 This is first-class regardless of whether the page is public. The ring buffer spans roughly 45 min at 30s intervals and ~90 min at 1 min intervals, so the page cannot answer "was this unstable last week" in *any* deployment, including full-stack ones where Prometheus holds the data. It also does two jobs at once: it sets how far back the page can look, and it keeps that history readable when Prometheus is unreachable.
 
@@ -268,6 +268,10 @@ Items here are either partially covered by Grafana dashboards, low priority, or 
 See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
+
+### SQLite persistence layer [#16](https://github.com/jesseheady/technician/issues/16)
+
+Optional long-term history in an embedded SQLite DB (`modernc.org/sqlite`, pure Go) at `${TECHNICIAN_DATA_DIR}/results.db`, beyond the in-memory ring buffer. Off by default (`persistence.enabled`); `persistence.retention` defaults to 30d. Written **asynchronously write-through** from the status store's hot path — results go to a buffered channel and a single writer goroutine batches the inserts, so a slow disk never slows result draining, and a full buffer drops rather than blocks. Infra errors are skipped (the target was never tested). `status.json` keeps its non-series state. [#16](https://github.com/jesseheady/technician/issues/16) stays open for the remaining half — rendering this history on the status page (30-day uptime bars), which is coupled to the status-page redesign (#25) and the public-exposure decision (#39).
 
 ### Prometheus remote-write [#19](https://github.com/jesseheady/technician/issues/19)
 

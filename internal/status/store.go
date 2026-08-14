@@ -151,7 +151,19 @@ type Store struct {
 
 	writeMu              sync.Mutex
 	consecutiveWriteFail int
+
+	history Recorder // optional long-term history sink; set once before Push runs
 }
+
+// Recorder persists check results for long-term history (the optional SQLite
+// store). Implementations must be non-blocking.
+type Recorder interface {
+	Record(*check.Result)
+}
+
+// SetHistory attaches an optional long-term history recorder. Call once at
+// startup, before results start flowing.
+func (s *Store) SetHistory(r Recorder) { s.history = r }
 
 type budgetState struct {
 	violated              bool
@@ -277,6 +289,10 @@ func (s *Store) Reconcile(checks []config.CheckConfig) {
 
 // Push adds a check result to the store.
 func (s *Store) Push(r *check.Result) {
+	if s.history != nil {
+		s.history.Record(r) // non-blocking; independent of the ring lock below
+	}
+
 	e := Entry{
 		Success:           r.Success,
 		InfraError:        r.InfraError,
