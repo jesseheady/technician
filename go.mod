@@ -1,6 +1,6 @@
 module github.com/jesseheady/technician
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/adhocore/gronx v1.20.1
