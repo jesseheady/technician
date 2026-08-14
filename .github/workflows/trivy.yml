@@ -109,6 +109,12 @@ jobs:
           load: true
           tags: technician:scan
           cache-from: type=gha
+          # The runtime stage installs Debian packages, so a cache hit pins them
+          # to whenever the layer was first built and the scan reports CVEs that
+          # a fresh `apt` would already have fixed. Nothing else invalidates it:
+          # the base digest and instructions rarely change. The builder stage
+          # stays cached.
+          no-cache-filters: runtime
 
       - name: Run Trivy image scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
