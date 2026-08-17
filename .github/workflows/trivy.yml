@@ -75,7 +75,7 @@ jobs:
             echo "container=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|\.trivyignore\.yaml|internal/playwright/scripts/)'; then
+          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|\.trivyignore\.yaml|internal/playwright/scripts/|scripts/gen-licenses\.sh)'; then
             echo "container=true" >> "$GITHUB_OUTPUT"
           else
             echo "container=false" >> "$GITHUB_OUTPUT"

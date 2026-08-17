@@ -56,7 +56,7 @@ jobs:
           fi
           # docker: image inputs -> build the container image on PRs too, so a
           # broken Dockerfile fails before merge instead of only on main push.
-          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|internal/playwright/scripts/)'; then
+          if echo "$changed" | grep -qE '^(Dockerfile|\.dockerignore|internal/playwright/scripts/|scripts/gen-licenses\.sh)'; then
             echo "docker=true" >> "$GITHUB_OUTPUT"
           else
             echo "docker=false" >> "$GITHUB_OUTPUT"
