@@ -4,7 +4,7 @@ Resource requirements, deployment topology, and scaling considerations.
 
 ## Context
 
-Technician is a static Go binary (29 MB, stripped) with no database, no runtime interpreter, and no background job system. Checks run as goroutines inside a single process. The main variable is whether you include **Playwright browser checks**, which require Node.js and Chromium.
+Technician is a static Go binary (38 MB stripped, linux/amd64) with no database server and no background job system. Checks run as goroutines inside a single process. Two check types reach outside it: **Playwright browser checks** need Node.js and Chromium, and **traceroute checks** shell out to `mtr`. Recent history is held in memory and mirrored to a JSON file on disk; optional longer retention uses embedded SQLite (`modernc.org/sqlite`, pure Go).
 
 ## Measured resource usage
 

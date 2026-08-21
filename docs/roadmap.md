@@ -2,6 +2,8 @@
 
 Work that's been planned or partially designed but not yet implemented. See also [Recently completed](#recently-completed) for items that have shipped.
 
+Several items here link to **closed** issues. That is deliberate: the tracker holds actionable work, and aspirations are parked here instead so the issue list stays honest. A closed link means "designed, not scheduled". Reopen it with a concrete proposal if it gets prioritized.
+
 ## Edge deployment adapters
 
 ### AWS Lambda adapter [#17](https://github.com/jesseheady/technician/issues/17)
@@ -35,7 +37,7 @@ The built-in status page shows recent results from an in-memory ring buffer (90 
 
 **Path A: Query Prometheus API** — Add `metrics.prometheus.url` config. The status page handler queries Prometheus for historical uptime and timing aggregates. No new storage, but requires Prometheus to be reachable from the worker. **Deferred**, likely alongside SLA reporting: it serves the long tail (a year or more) and can be added later without disturbing Path B.
 
-**Path B: Embedded SQLite — the decided path.** Uses `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~4 MB to the binary. **The persistence layer has shipped** ([#16](https://github.com/jesseheady/technician/issues/16), see Recently completed) — `persistence.enabled` writes results to `results.db` with retention. What remains is *rendering* that history on the status page (30-day uptime bars), which is coupled to the status-page redesign (#25) and the public-exposure question (#39).
+**Path B: Embedded SQLite — the decided path.** Uses `modernc.org/sqlite` (pure Go, no CGO) for local check result persistence. Adds ~4 MB to the binary. **The persistence layer has shipped** ([#16](https://github.com/jesseheady/technician/issues/16), see Recently completed) — `persistence.enabled` writes results to `results.db` with retention. What remains is *rendering* that history on the status page (30-day uptime bars), which waits on the status-page redesign below and the public-exposure question (#39).
 
 This is first-class regardless of whether the page is public. The ring buffer spans roughly 45 min at 30s intervals and ~90 min at 1 min intervals, so the page cannot answer "was this unstable last week" in *any* deployment, including full-stack ones where Prometheus holds the data. It also does two jobs at once: it sets how far back the page can look, and it keeps that history readable when Prometheus is unreachable.
 
@@ -113,16 +115,15 @@ GROUP BY name, group_name;
 
 ### IaC templates [#21](https://github.com/jesseheady/technician/issues/21)
 
-Terraform or CloudFormation templates for common deployment patterns:
+Mostly delivered. `deploy/cloudformation/ecs-fargate.yaml` covers the ECS service (task definition, Cloud Map discovery, IAM, optional ADOT sidecar for AMP) and `deploy/systemd/technician.service` covers the VPS worker. The central stack needs nothing new, because `docker-compose.yml` already is Prometheus + Alertmanager + Grafana on one host.
 
-- VPS worker (systemd unit + config)
-- ECS service (task definition, service discovery, AMP scraper config)
-- Lambda function (EventBridge schedule, IAM role, Pushgateway push)
-- Central stack (Prometheus + Grafana on a single host)
+What remains is the Lambda template, which is blocked on the adapter above: the invocation model decides what the template looks like, so it belongs with #17.
 
-## Near-term MVP
+Per-provider IaC (Hetzner, Linode, Vultr, DigitalOcean) is deliberately out of scope: they all run the Compose stack unmodified, so what differs is billing, not deployment. Kubernetes is covered by the Helm chart.
 
-Features planned for the next development cycle.
+## Designed, not scheduled
+
+Both items below have a recorded decision to defer. Neither is in a development cycle.
 
 ### Maintenance mode [#22](https://github.com/jesseheady/technician/issues/22)
 
