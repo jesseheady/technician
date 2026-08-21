@@ -143,6 +143,8 @@ Reviews and conversation resolution are deliberately not required. Neither const
 - Auto-generated notes are categorized by PR labels (configured in `.github/release.yml`).
 - For the tag annotation, write a short summary. For the GitHub Release, the auto-generated notes cover PR-level detail; add a hand-written summary at the top for major releases.
 - Use semver: patch for fixes, minor for features, major for breaking changes. Stay on `v0.x.x` until stability guarantees are established.
+- After the **first** publish, the GHCR package is private by default even though the repo is public. Link it to the repo and set its visibility to public, or every `docker pull` fails with an auth error.
+- Bump `appVersion` in `deploy/helm/technician/Chart.yaml` and the `ImageUri` default in `deploy/cloudformation/ecs-fargate.yaml` in the release PR, before tagging. A tag freezes the tree, so a stale default stays wrong at that tag permanently.
 
 ## PR labels
 

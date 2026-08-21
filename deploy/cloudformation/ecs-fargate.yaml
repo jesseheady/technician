@@ -32,7 +32,7 @@ Metadata:
 Parameters:
   ImageUri:
     Type: String
-    Default: ghcr.io/jesseheady/technician:latest
+    Default: ghcr.io/jesseheady/technician:v0.1.0
     Description: Container image. Mirror to ECR if your tasks run in private subnets without a NAT path to ghcr.io.
 
   ConfigS3Uri:

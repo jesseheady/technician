@@ -20,7 +20,7 @@ security group, task and execution roles, a task definition, and the service.
    `technician.yml` must declare an origin whose `id` matches the `OriginId`
    parameter. That value becomes the `region` label on every metric.
 
-2. **Image access.** The default is `ghcr.io/jesseheady/technician:latest`. Tasks
+2. **Image access.** The default is `ghcr.io/jesseheady/technician:v0.1.0`. Tasks
    in private subnets need a NAT path to ghcr.io, or mirror the image to ECR and
    pass `ImageUri`.
 

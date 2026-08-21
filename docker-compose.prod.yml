@@ -3,8 +3,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
 # Pin TECHNICIAN_VERSION to a released tag for reproducible deploys; it defaults
-# to :latest. The image is published to GHCR by the release workflow (and, while
-# the repo is private, pushed manually — see AGENTS.md "Releases").
+# to :latest. The image is published to GHCR by the release workflow.
 #
 # `!reset null` drops the base file's `build:` so Compose pulls rather than builds.
 services:
