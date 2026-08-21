@@ -1,5 +1,11 @@
 # Check dependencies (`depends_on`)
 
+> **Status (2026-08):** Tracked in [#234](https://github.com/jesseheady/technician/issues/234),
+> which is milestoned to v1.0.0 as a decision rather than an implementation. The two options below
+> (alert-time correlation vs. runtime dependencies) are the choice to be made. Option 2 would add a
+> `depends_on` field to `CheckConfig`, so the direction has to be settled before the 1.0 config-schema
+> freeze; picking it afterward would cost a major version.
+
 Design proposal for [#234](https://github.com/jesseheady/technician/issues/234).
 
 Issue #234 frames the choice as **Option 1** (alert-time correlation in PromQL,

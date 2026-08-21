@@ -1,5 +1,17 @@
 # Proposal: Status page and visualization roadmap
 
+> **Status (2026-08):** Partially superseded, and partially uncaptured.
+>
+> Covered by existing issues: long-term history rendering is [#16](https://github.com/jesseheady/technician/issues/16),
+> public/private check visibility is [#39](https://github.com/jesseheady/technician/issues/39), the
+> flapping indicator is [#227](https://github.com/jesseheady/technician/issues/227), and routing Playwright
+> artifacts through the artifact store is [#218](https://github.com/jesseheady/technician/issues/218).
+> The status-page redesign this proposal fed into was closed pending a concrete spec.
+>
+> Not yet captured in any issue: serving artifacts from the status page, screenshot thumbnails in the
+> check detail modal, and the "View trace" link into Playwright Trace Viewer (Tier 3). Those remain
+> proposal-only. File an issue before building any of them.
+
 What to add to Technician's built-in portal, what to leave to Grafana, and what to get for free from Playwright.
 
 ## Philosophy
