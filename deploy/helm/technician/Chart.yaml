@@ -7,7 +7,7 @@ description: |
 type: application
 version: 0.1.0
 # appVersion tracks the technician image tag this chart was last validated against.
-appVersion: "latest"
+appVersion: "v0.1.0"
 keywords:
   - monitoring
   - synthetic

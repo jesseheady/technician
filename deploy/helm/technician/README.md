@@ -34,9 +34,8 @@ helm install technician deploy/helm/technician \
   --values my-values.yaml
 ```
 
-> The default `image.repository` (`ghcr.io/jesseheady/technician`) is a private
-> package. To run this chart yourself, override `image.repository` with your own
-> build and supply `imagePullSecrets` for the registry it lives in.
+> `image.tag` defaults to the chart's `appVersion`. Pin it to a released tag, or
+> to a digest, rather than tracking a floating tag in production.
 
 ## Multi-origin example
 
