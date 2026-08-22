@@ -632,6 +632,25 @@
 # queue against max_browsers. The built-in per-check stagger only spreads them
 # ~10s — too little for throttled flows. Give each its own minute using 6-field
 # range-step cron: "0 */5" (min 0,5,10…), "0 2-59/5" (2,7,12…), "0 4-59/5" (4,9,14…).
+#
+# THIS APPLIES TO YOUR OTHER CHECKS TOO, and that is the part people miss. A
+# browser occupies a window, not an instant:
+#
+#   occupancy = timeout x (retry.count + 1) + retry.delay x retry.count
+#
+# so the check below (120s, one retry) holds CPU for up to 4m05s. A DNS, ICMP,
+# NTP, or TCP check scheduled inside that window still SUCCEEDS — it just
+# reports an inflated time, because part of what it measured was Chromium
+# starting. That inflated number feeds the latency alerts, and you get paged
+# about a resolver that was never slow.
+#
+# Watch for the trap: browsers on "0 */10" and "0 5-59/10" alternate every five
+# minutes, so their start minutes cover every multiple of 5 — and DNS checks on
+# the natural-looking "0 */5" then collide on every single run.
+#
+# Put latency-sensitive checks in the quiet minutes instead (:04, :09, :14 …
+# when browsers start every 5 minutes), spread by seconds. See
+# docs/playwright-scaling.md for the full worked example.
 
 - name: "example.com (desktop)"
   type: playwright

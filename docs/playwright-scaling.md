@@ -87,6 +87,48 @@ When all slots are occupied:
 | CI (GitHub Actions, 7 GB) | 3-4 | Balance parallelism with shared runner limits |
 | CI (2 GB runner) | 1 | Serialize to avoid OOM |
 
+### Browser checks occupy a window, not an instant
+
+`max_browsers` governs browsers competing with browsers. It does nothing about a browser competing with *every other check on the box*, which is the more common source of confusing alerts.
+
+A browser check holds CPU for its whole run, and retries extend that:
+
+```
+occupancy = timeout x (retry.count + 1) + retry.delay x retry.count
+```
+
+So `timeout: 120s` with `retry: {count: 1, delay: 5s}` occupies up to **4m05s** from its start minute. Any check scheduled inside that span competes with Chromium for cores.
+
+The failure mode is that nothing fails. DNS, ICMP, NTP, and TCP checks keep succeeding; they just report inflated times, because part of what they measured was Chromium starting up. Those inflated numbers feed the latency alerts (`HighDNSQuery`, `HighICMPLatency` and friends), so you get paged about a resolver or an uplink that was never slow.
+
+A worked example. Browser checks on `0 */10 * * * *` and `0 5-59/10 * * * *` alternate every 5 minutes, so their start minutes cover **every multiple of 5**. DNS checks on the common `0 */5 * * * *` therefore start inside a browser window every single time. On one small deployment this accounted for 165 of 177 runs per hour.
+
+**Schedule latency-sensitive checks into the quiet minutes.** With browsers starting every 5 minutes and occupying about 3 minutes, minutes `:04, :09, :14, :19 ...` are clear:
+
+```yaml
+# Browsers: every 10 min each, alternating, so one starts every 5 min.
+- name: "site (desktop)"
+  schedule: "0 */10 * * * *"        # :00 :10 :20 ...
+  timeout: 90s                       # keep occupancy under the quiet minute
+- name: "site (mobile)"
+  schedule: "0 5-59/10 * * * *"     # :05 :15 :25 ...
+  timeout: 90s
+
+# Latency-sensitive checks: quiet minutes, spread by seconds.
+- name: "site A (Cloudflare)"
+  type: dns
+  schedule: "10 4-44/20 * * * *"    # :04:10 :24:10 :44:10
+- name: "Uplink (Cloudflare)"
+  type: icmp
+  schedule: "30 9-49/20 * * * *"    # :09:30 :29:30 :49:30
+```
+
+Lowering the browser timeout is often the cheaper half of the fix: it shrinks the occupancy window directly, and a browser flow that genuinely needs more than 90s on your target is worth investigating on its own.
+
+Two things that will not save you here. The built-in per-check stagger is 0-10s, deterministic per check name, and exists to avoid simultaneous starts across origins, not to resolve scheduling conflicts. And a low `max_browsers` serializes browsers without moving them away from anything else.
+
+Note the interaction with alerting: if a check runs every 5 minutes, a rule averaging over `[15m]` is judging roughly three samples, so one contended run can carry the average past a threshold. Match alert windows to the cadence of the checks they watch.
+
 ### Tuning
 
 If you see `timed out waiting for browser slot` in logs:
