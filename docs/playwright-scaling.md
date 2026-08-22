@@ -87,6 +87,8 @@ When all slots are occupied:
 | CI (GitHub Actions, 7 GB) | 3-4 | Balance parallelism with shared runner limits |
 | CI (2 GB runner) | 1 | Serialize to avoid OOM |
 
+These assume the box is doing little else. "One browser per core" holds for a **dedicated** runner; it does not hold for a small always-on host that is also running the worker, its non-browser checks, and possibly Prometheus and Grafana. On a 4-core single-board machine running the full stack, `max_browsers: 1` is usually the right answer even though the core count suggests otherwise, because the goal there is not browser throughput but leaving headroom so the other checks measure their targets instead of your CPU. See the next section.
+
 ### Browser checks occupy a window, not an instant
 
 `max_browsers` governs browsers competing with browsers. It does nothing about a browser competing with *every other check on the box*, which is the more common source of confusing alerts.
