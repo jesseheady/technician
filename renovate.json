@@ -9,6 +9,7 @@
   ],
   "labels": ["dependencies"],
   "postUpdateOptions": ["gomodTidy"],
+  "minimumReleaseAge": "7 days",
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true
@@ -20,16 +21,6 @@
       "enabled": false
     },
     {
-      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break",
-      "matchDepNames": ["go", "golang"],
-      "groupName": "go toolchain"
-    },
-    {
-      "description": "Update the playwright npm client and the playwright sidecar image together. In managed mode they are two ends of one connection: a mismatch fails the handshake and breaks every browser check, so they must never be bumped separately",
-      "matchDepNames": ["playwright", "mcr.microsoft.com/playwright"],
-      "groupName": "playwright"
-    },
-    {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
       "automerge": true
@@ -38,46 +29,51 @@
       "description": "Group all patch updates into a single PR",
       "matchUpdateTypes": ["patch"],
       "groupName": "patch updates",
-      "minimumReleaseAge": "7 days",
       "matchPackageNames": [
-        "!go.opentelemetry.io/otel**",
-        "!github.com/aws/aws-sdk-go-v2**"
+        "!/^go\\.opentelemetry\\.io\\/otel/",
+        "!/^github\\.com\\/aws\\/aws-sdk-go-v2/"
       ]
     },
     {
       "description": "Group all minor updates into a single PR",
       "matchUpdateTypes": ["minor"],
       "groupName": "minor updates",
-      "minimumReleaseAge": "7 days",
       "matchPackageNames": [
-        "!go.opentelemetry.io/otel**",
-        "!github.com/aws/aws-sdk-go-v2**"
+        "!/^go\\.opentelemetry\\.io\\/otel/",
+        "!/^github\\.com\\/aws\\/aws-sdk-go-v2/"
       ]
     },
     {
-      "description": "Group all GitHub Actions minor and patch updates",
+      "description": "Group all GitHub Actions updates. Actions are digest-pinned, so pin and digest carry nearly all of them and must be matched alongside minor and patch",
       "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "github actions",
-      "minimumReleaseAge": "7 days"
+      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
+      "groupName": "github actions"
     },
     {
-      "description": "Group all OpenTelemetry packages",
-      "matchPackageNames": ["go.opentelemetry.io/otel**"],
-      "groupName": "opentelemetry",
-      "minimumReleaseAge": "7 days"
+      "description": "Group all OpenTelemetry packages. Regex, not a glob: a glob star does not cross the path separator, so otel** would miss every otel submodule",
+      "matchPackageNames": ["/^go\\.opentelemetry\\.io\\/otel/"],
+      "groupName": "opentelemetry"
     },
     {
-      "description": "Group all AWS SDK packages",
-      "matchPackageNames": ["github.com/aws/aws-sdk-go-v2**"],
-      "groupName": "aws-sdk-go-v2",
-      "minimumReleaseAge": "7 days"
+      "description": "Group all AWS SDK packages. Regex for the same reason as opentelemetry above",
+      "matchPackageNames": ["/^github\\.com\\/aws\\/aws-sdk-go-v2/"],
+      "groupName": "aws-sdk-go-v2"
     },
     {
-      "description": "Group Docker base image digest updates, weekly Monday",
-      "matchManagers": ["dockerfile"],
+      "description": "Group base image updates, weekly Monday. Covers docker-compose as well as the Dockerfile, since the observability stack images live in compose",
+      "matchManagers": ["dockerfile", "docker-compose"],
       "groupName": "docker base images",
       "schedule": ["before 9am on monday"]
+    },
+    {
+      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Placed after the generic groups: later rules win on groupName",
+      "matchDepNames": ["go", "golang"],
+      "groupName": "go toolchain"
+    },
+    {
+      "description": "Update the playwright npm client and the playwright sidecar image together. In managed mode they are two ends of one connection: a mismatch fails the handshake and breaks every browser check, so they must never be bumped separately. Placed last for the same ordering reason as go toolchain",
+      "matchDepNames": ["playwright", "mcr.microsoft.com/playwright"],
+      "groupName": "playwright"
     }
   ],
   "vulnerabilityAlerts": {
