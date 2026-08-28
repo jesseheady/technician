@@ -10,6 +10,7 @@
   "labels": ["dependencies"],
   "postUpdateOptions": ["gomodTidy"],
   "minimumReleaseAge": "7 days",
+  "platformAutomerge": false,
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true
