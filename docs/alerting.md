@@ -178,6 +178,14 @@ Alerts on inherently stable metrics (cert/domain expiry, packet loss percentage,
 | SMTP / Traceroute / gRPC / WebSocket | CheckFailing (warn) | HighErrorRate (crit) |
 | Prometheus storage | >80% of 5GB limit | >95% of 5GB limit |
 
+#### BGP: what the check can and cannot catch
+
+`BGPOriginMismatch` and `BGPRPKIInvalid` both key off "who does the routing data say is announcing this," compared against `expected_origin` or a ROA. Both can be defeated by an attacker who is topologically positioned to inject a route and forges the AS path so it ends in the real origin AS: RPKI Route Origin Validation checks the origin ASN and prefix length against a ROA, not the rest of the path, and our own origin comparison reads the same forged field. This is exactly the mechanism behind the Softaculous/Virtualizor hijack ([Kentik's analysis](https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/), August 2026): the hijacked route's AS path ended in the legitimate operator's real ASN, and that operator's ROA permitted the announced prefix length, so the route was origin-correct and RPKI-valid throughout the incident.
+
+The BGP checker also flags a more-specific prefix that is new since the last successful check, even when its reported origin is the expected one — the one signal that kind of forgery cannot erase, since the route did not exist a moment before. This baseline is per worker process and resets on restart, and it is a heuristic, not a cryptographic guarantee: full protection against a forged AS path requires BGPsec, which is not deployed on the internet at large.
+
+If you control the ROA for a prefix Technician monitors, [RFC 9319](https://www.rfc-editor.org/rfc/rfc9319.html) is the actionable mitigation: omit `maxLength` or set it equal to the prefix length you actually announce. A ROA that permits a wide range of lengths — the Hetzner ROA in this incident allowed anything from /16 to /24 — is what let the hijacked route pass RPKI validation in the first place. `BGPRPKIInvalid` can only be as strict as the ROA it reads.
+
 The Web Vitals alerts use the absolute Google Core Web Vitals thresholds (good / needs-improvement / poor), not your per-check budgets — they fire on the same numbers in every deployment. For alerting relative to a check's *own* configured budget, use `BudgetViolation`, which fires whenever a check exceeds any threshold in its `budgets.yml`.
 
 SMTP, Traceroute, and gRPC checks emit only universal metrics (`technician_check_healthy`, `technician_check_duration_seconds`); WebSocket additionally emits `technician_ws_connect_seconds` and `technician_ws_message_seconds`. None of them ship check-specific threshold alerts — all four get full check-health coverage (CheckFailing, HighErrorRate, CheckInfraError), and WebSocket's timing metrics are available for your own alert rules, dashboards, or a `budgets.yml` entry.

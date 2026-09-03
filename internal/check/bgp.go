@@ -276,6 +276,17 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 // fails: the origin comparison already succeeded, so a failed second query
 // must not turn a good result into a failure. "unknown" is visible in
 // technician_bgp_rpki_valid as -1.
+//
+// RPKI ROV validates the origin AS and prefix length against a ROA. It does
+// not validate the rest of the AS path. An attacker who can inject a route
+// (a compromised or complicit AS) can forge the path so it ends in the real
+// origin AS, which this check will call "valid" if the resource holder's ROA
+// permits the announced length — exactly what happened to the
+// Softaculous/Virtualizor hijack in August 2026, via a loose ROA on Hetzner
+// Online's announcing AS. See
+// https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/
+// A "valid" verdict here is not proof the announcement is legitimate; it is
+// proof the resource holder's ROA does not forbid it.
 func (p *BGPChecker) rpkiStatus(ctx context.Context, client *http.Client, prefix string, asn int) string {
 	apiURL := fmt.Sprintf(
 		"%s/data/rpki-validation/data.json?resource=AS%d&prefix=%s&sourceapp=technician",
