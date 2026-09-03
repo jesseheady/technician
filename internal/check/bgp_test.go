@@ -99,7 +99,9 @@ func bgpTestChecker(t *testing.T, origins, moreSpecifics, rpkiStatus string) *BG
 		_, _ = w.Write([]byte(`{"data":{"origins":[` + origins + `],"more_specifics":[` + moreSpecifics + `]}}`))
 	}))
 	t.Cleanup(srv.Close)
-	return &BGPChecker{baseURL: srv.URL}
+	c := NewBGPChecker()
+	c.baseURL = srv.URL
+	return c
 }
 
 // asOrigin renders a routing-status origins entry.
@@ -307,5 +309,97 @@ func TestBGPCheckerRogueMoreSpecificOutranksNotVisible(t *testing.T) {
 	}
 	if !strings.Contains(result.Error, "more-specific") {
 		t.Errorf("expected the more-specific hijack error, got: %s", result.Error)
+	}
+}
+
+// The Softaculous/Virtualizor hijack (Aug 2026) forged the AS path so it ended
+// in the real origin AS (Hetzner, AS24940), and the real operator's ROA
+// permitted the hijacked /24's length. Both origin comparison and RPKI
+// validation would show green for that announcement. Only its novelty — no
+// route for that /24 existed a moment before — was a signal forgery could not
+// erase. See https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/
+func TestBGPCheckerNewMoreSpecificWithCorrectOrigin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[]}}`))
+	}))
+	defer srv.Close()
+	checker := NewBGPChecker()
+	checker.baseURL = srv.URL
+
+	// First run establishes the baseline: no more-specifics exist yet.
+	baseline := checker.Run(context.Background(), bgpTestConfig(), nil)
+	if !baseline.Success {
+		t.Fatalf("expected baseline run to succeed, got error: %s", baseline.Error)
+	}
+	srv.Close()
+
+	// A more-specific appears, announced by the expected origin AS — exactly
+	// what a forged AS path produces. The origin comparison alone would pass
+	// this.
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[{"prefix":"203.0.113.128/25","origin":64496}]}}`))
+	}))
+	defer srv2.Close()
+	checker.baseURL = srv2.URL
+
+	result := checker.Run(context.Background(), bgpTestConfig(), nil)
+	if result.Success {
+		t.Error("expected failure for a newly-appeared more-specific, even with the expected origin")
+	}
+	if result.BGPOriginMatch {
+		t.Error("expected BGPOriginMatch=false so BGPOriginMismatch fires")
+	}
+	for _, want := range []string{"new more-specific", "203.0.113.128/25", "AS64496"} {
+		if !strings.Contains(result.Error, want) {
+			t.Errorf("expected error to contain %q, got: %s", want, result.Error)
+		}
+	}
+}
+
+// A more-specific present since the worker's first observation of a check is
+// an established deaggregation, not a hijack in progress. It must not alert.
+func TestBGPCheckerEstablishedMoreSpecificDoesNotAlert(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[{"prefix":"203.0.113.128/25","origin":64496}]}}`))
+	}))
+	defer srv.Close()
+	checker := NewBGPChecker()
+	checker.baseURL = srv.URL
+
+	for i, wantOK := range []bool{true, true, true} {
+		result := checker.Run(context.Background(), bgpTestConfig(), nil)
+		if result.Success != wantOK {
+			t.Errorf("run %d: Success = %v, want %v (error: %s)", i, result.Success, wantOK, result.Error)
+		}
+	}
+}
+
+// A more-specific new since the last query, but from an unexpected origin, is
+// reported as an origin mismatch — the more specific, higher-confidence
+// finding — not as a generic "new prefix appeared" notice.
+func TestBGPCheckerNewMoreSpecificWithWrongOriginReportsOriginMismatch(t *testing.T) {
+	result := bgpTestChecker(t,
+		asOrigin(64496),
+		`{"prefix":"203.0.113.128/25","origin":64511}`,
+		"valid",
+	).Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success {
+		t.Error("expected failure")
+	}
+	if !strings.Contains(result.Error, "unexpected origin") {
+		t.Errorf("expected the origin-mismatch error to take priority, got: %s", result.Error)
 	}
 }

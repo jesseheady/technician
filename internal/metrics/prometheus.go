@@ -230,7 +230,7 @@ var (
 
 	bgpOriginMatch = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_bgp_origin_match",
-		Help: "Whether the prefix and every more-specific inside it are announced by the expected origin AS (1=match, 0=mismatch)",
+		Help: "Whether the prefix and every more-specific inside it are announced by the expected origin AS, with no newly-appeared more-specific since the last check (1=match, 0=mismatch)",
 	}, []string{"name", "region", "city", "country"})
 
 	bgpRPKIValid = prometheus.NewGaugeVec(prometheus.GaugeOpts{

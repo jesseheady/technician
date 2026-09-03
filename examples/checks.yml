@@ -581,10 +581,18 @@
 #   - any more-specific prefix inside it comes from an ASN that is not
 #     expected_origin. A hijacker announces a longer prefix to win
 #     longest-prefix-match, and the origin of this prefix never changes;
+#   - a more-specific prefix appears that this worker has not seen announced
+#     before, even if its origin is expected_origin. An attacker can forge the
+#     AS path so it ends in the real origin AS, which passes every check
+#     above and RPKI validation below — this is what happened to the
+#     Softaculous/Virtualizor hijack in August 2026. A route that did not
+#     exist a moment ago is the signal forgery cannot erase. This baseline is
+#     per worker process and resets on restart;
 #   - RPKI reports that no ROA authorizes the announcement. A prefix with no
 #     ROA gives "unknown", which passes.
-# More-specifics that expected_origin announces itself are normal
-# deaggregation, and they pass.
+# More-specifics that expected_origin announces itself, and were already
+# present the first time this worker checked, are normal deaggregation and
+# pass.
 # Both prefix and expected_origin are required.
 - name: "cloudflare-1.1.1.1"
   type: bgp
