@@ -270,6 +270,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### BGP check detects more-specific hijacks [#382](https://github.com/jesseheady/technician/issues/382)
+
+The check asked RIPE Stat `network-info`, which describes the configured prefix only. The common hijack announces a longer prefix inside it. That announcement wins longest-prefix-match and never changes the origin of the covering prefix, so the check stayed green through it. The check now asks `routing-status`, which returns the origins of the prefix and the more-specifics announced inside it in one request, so this costs no extra call. A more-specific from an ASN other than `expected_origin` fails the check and clears `technician_bgp_origin_match`, which fires the existing `BGPOriginMismatch` alert. More-specifics that `expected_origin` announces itself are normal deaggregation and pass. A prefix that is announced only as more-specifics now reports as visible, which `network-info` could not express.
+
 ### RPKI origin validation in the BGP check [#380](https://github.com/jesseheady/technician/issues/380)
 
 After the origin comparison passes, the BGP check queries RIPE Stat for the RPKI verdict on the prefix and its origin AS. An `invalid_asn` or `invalid_length` verdict fails the check, because no ROA authorizes that announcement. This signal does not depend on `expected_origin`, so it still detects a hijack when that value is stale. A prefix with no ROA returns `unknown`, which passes. A failed RPKI query also returns `unknown`, so it cannot turn a good origin result into a failure. The verdict is exported as `technician_bgp_rpki_valid` (1 valid, 0 invalid, -1 unknown) and alerts through `BGPRPKIInvalid`. No new config field: the check needs only the `prefix` and `expected_origin` it already has.

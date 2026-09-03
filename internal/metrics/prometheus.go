@@ -225,12 +225,12 @@ var (
 
 	bgpOriginASN = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_bgp_origin_asn",
-		Help: "Observed origin AS number for the prefix",
+		Help: "Observed origin AS number for the prefix (0 when the prefix announces no route of its own)",
 	}, []string{"name", "region", "city", "country"})
 
 	bgpOriginMatch = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_bgp_origin_match",
-		Help: "Whether the origin ASN matches the expected value (1=match, 0=mismatch)",
+		Help: "Whether the prefix and every more-specific inside it are announced by the expected origin AS (1=match, 0=mismatch)",
 	}, []string{"name", "region", "city", "country"})
 
 	bgpRPKIValid = prometheus.NewGaugeVec(prometheus.GaugeOpts{

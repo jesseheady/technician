@@ -24,12 +24,22 @@ type ripeRPKIValidation struct {
 	} `json:"data"`
 }
 
-// ripeNetworkInfo is the response from stat.ripe.net/data/network-info.
-type ripeNetworkInfo struct {
-	Status string `json:"status"`
-	Data   struct {
-		ASNs   []string `json:"asns"`
-		Prefix string   `json:"prefix"`
+// ripeRoutingStatus is the response from stat.ripe.net/data/routing-status.
+// It reports the origins of the exact prefix and the more-specific prefixes
+// announced inside it, in one request.
+//
+// RIPE Stat caps more_specifics at 50 entries. A hijack announces one or a few
+// more-specifics, so the cap only truncates the list for heavily deaggregated
+// space that the operator announces itself.
+type ripeRoutingStatus struct {
+	Data struct {
+		Origins []struct {
+			Origin int `json:"origin"`
+		} `json:"origins"`
+		MoreSpecifics []struct {
+			Prefix string `json:"prefix"`
+			Origin int    `json:"origin"`
+		} `json:"more_specifics"`
 	} `json:"data"`
 }
 
@@ -62,9 +72,10 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	client := &http.Client{Timeout: timeout}
 	start := time.Now()
 
-	// Query RIPE Stat for network info (origin ASNs for the prefix).
+	// Query RIPE Stat for routing status: the origins of the prefix and the
+	// more-specific prefixes announced inside it.
 	apiURL := fmt.Sprintf(
-		"%s/data/network-info/data.json?resource=%s&sourceapp=technician",
+		"%s/data/routing-status/data.json?resource=%s&sourceapp=technician",
 		p.baseURL, url.QueryEscape(bcfg.Prefix),
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -91,7 +102,7 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		return result
 	}
 
-	var info ripeNetworkInfo
+	var info ripeRoutingStatus
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		result.Duration = time.Since(start)
 		result.InfraError = true
@@ -101,29 +112,48 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 
 	result.Duration = time.Since(start)
 
-	// Check if prefix is visible in the global routing table.
-	if len(info.Data.ASNs) == 0 {
-		result.BGPPrefixVisible = false
+	origins := make([]int, 0, len(info.Data.Origins))
+	for _, o := range info.Data.Origins {
+		origins = append(origins, o.Origin)
+	}
+
+	// A more-specific prefix from an unexpected origin is the classic hijack
+	// shape. The attacker announces a longer prefix, wins longest-prefix-match,
+	// and the origin of the covering prefix never changes. A check of the
+	// covering prefix alone therefore stays green through the hijack.
+	var rogue []string
+	for _, ms := range info.Data.MoreSpecifics {
+		if ms.Origin != bcfg.ExpectedOrigin {
+			rogue = append(rogue, fmt.Sprintf("%s (AS%d)", ms.Prefix, ms.Origin))
+		}
+	}
+
+	// An operator that deaggregates announces no route for the covering prefix
+	// itself, only more-specifics. That prefix is still visible.
+	result.BGPPrefixVisible = len(origins) > 0 || len(info.Data.MoreSpecifics) > 0
+
+	// A rogue more-specific is reported before visibility, because it is the
+	// more urgent finding when both are true.
+	if len(rogue) > 0 {
+		result.BGPOriginMatch = false
+		result.Error = fmt.Sprintf(
+			"more-specific prefix of %s announced by an unexpected origin: %s (possible hijack)",
+			bcfg.Prefix, strings.Join(rogue, ", "),
+		)
+		return result
+	}
+
+	if !result.BGPPrefixVisible {
 		result.Error = fmt.Sprintf("prefix %s not visible in global routing table", bcfg.Prefix)
 		return result
 	}
 
-	result.BGPPrefixVisible = true
-
-	origins := make([]int, 0, len(info.Data.ASNs))
-	for _, raw := range info.Data.ASNs {
-		asn, err := strconv.Atoi(raw)
-		if err != nil {
-			result.InfraError = true
-			result.Error = fmt.Sprintf("invalid ASN in response: %s", raw)
-			return result
-		}
-		origins = append(origins, asn)
+	// The gauge holds one number, so it reports the first origin. It stays 0
+	// for a deaggregated prefix, which announces no route of its own.
+	// Validation below uses the full set.
+	if len(origins) > 0 {
+		result.BGPOriginASN = origins[0]
 	}
-
-	// The gauge holds one number, so it reports the first origin. Validation
-	// below uses the full set.
-	result.BGPOriginASN = origins[0]
 
 	// Every announced origin must match the expected one. A hijacked prefix is
 	// usually announced by the attacker and by its real operator at the same
@@ -165,6 +195,7 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		"name", cfg.Name,
 		"prefix", bcfg.Prefix,
 		"origin_asns", origins,
+		"more_specifics", len(info.Data.MoreSpecifics),
 		"expected_asn", bcfg.ExpectedOrigin,
 		"rpki_status", result.BGPRPKIStatus,
 		"duration", result.Duration,
