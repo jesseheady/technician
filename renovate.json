@@ -7,8 +7,12 @@
     ":gitSignOff",
     "schedule:weekdays"
   ],
-  "labels": ["dependencies"],
-  "postUpdateOptions": ["gomodTidy"],
+  "labels": [
+    "dependencies"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
   "minimumReleaseAge": "7 days",
   "platformAutomerge": false,
   "lockFileMaintenance": {
@@ -18,17 +22,28 @@
   "packageRules": [
     {
       "description": "Don't track our own published app image",
-      "matchPackageNames": ["ghcr.io/jesseheady/technician**"],
+      "matchPackageNames": [
+        "ghcr.io/jesseheady/technician**"
+      ],
       "enabled": false
     },
     {
       "description": "Auto-merge all non-major updates once required checks pass; major bumps are reviewed manually",
-      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "bump"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "bump"
+      ],
       "automerge": true
     },
     {
       "description": "Group all patch updates into a single PR",
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "groupName": "patch updates",
       "matchPackageNames": [
         "!/^go\\.opentelemetry\\.io\\/otel/",
@@ -37,7 +52,9 @@
     },
     {
       "description": "Group all minor updates into a single PR",
-      "matchUpdateTypes": ["minor"],
+      "matchUpdateTypes": [
+        "minor"
+      ],
       "groupName": "minor updates",
       "matchPackageNames": [
         "!/^go\\.opentelemetry\\.io\\/otel/",
@@ -46,40 +63,79 @@
     },
     {
       "description": "Group all GitHub Actions updates. Actions are digest-pinned, so pin and digest carry nearly all of them and must be matched alongside minor and patch",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "pinDigest",
+        "digest"
+      ],
       "groupName": "github actions"
     },
     {
       "description": "Group all OpenTelemetry packages. Regex, not a glob: a glob star does not cross the path separator, so otel** would miss every otel submodule",
-      "matchPackageNames": ["/^go\\.opentelemetry\\.io\\/otel/"],
+      "matchPackageNames": [
+        "/^go\\.opentelemetry\\.io\\/otel/"
+      ],
       "groupName": "opentelemetry"
     },
     {
       "description": "Group all AWS SDK packages. Regex for the same reason as opentelemetry above",
-      "matchPackageNames": ["/^github\\.com\\/aws\\/aws-sdk-go-v2/"],
+      "matchPackageNames": [
+        "/^github\\.com\\/aws\\/aws-sdk-go-v2/"
+      ],
       "groupName": "aws-sdk-go-v2"
     },
     {
-      "description": "Group base image updates, weekly Monday. Covers docker-compose as well as the Dockerfile, since the observability stack images live in compose",
-      "matchManagers": ["dockerfile", "docker-compose"],
+      "description": "Group base image updates, weekly Monday. Covers docker-compose and the git hooks as well as the Dockerfile, since the observability stack images live in compose and the hooks run the same tools locally",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose",
+        "custom.regex"
+      ],
       "groupName": "docker base images",
-      "schedule": ["before 9am on monday"]
+      "schedule": [
+        "before 9am on monday"
+      ]
     },
     {
       "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Placed after the generic groups: later rules win on groupName",
-      "matchDepNames": ["go", "golang"],
+      "matchDepNames": [
+        "go",
+        "golang"
+      ],
       "groupName": "go toolchain"
     },
     {
       "description": "Update the playwright npm client and the playwright sidecar image together. In managed mode they are two ends of one connection: a mismatch fails the handshake and breaks every browser check, so they must never be bumped separately. Placed last for the same ordering reason as go toolchain",
-      "matchDepNames": ["playwright", "mcr.microsoft.com/playwright"],
+      "matchDepNames": [
+        "playwright",
+        "mcr.microsoft.com/playwright"
+      ],
       "groupName": "playwright"
     }
   ],
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"],
+    "labels": [
+      "security"
+    ],
     "minimumReleaseAge": "0 days"
-  }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Docker images run by the git hooks. No standard manager reads shell scripts, so without this the digests pinned there would never be updated.",
+      "managerFilePatterns": [
+        "/^\\.githooks\\//"
+      ],
+      "matchStrings": [
+        "(?<depName>[a-z0-9]+(?:[._/-][a-z0-9]+)*):(?<currentValue>v?[0-9][^@\\s\"']*)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
 }
