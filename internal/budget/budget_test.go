@@ -215,3 +215,35 @@ func TestEvaluateNamedCheckOnly(t *testing.T) {
 		t.Errorf("expected 0 violations for non-matching check, got %d", len(violations))
 	}
 }
+
+// An inp threshold stays inert for a check whose script makes no interaction.
+// The metric is absent, and an absent metric is skipped, not failed.
+func TestINPBudgetSkippedWithoutInteraction(t *testing.T) {
+	budgets := []Budget{{Check: "load-only-flow", Thresholds: map[string]float64{"inp": 200}}}
+
+	noInteraction := &check.Result{
+		Name:      "load-only-flow",
+		Type:      config.CheckTypePlaywright,
+		Success:   true,
+		WebVitals: &check.WebVitals{LCP: 1200, INP: 0},
+	}
+	if v := Evaluate(noInteraction, budgets); len(v) != 0 {
+		t.Fatalf("expected no violations without an interaction, got %v", v)
+	}
+	for _, c := range EvaluateAll(noInteraction, budgets) {
+		if c.Metric == "inp" {
+			t.Errorf("expected no inp result without an interaction, got %+v", c)
+		}
+	}
+
+	interaction := &check.Result{
+		Name:      "load-only-flow",
+		Type:      config.CheckTypePlaywright,
+		Success:   true,
+		WebVitals: &check.WebVitals{LCP: 1200, INP: 350},
+	}
+	v := Evaluate(interaction, budgets)
+	if len(v) != 1 || v[0].Metric != "inp" {
+		t.Fatalf("expected one inp violation after an interaction, got %v", v)
+	}
+}

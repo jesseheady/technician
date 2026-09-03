@@ -437,7 +437,11 @@ func recordBrowserMetrics(result *check.Result, labels labelSet) {
 		browserFCP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.FCP)
 		browserLCP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.LCP)
 		browserCLS.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.CLS)
-		browserINP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.INP)
+		// ponytail: 0 means "no interaction", not a fast one — a real interaction
+		// costs at least one frame. Emit a pointer-typed INP if that ever changes.
+		if v.INP > 0 {
+			browserINP.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.INP)
+		}
 		browserDOMComplete.WithLabelValues(result.Name, network, device, labels.code, labels.city, labels.country).Set(v.DOMComplete)
 	}
 

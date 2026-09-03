@@ -137,3 +137,59 @@ func TestLastRunTimestampFreshness(t *testing.T) {
 		t.Errorf("recorded result did not advance freshness gauge past stale value %v, got %v", stale, got)
 	}
 }
+
+// inpSeriesFor reports whether browserINP holds a series for the given check
+// name, and its value.
+func inpSeriesFor(t *testing.T, name string) (float64, bool) {
+	t.Helper()
+	ch := make(chan prometheus.Metric, 1024)
+	browserINP.Collect(ch)
+	close(ch)
+
+	for m := range ch {
+		var d dto.Metric
+		if err := m.Write(&d); err != nil {
+			t.Fatalf("reading metric: %v", err)
+		}
+		for _, l := range d.GetLabel() {
+			if l.GetName() == "name" && l.GetValue() == name {
+				return d.GetGauge().GetValue(), true
+			}
+		}
+	}
+	return 0, false
+}
+
+// A check whose script makes no interaction has no INP. Record no series for
+// it, because a 0 there is indistinguishable from a very fast interaction.
+func TestBrowserINPSkippedWithoutInteraction(t *testing.T) {
+	result := &check.Result{
+		Name:      "load-only-flow",
+		Type:      config.CheckTypePlaywright,
+		Success:   true,
+		WebVitals: &check.WebVitals{LCP: 1200, CLS: 0.02, INP: 0},
+	}
+	recordBrowserMetrics(result, siteLabels(result))
+
+	if v, ok := inpSeriesFor(t, result.Name); ok {
+		t.Errorf("expected no INP series without an interaction, got %v", v)
+	}
+}
+
+func TestBrowserINPRecordedWithInteraction(t *testing.T) {
+	result := &check.Result{
+		Name:      "interactive-flow",
+		Type:      config.CheckTypePlaywright,
+		Success:   true,
+		WebVitals: &check.WebVitals{LCP: 1200, CLS: 0.02, INP: 250},
+	}
+	recordBrowserMetrics(result, siteLabels(result))
+
+	v, ok := inpSeriesFor(t, result.Name)
+	if !ok {
+		t.Fatal("expected an INP series after an interaction")
+	}
+	if v != 250 {
+		t.Errorf("expected INP 250, got %v", v)
+	}
+}

@@ -12,8 +12,15 @@ Technician’s Playwright checks collect the **Core Web Vitals** for synthetic m
 
 ## Collection
 
-- **LCP and CLS** are collected in the browser via the [web-vitals](https://github.com/GoogleChrome/web-vitals) library (PerformanceObserver).
-- **INP** requires at least one user interaction; the Playwright harness triggers a click on the page after load, then reads INP.
+- **LCP, CLS and INP** are collected in the browser with the [web-vitals](https://github.com/GoogleChrome/web-vitals) library (PerformanceObserver).
+
+### INP needs an interaction
+
+INP measures the worst interaction of the page lifetime. A check receives an INP value only if its script interacts with the page. A click, a key press and a tap are interactions.
+
+A check that only loads a page reports no INP. Technician then records no `technician_browser_inp_ms` sample, and it applies no `inp` budget threshold. This is deliberate: a value of 0 ms looks the same as a very fast interaction, and it makes the INP alerts and the INP budgets inert.
+
+The example script `examples/playwright/example_flow.js` only loads a page. Add interactions to your own script if you want INP for that check.
 
 ## Network throttling and device emulation
 
@@ -51,7 +58,7 @@ Network and device values are exposed as Prometheus labels on all `technician_br
 
 ## Budgets and alerts
 
-In `budgets.yml` you can set thresholds for `lcp`, `inp`, and `cls` (e.g. `lcp: 2500`, `inp: 200`, `cls: 0.1`). Prometheus rules include **HighLCP** (LCP &gt; 2500 ms) and **HighINP** (INP &gt; 200 ms).
+In `budgets.yml` you can set thresholds for `lcp`, `inp`, and `cls` (e.g. `lcp: 2500`, `inp: 200`, `cls: 0.1`). Prometheus rules include **HighLCP** (LCP &gt; 2500 ms) and **HighINP** (INP &gt; 200 ms). An `inp` threshold stays inert until the check script interacts with the page.
 
 ## Dashboards
 

@@ -270,6 +270,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### INP measures the check script's own interactions [#376](https://github.com/jesseheady/technician/issues/376)
+
+The browser runner made a `page.click('body')` before it read INP. That click starts no event handler on almost all pages, so the measured latency stayed near 0 ms. Each failure path returned 0 as well, and 0 went to the `technician_browser_inp_ms` gauge and to the budget map. A reader could not tell "no interaction" from "a very fast interaction", and `HighINP`, `HighINPCritical` and every `inp` budget threshold stayed inert. The runner also kept the first value from `onINP` instead of the last one. That is theoretically wrong, but it changed no measurement, because `web-vitals` reads the buffered event entries and sends the worst interaction in its first callback.
+
+The forced click is gone. `onINP` now registers beside `onLCP` and `onCLS` in the one `page.evaluate` block, and it keeps the last value, which is correct by definition. INP therefore measures the interactions that the check script itself makes. A check that only loads a page emits no INP sample and applies no `inp` threshold. Existing budget files need no change: an absent metric is skipped, not failed.
+
 ### SQLite persistence layer [#16](https://github.com/jesseheady/technician/issues/16)
 
 Optional long-term history in an embedded SQLite DB (`modernc.org/sqlite`, pure Go) at `${TECHNICIAN_DATA_DIR}/results.db`, beyond the in-memory ring buffer. Off by default (`persistence.enabled`); `persistence.retention` defaults to 30d. Written **asynchronously write-through** from the status store's hot path — results go to a buffered channel and a single writer goroutine batches the inserts, so a slow disk never slows result draining, and a full buffer drops rather than blocks. Infra errors are skipped (the target was never tested). `status.json` keeps its non-series state. [#16](https://github.com/jesseheady/technician/issues/16) stays open for the remaining half — rendering this history on the status page (30-day uptime bars), which is coupled to the status-page redesign (#25) and the public-exposure decision (#39).

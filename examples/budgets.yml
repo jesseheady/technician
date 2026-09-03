@@ -27,7 +27,7 @@
   thresholds:
     duration: 30000
     lcp: 2500         # Largest Contentful Paint
-    inp: 200          # Interaction to Next Paint
+    inp: 200          # Interaction to Next Paint (only if the script interacts)
     cls: 0.1          # Cumulative Layout Shift
     dom_complete: 5000
   alert_on: exceed
