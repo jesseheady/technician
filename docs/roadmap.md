@@ -270,6 +270,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### INP measures the check script's own interactions [#376](https://github.com/jesseheady/technician/issues/376)
+
+The browser runner made a `page.click('body')` before it read INP. That click starts no event handler on almost all pages, so the measured latency stayed near 0 ms. Each failure path returned 0 as well, and 0 went to the `technician_browser_inp_ms` gauge and to the budget map. A reader could not tell "no interaction" from "a very fast interaction", and `HighINP`, `HighINPCritical` and every `inp` budget threshold stayed inert. The runner also kept the first value from `onINP` instead of the last one. That is theoretically wrong, but it changed no measurement, because `web-vitals` reads the buffered event entries and sends the worst interaction in its first callback.
+
+The forced click is gone. `onINP` now registers beside `onLCP` and `onCLS` in the one `page.evaluate` block, and it keeps the last value, which is correct by definition. INP therefore measures the interactions that the check script itself makes. A check that only loads a page emits no INP sample and applies no `inp` threshold. Existing budget files need no change: an absent metric is skipped, not failed.
+
 ### BGP check detects more-specific hijacks [#382](https://github.com/jesseheady/technician/issues/382)
 
 The check asked RIPE Stat `network-info`, which describes the configured prefix only. The common hijack announces a longer prefix inside it. That announcement wins longest-prefix-match and never changes the origin of the covering prefix, so the check stayed green through it. The check now asks `routing-status`, which returns the origins of the prefix and the more-specifics announced inside it in one request, so this costs no extra call. A more-specific from an ASN other than `expected_origin` fails the check and clears `technician_bgp_origin_match`, which fires the existing `BGPOriginMismatch` alert. More-specifics that `expected_origin` announces itself are normal deaggregation and pass. A prefix that is announced only as more-specifics now reports as visible, which `network-info` could not express.

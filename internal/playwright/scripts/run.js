@@ -219,8 +219,8 @@ async function main() {
 async function collectWebVitals(page) {
   const fallback = { ttfb: 0, fcp: 0, lcp: 0, cls: 0, inp: 0, dom_complete: 0 };
   try {
-    // Register observers, then trigger visibility change to flush LCP/CLS
-    const withLcpCls = await page.evaluate(async () => {
+    // Register observers, then trigger visibility change to flush the vitals
+    return await page.evaluate(async () => {
       const nav = performance.getEntriesByType('navigation')[0] || {};
       const paint = performance.getEntriesByType('paint');
       const fcpEntry = paint.find((p) => p.name === 'first-contentful-paint');
@@ -229,8 +229,8 @@ async function collectWebVitals(page) {
       const dom_complete = nav.domComplete || 0;
 
       try {
-        const { onLCP, onCLS } = await import('https://unpkg.com/web-vitals@4?module');
-        const result = { ttfb, fcp, dom_complete, lcp: 0, cls: 0 };
+        const { onLCP, onCLS, onINP } = await import('https://unpkg.com/web-vitals@4?module');
+        const result = { ttfb, fcp, dom_complete, lcp: 0, cls: 0, inp: 0 };
 
         const lcpDone = new Promise((resolve) => {
           onLCP((m) => { result.lcp = m.value; resolve(); }, { reportAllChanges: true });
@@ -238,6 +238,9 @@ async function collectWebVitals(page) {
         const clsDone = new Promise((resolve) => {
           onCLS((m) => { result.cls = m.value; resolve(); }, { reportAllChanges: true });
         });
+        // Buffered event entries cover the interactions the check script already
+        // made, so web-vitals reports the worst one. Keep the last value anyway.
+        onINP((m) => { result.inp = m.value; }, { reportAllChanges: true });
 
         // Force LCP/CLS to finalize by simulating a visibility change.
         // web-vitals v4 checks document.visibilityState === 'hidden'
@@ -253,33 +256,9 @@ async function collectWebVitals(page) {
         ]);
         return result;
       } catch {
-        return { ttfb, fcp, dom_complete, lcp: 0, cls: 0 };
+        return { ttfb, fcp, dom_complete, lcp: 0, cls: 0, inp: 0 };
       }
     });
-
-    // INP requires at least one interaction; trigger a click then read INP
-    await page.click('body', { timeout: 2000 }).catch(() => {});
-    await new Promise((r) => setTimeout(r, 300));
-
-    const inp = await page.evaluate(async () => {
-      try {
-        const { onINP } = await import('https://unpkg.com/web-vitals@4?module');
-        return new Promise((resolve) => {
-          onINP((m) => resolve(m.value), { reportAllChanges: true });
-          // Force INP to report via visibility change
-          Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
-          document.dispatchEvent(new Event('visibilitychange'));
-          setTimeout(() => resolve(0), 1000);
-        });
-      } catch {
-        return 0;
-      }
-    });
-
-    return {
-      ...withLcpCls,
-      inp: typeof inp === 'number' ? inp : 0,
-    };
   } catch {
     return fallback;
   }

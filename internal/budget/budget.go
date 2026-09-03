@@ -155,7 +155,11 @@ func extractMetrics(result *check.Result) map[string]float64 {
 		m["fcp"] = v.FCP
 		m["lcp"] = v.LCP
 		m["cls"] = v.CLS
-		m["inp"] = v.INP
+		// ponytail: 0 means "no interaction". An absent metric is skipped, not failed,
+		// so an inp threshold stays inert until a script actually interacts.
+		if v.INP > 0 {
+			m["inp"] = v.INP
+		}
 		m["dom_complete"] = v.DOMComplete
 	}
 
