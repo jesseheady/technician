@@ -24,6 +24,37 @@ func newFakeDNS(t *testing.T, handler dns.HandlerFunc) (string, func()) {
 	return pc.LocalAddr().String(), func() { _ = srv.Shutdown() }
 }
 
+// newRecordDNS starts a fake resolver that answers A, AAAA and TXT queries for
+// any name, and NXDOMAIN for any name under .invalid. Keeps the record tests
+// off the public internet.
+func newRecordDNS(t *testing.T) (string, func()) {
+	t.Helper()
+	return newFakeDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		if len(r.Question) == 0 {
+			_ = w.WriteMsg(m)
+			return
+		}
+		q := r.Question[0]
+		if strings.Contains(q.Name, ".invalid.") {
+			m.SetRcode(r, dns.RcodeNameError)
+			_ = w.WriteMsg(m)
+			return
+		}
+		hdr := dns.RR_Header{Name: q.Name, Rrtype: q.Qtype, Class: dns.ClassINET, Ttl: 300}
+		switch q.Qtype {
+		case dns.TypeA:
+			m.Answer = append(m.Answer, &dns.A{Hdr: hdr, A: net.IPv4(8, 8, 8, 8)})
+		case dns.TypeAAAA:
+			m.Answer = append(m.Answer, &dns.AAAA{Hdr: hdr, AAAA: net.ParseIP("2001:4860:4860::8888")})
+		case dns.TypeTXT:
+			m.Answer = append(m.Answer, &dns.TXT{Hdr: hdr, Txt: []string{"v=spf1 -all"}})
+		}
+		_ = w.WriteMsg(m)
+	})
+}
+
 func TestDNSCheckerSOA(t *testing.T) {
 	addr, closeFn := newFakeDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
@@ -95,14 +126,17 @@ func TestDNSCheckerSOANotFound(t *testing.T) {
 }
 
 func TestDNSCheckerARecord(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-a-record",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "google.com",
-			Server:     "8.8.8.8:53",
+			Domain:     "example.com",
+			Server:     addr,
 			RecordType: "A",
 		},
 	}
@@ -121,14 +155,17 @@ func TestDNSCheckerARecord(t *testing.T) {
 }
 
 func TestDNSCheckerAAAARecord(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-aaaa-record",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "google.com",
-			Server:     "8.8.8.8:53",
+			Domain:     "example.com",
+			Server:     addr,
 			RecordType: "AAAA",
 		},
 	}
@@ -146,14 +183,17 @@ func TestDNSCheckerAAAARecord(t *testing.T) {
 }
 
 func TestDNSCheckerTXTRecord(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-txt-record",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "google.com",
-			Server:     "8.8.8.8:53",
+			Domain:     "example.com",
+			Server:     addr,
 			RecordType: "TXT",
 		},
 	}
@@ -169,14 +209,17 @@ func TestDNSCheckerTXTRecord(t *testing.T) {
 }
 
 func TestDNSCheckerExpectedMatch(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-expected-match",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "dns.google",
-			Server:     "8.8.8.8:53",
+			Domain:     "dns.example.com",
+			Server:     addr,
 			RecordType: "A",
 			Expected:   []string{"8.8.8.8"},
 		},
@@ -190,14 +233,17 @@ func TestDNSCheckerExpectedMatch(t *testing.T) {
 }
 
 func TestDNSCheckerExpectedMismatch(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-expected-mismatch",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "dns.google",
-			Server:     "8.8.8.8:53",
+			Domain:     "dns.example.com",
+			Server:     addr,
 			RecordType: "A",
 			Expected:   []string{"1.2.3.4"},
 		},
@@ -214,14 +260,17 @@ func TestDNSCheckerExpectedMismatch(t *testing.T) {
 }
 
 func TestDNSCheckerInvalidDomain(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-invalid-domain",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
 			Domain:     "thisdomain.doesnotexist.invalid",
-			Server:     "8.8.8.8:53",
+			Server:     addr,
 			RecordType: "A",
 		},
 	}
@@ -234,14 +283,17 @@ func TestDNSCheckerInvalidDomain(t *testing.T) {
 }
 
 func TestDNSCheckerUnsupportedType(t *testing.T) {
+	addr, closeFn := newRecordDNS(t)
+	defer closeFn()
+
 	checker := NewDNSChecker()
 	cfg := &config.CheckConfig{
 		Name:    "test-unsupported-type",
 		Type:    config.CheckTypeDNS,
-		Timeout: 10 * time.Second,
+		Timeout: 2 * time.Second,
 		DNS: &config.DNSCheckConfig{
-			Domain:     "google.com",
-			Server:     "8.8.8.8:53",
+			Domain:     "example.com",
+			Server:     addr,
 			RecordType: "INVALID",
 		},
 	}

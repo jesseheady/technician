@@ -270,6 +270,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Unit tests no longer use the network [#355](https://github.com/jesseheady/technician/issues/355)
+
+`TestDNSCheckerTXTRecord` and six sibling tests resolved real names against `8.8.8.8`, so a slow network or a dropped UDP packet failed `go test`. Because `.githooks/pre-commit` runs `go test -race` on every commit, that flake blocked all work, including documentation-only changes, and trained contributors to bypass the hook with `SKIP_HOOKS=1`. The tests now query the in-process `miekg/dns` server the file already used for SOA coverage, so they keep real protocol coverage with no external dependency. The full suite passes with outbound network denied; `docs/testing-and-e2e.md` states the invariant and gives the command that proves it.
+
 ### INP measures the check script's own interactions [#376](https://github.com/jesseheady/technician/issues/376)
 
 The browser runner made a `page.click('body')` before it read INP. That click starts no event handler on almost all pages, so the measured latency stayed near 0 ms. Each failure path returned 0 as well, and 0 went to the `technician_browser_inp_ms` gauge and to the budget map. A reader could not tell "no interaction" from "a very fast interaction", and `HighINP`, `HighINPCritical` and every `inp` budget threshold stayed inert. The runner also kept the first value from `onINP` instead of the last one. That is theoretically wrong, but it changed no measurement, because `web-vitals` reads the buffered event entries and sends the worst interaction in its first callback.
