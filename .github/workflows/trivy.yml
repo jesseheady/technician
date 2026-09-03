@@ -133,3 +133,20 @@ jobs:
           # deferred here with an expiry + reason. Expired entries lapse and
           # fail CI again; the trivy-ignore-audit workflow reconciles them.
           trivyignores: .trivyignore.yaml
+  scan-passed:
+    name: Container scan passed
+    runs-on: ubuntu-latest
+    # Always runs, so the required status check always reports. The container
+    # job is skipped on most PRs by design, and a required context that never
+    # reports leaves a PR unmergeable.
+    if: always()
+    needs: [filesystem, container-changes, container]
+    steps:
+      - name: Check results
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          if [[ "$FAILED" == "true" ]]; then
+            echo "A required job failed or was cancelled"
+            exit 1
+          fi
