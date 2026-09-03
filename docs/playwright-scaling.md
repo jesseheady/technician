@@ -247,6 +247,16 @@ In `managed` mode the runner calls `chromium.connect(server_url)` instead of `ch
 
 The server is the **stock upstream Playwright image**, driven by a command the same way Prometheus and Grafana are, and it ships as a `playwright` service in `docker-compose.yml`. Nothing forks or patches Playwright.
 
+In Compose, managed mode is already the default and there is no overlay to select. `docker-compose.yml` starts that service and passes `PLAYWRIGHT_MODE=managed` and `PLAYWRIGHT_SERVER_URL=ws://playwright:3000/` to the worker, and `examples/technician.yml` reads them:
+
+```yaml
+playwright:
+  mode: ${PLAYWRIGHT_MODE:-local}
+  server_url: ${PLAYWRIGHT_SERVER_URL:-}
+```
+
+Use that form in your own config. A config that writes `mode: local` literally ignores both variables: the worker launches Chromium itself while the sidecar runs and consumes its memory reservation, and no error is reported. Confirm which mode is live with `docker compose logs technician | grep "browser concurrency"`, which prints the resolved `mode` and `server_url` at startup.
+
 Idle cost is memory rather than CPU: `run-server` launches Chromium per connection and tears it down on disconnect, so an idle server measures ~300 MB at 0% CPU with no browser process running.
 
 **Version pinning is required, not optional.** The sidecar image tag and the playwright version embedded in the binary (`internal/playwright/scripts/package.json`) must agree, and the npm dependency is pinned exactly rather than to a caret range for that reason. A range lets `npm ci` resolve a client newer than the sidecar, and Playwright rejects the connection outright:
