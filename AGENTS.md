@@ -130,11 +130,11 @@ The hooks prefer native `trivy`, `shellcheck`, `golangci-lint`, `promtool`, and 
 
 ## Branch protection
 
-Main requires four status checks: `CI Passed`, `Go vulnerability check`, `Scan Go dependencies`, `Go security scan`. Checks are strict — a PR branch must be up to date with main to merge, so main moving forces a rebase and re-run.
+Main requires five status checks: `CI Passed`, `Go vulnerability check`, `Scan Go dependencies`, `Go security scan`, `Container scan passed`. `CI Passed` and `Container scan passed` are aggregators: the first covers the build, test, lint, validate and image-build jobs, the second covers the Trivy jobs, including the image scan. Both run with `if: always()`, because the jobs they gate are skipped on most PRs and a required context that never reports leaves a PR unmergeable. Checks are strict — a PR branch must be up to date with main to merge, so main moving forces a rebase and re-run.
 
 History is linear: merge commits are disabled repo-wide, so PRs land via squash (default) or rebase and every commit on main has one parent. Force-pushes and deletion of main are blocked. Admin bypass is enabled for the maintainer to push directly; contributors must open PRs that pass CI before merging.
 
-Reviews and conversation resolution are deliberately not required. Neither constrains outside contributors — they have no write access and cannot merge regardless — and the maintainer can bypass both, so the status checks are the real gate. Renovate has write access but is not an admin, so it cannot bypass them: its automerge must pass the same four checks.
+Reviews and conversation resolution are deliberately not required. Neither constrains outside contributors — they have no write access and cannot merge regardless — and the maintainer can bypass both, so the status checks are the real gate. Renovate has write access but is not an admin, so it cannot bypass them: its automerge must pass the same five checks.
 
 ## Releases
 

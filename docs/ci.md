@@ -12,6 +12,7 @@ How to run Technician in CI pipelines. GitHub Actions is first-class with a read
 | **Validate** | Runs all checks once, checks performance budgets | Recommended |
 | **Validate (Playwright)** | Same as validate, but with Chromium installed for browser checks | Yes |
 | **Docker build** | Builds the container image | Main pushes + PRs touching image inputs |
+| **Scan container image** | Trivy scan of the built image for fixable CRITICAL/HIGH CVEs | Main pushes, weekly, + PRs touching image inputs |
 
 ## GitHub Actions
 
@@ -25,6 +26,7 @@ The project includes `.github/workflows/ci.yml` which runs on push to `main` and
 - **Validate** -- runs `technician validate` with example config and budgets
 - **Validate Playwright** -- same as validate but installs Node.js + Chromium for browser checks
 - **Docker build** -- builds the container image on `main` pushes and on PRs that touch image inputs (`Dockerfile`, `.dockerignore`, `internal/playwright/scripts/`), so a broken image build blocks merge via the `CI Passed` gate
+- **Scan container image** -- builds and Trivy-scans the image on `main` pushes, weekly, and on PRs that touch image inputs; a fixable CRITICAL/HIGH CVE blocks merge via the `Container scan passed` gate
 
 ### Budget violation annotations
 

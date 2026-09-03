@@ -270,6 +270,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### A broken container image blocks merge [#304](https://github.com/jesseheady/technician/issues/304)
+
+`Scan container image` could fail while every required context passed, so a pull request that broke the image reached a green merge button. The half of this that runs `Docker build` on pull requests touching image inputs already shipped, and it feeds `CI Passed`. The scan itself was still advisory. A `Container scan passed` aggregator now gates the Trivy jobs and is a required status check on main. It runs with `if: always()`, the same way `CI Passed` does, because the image scan is skipped on most pull requests by design and a required context that never reports would leave those pull requests unmergeable.
+
 ### validate applies the retry policy [#363](https://github.com/jesseheady/technician/issues/363)
 
 CI ran the example config against live third-party endpoints with `--fail-on-error`, so main's build status followed the availability of services we do not control. A short RIPE Stat outage failed main; the same commit passed on a re-run. `cmd/validate.go` called `checker.Run` directly and therefore ignored the `retry:` policy, although the scheduler has implemented it all along and the example BGP checks declare it. `RunWithRetry` moves from unexported to exported in `internal/scheduler`, and validate now calls it, so a check behaves the same way in CI and in production. Retries cost time only when a check fails, so a green run takes no longer than before.
