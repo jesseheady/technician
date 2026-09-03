@@ -2,6 +2,7 @@ package check
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -68,10 +69,13 @@ func TestBGPCheckerCancelledContext(t *testing.T) {
 }
 
 // bgpTestChecker returns a checker pointed at a stub RIPE Stat. The stub
-// answers network-info with the given origin ASNs and rpki-validation with the
-// given status. An empty rpkiStatus makes the RPKI endpoint fail, which the
-// checker must treat as "unknown".
-func bgpTestChecker(t *testing.T, asns, rpkiStatus string) *BGPChecker {
+// answers routing-status with the given origins and more-specifics, and
+// rpki-validation with the given status. An empty rpkiStatus makes the RPKI
+// endpoint fail, which the checker must treat as "unknown".
+//
+// origins and moreSpecifics are raw JSON array bodies, so a test can send an
+// empty list.
+func bgpTestChecker(t *testing.T, origins, moreSpecifics, rpkiStatus string) *BGPChecker {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "rpki-validation") {
@@ -85,14 +89,24 @@ func bgpTestChecker(t *testing.T, asns, rpkiStatus string) *BGPChecker {
 			_, _ = w.Write([]byte(`{"data":{"status":"` + rpkiStatus + `"}}`))
 			return
 		}
+		if !strings.Contains(r.URL.Path, "routing-status") {
+			t.Errorf("unexpected path: %q", r.URL.Path)
+		}
 		if got := r.URL.Query().Get("resource"); got != "203.0.113.0/24" {
 			t.Errorf("unexpected resource parameter: %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"asns":[` + asns + `],"prefix":"203.0.113.0/24"}}`))
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + origins + `],"more_specifics":[` + moreSpecifics + `]}}`))
 	}))
 	t.Cleanup(srv.Close)
-	return &BGPChecker{baseURL: srv.URL}
+	c := NewBGPChecker()
+	c.baseURL = srv.URL
+	return c
+}
+
+// asOrigin renders a routing-status origins entry.
+func asOrigin(asn int) string {
+	return fmt.Sprintf(`{"origin":%d,"route_objects":["RADB"]}`, asn)
 }
 
 func bgpTestConfig() *config.CheckConfig {
@@ -108,7 +122,7 @@ func bgpTestConfig() *config.CheckConfig {
 }
 
 func TestBGPCheckerExpectedOrigin(t *testing.T) {
-	result := bgpTestChecker(t, `"64496"`, "valid").Run(context.Background(), bgpTestConfig(), nil)
+	result := bgpTestChecker(t, asOrigin(64496), "", "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 	if !result.Success {
 		t.Fatalf("expected success, got error: %s", result.Error)
@@ -129,11 +143,11 @@ func TestBGPCheckerMultiOriginHijack(t *testing.T) {
 		name string
 		asns string
 	}{
-		{"legitimate origin first", `"64496","64511"`},
-		{"hijacker first", `"64511","64496"`},
+		{"legitimate origin first", asOrigin(64496) + "," + asOrigin(64511)},
+		{"hijacker first", asOrigin(64511) + "," + asOrigin(64496)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := bgpTestChecker(t, tc.asns, "valid").Run(context.Background(), bgpTestConfig(), nil)
+			result := bgpTestChecker(t, tc.asns, "", "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 			if result.Success {
 				t.Error("expected failure when an unexpected origin announces the prefix")
@@ -155,7 +169,7 @@ func TestBGPCheckerMultiOriginHijack(t *testing.T) {
 }
 
 func TestBGPCheckerPrefixNotVisible(t *testing.T) {
-	result := bgpTestChecker(t, "", "valid").Run(context.Background(), bgpTestConfig(), nil)
+	result := bgpTestChecker(t, "", "", "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 	if result.Success || result.BGPPrefixVisible {
 		t.Error("expected failure when the prefix is not announced")
@@ -182,7 +196,7 @@ func TestBGPCheckerRPKI(t *testing.T) {
 		{"RPKI query fails", "", true, "unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := bgpTestChecker(t, `"64496"`, tc.rpkiStatus).
+			result := bgpTestChecker(t, asOrigin(64496), "", tc.rpkiStatus).
 				Run(context.Background(), bgpTestConfig(), nil)
 
 			if result.Success != tc.wantOK {
@@ -206,7 +220,7 @@ func TestBGPCheckerRPKI(t *testing.T) {
 // A prefix that fails the origin comparison must not be reported as RPKI
 // invalid, because the RPKI query never runs.
 func TestBGPCheckerRPKISkippedOnOriginMismatch(t *testing.T) {
-	result := bgpTestChecker(t, `"64511"`, "valid").
+	result := bgpTestChecker(t, asOrigin(64511), "", "valid").
 		Run(context.Background(), bgpTestConfig(), nil)
 
 	if result.Success {
@@ -214,5 +228,178 @@ func TestBGPCheckerRPKISkippedOnOriginMismatch(t *testing.T) {
 	}
 	if result.BGPRPKIStatus != "" {
 		t.Errorf("expected no RPKI verdict, got %q", result.BGPRPKIStatus)
+	}
+}
+
+// A hijacker announces a longer prefix inside the monitored one. The origin of
+// the monitored prefix never changes, so only a more-specific check finds it.
+func TestBGPCheckerRogueMoreSpecific(t *testing.T) {
+	result := bgpTestChecker(t,
+		asOrigin(64496),
+		`{"prefix":"203.0.113.128/25","origin":64511}`,
+		"valid",
+	).Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success {
+		t.Error("expected failure when an unexpected origin announces a more-specific prefix")
+	}
+	if result.BGPOriginMatch {
+		t.Error("expected BGPOriginMatch=false so BGPOriginMismatch fires")
+	}
+	if !result.BGPPrefixVisible {
+		t.Error("expected BGPPrefixVisible=true — the monitored prefix is still announced")
+	}
+	for _, want := range []string{"203.0.113.128/25", "AS64511"} {
+		if !strings.Contains(result.Error, want) {
+			t.Errorf("expected error to contain %q, got: %s", want, result.Error)
+		}
+	}
+	if result.InfraError {
+		t.Error("expected InfraError=false")
+	}
+}
+
+// An operator that deaggregates announces its own more-specifics. That is not
+// a hijack and must not alert.
+func TestBGPCheckerOwnMoreSpecifics(t *testing.T) {
+	t.Run("alongside the covering prefix", func(t *testing.T) {
+		result := bgpTestChecker(t,
+			asOrigin(64496),
+			`{"prefix":"203.0.113.0/25","origin":64496},{"prefix":"203.0.113.128/25","origin":64496}`,
+			"valid",
+		).Run(context.Background(), bgpTestConfig(), nil)
+
+		if !result.Success {
+			t.Errorf("expected success, got error: %s", result.Error)
+		}
+	})
+
+	// The covering prefix has no route of its own. It is still visible,
+	// because the operator announces every more-specific inside it.
+	t.Run("without the covering prefix", func(t *testing.T) {
+		result := bgpTestChecker(t,
+			"",
+			`{"prefix":"203.0.113.0/25","origin":64496},{"prefix":"203.0.113.128/25","origin":64496}`,
+			"valid",
+		).Run(context.Background(), bgpTestConfig(), nil)
+
+		if !result.Success {
+			t.Errorf("expected success, got error: %s", result.Error)
+		}
+		if !result.BGPPrefixVisible {
+			t.Error("expected BGPPrefixVisible=true for a deaggregated prefix")
+		}
+		if result.BGPOriginASN != 0 {
+			t.Errorf("expected BGPOriginASN=0 when the prefix announces no route of its own, got %d", result.BGPOriginASN)
+		}
+	})
+}
+
+// A rogue more-specific is the more urgent finding, so it is reported ahead of
+// the prefix being withdrawn.
+func TestBGPCheckerRogueMoreSpecificOutranksNotVisible(t *testing.T) {
+	result := bgpTestChecker(t,
+		"",
+		`{"prefix":"203.0.113.128/25","origin":64511}`,
+		"valid",
+	).Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success {
+		t.Error("expected failure")
+	}
+	if !strings.Contains(result.Error, "more-specific") {
+		t.Errorf("expected the more-specific hijack error, got: %s", result.Error)
+	}
+}
+
+// The Softaculous/Virtualizor hijack (Aug 2026) forged the AS path so it ended
+// in the real origin AS (Hetzner, AS24940), and the real operator's ROA
+// permitted the hijacked /24's length. Both origin comparison and RPKI
+// validation would show green for that announcement. Only its novelty — no
+// route for that /24 existed a moment before — was a signal forgery could not
+// erase. See https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/
+func TestBGPCheckerNewMoreSpecificWithCorrectOrigin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[]}}`))
+	}))
+	defer srv.Close()
+	checker := NewBGPChecker()
+	checker.baseURL = srv.URL
+
+	// First run establishes the baseline: no more-specifics exist yet.
+	baseline := checker.Run(context.Background(), bgpTestConfig(), nil)
+	if !baseline.Success {
+		t.Fatalf("expected baseline run to succeed, got error: %s", baseline.Error)
+	}
+	srv.Close()
+
+	// A more-specific appears, announced by the expected origin AS — exactly
+	// what a forged AS path produces. The origin comparison alone would pass
+	// this.
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[{"prefix":"203.0.113.128/25","origin":64496}]}}`))
+	}))
+	defer srv2.Close()
+	checker.baseURL = srv2.URL
+
+	result := checker.Run(context.Background(), bgpTestConfig(), nil)
+	if result.Success {
+		t.Error("expected failure for a newly-appeared more-specific, even with the expected origin")
+	}
+	if result.BGPOriginMatch {
+		t.Error("expected BGPOriginMatch=false so BGPOriginMismatch fires")
+	}
+	for _, want := range []string{"new more-specific", "203.0.113.128/25", "AS64496"} {
+		if !strings.Contains(result.Error, want) {
+			t.Errorf("expected error to contain %q, got: %s", want, result.Error)
+		}
+	}
+}
+
+// A more-specific present since the worker's first observation of a check is
+// an established deaggregation, not a hijack in progress. It must not alert.
+func TestBGPCheckerEstablishedMoreSpecificDoesNotAlert(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			_, _ = w.Write([]byte(`{"data":{"status":"valid"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"origins":[` + asOrigin(64496) + `],"more_specifics":[{"prefix":"203.0.113.128/25","origin":64496}]}}`))
+	}))
+	defer srv.Close()
+	checker := NewBGPChecker()
+	checker.baseURL = srv.URL
+
+	for i, wantOK := range []bool{true, true, true} {
+		result := checker.Run(context.Background(), bgpTestConfig(), nil)
+		if result.Success != wantOK {
+			t.Errorf("run %d: Success = %v, want %v (error: %s)", i, result.Success, wantOK, result.Error)
+		}
+	}
+}
+
+// A more-specific new since the last query, but from an unexpected origin, is
+// reported as an origin mismatch — the more specific, higher-confidence
+// finding — not as a generic "new prefix appeared" notice.
+func TestBGPCheckerNewMoreSpecificWithWrongOriginReportsOriginMismatch(t *testing.T) {
+	result := bgpTestChecker(t,
+		asOrigin(64496),
+		`{"prefix":"203.0.113.128/25","origin":64511}`,
+		"valid",
+	).Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success {
+		t.Error("expected failure")
+	}
+	if !strings.Contains(result.Error, "unexpected origin") {
+		t.Errorf("expected the origin-mismatch error to take priority, got: %s", result.Error)
 	}
 }

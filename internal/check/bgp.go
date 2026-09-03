@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
@@ -24,21 +25,80 @@ type ripeRPKIValidation struct {
 	} `json:"data"`
 }
 
-// ripeNetworkInfo is the response from stat.ripe.net/data/network-info.
-type ripeNetworkInfo struct {
-	Status string `json:"status"`
-	Data   struct {
-		ASNs   []string `json:"asns"`
-		Prefix string   `json:"prefix"`
+// ripeRoutingStatus is the response from stat.ripe.net/data/routing-status.
+// It reports the origins of the exact prefix and the more-specific prefixes
+// announced inside it, in one request.
+//
+// RIPE Stat caps more_specifics at 50 entries. A hijack announces one or a few
+// more-specifics, so the cap only truncates the list for heavily deaggregated
+// space that the operator announces itself.
+type ripeRoutingStatus struct {
+	Data struct {
+		Origins []struct {
+			Origin int `json:"origin"`
+		} `json:"origins"`
+		MoreSpecifics []struct {
+			Prefix string `json:"prefix"`
+			Origin int    `json:"origin"`
+		} `json:"more_specifics"`
 	} `json:"data"`
 }
 
 type BGPChecker struct {
 	baseURL string // ponytail: seam for tests, not a config knob
+
+	// knownMoreSpecifics is the set of more-specific prefixes already seen for
+	// each check, keyed by check name. A prefix announced for the first time
+	// since the worker started is flagged even when its origin matches
+	// expected_origin: an attacker who forges the AS path so it ends in the
+	// real origin AS defeats both the origin comparison above and RPKI origin
+	// validation, since neither inspects the rest of the path. A route that
+	// did not exist a moment ago and suddenly does is the one signal that
+	// forgery does not erase. This is how the Softaculous/Virtualizor hijack
+	// (Aug 2026) actually got through: the attacker's AS path for
+	// 162.55.80.0/24 ended in Hetzner's real ASN, and Hetzner's ROA permitted
+	// prefix lengths up to /24, so the route was both origin-correct and
+	// RPKI-valid. See https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/
+	//
+	// ponytail: in-memory only, so a worker restart clears the baseline and
+	// treats every currently-announced more-specific as already known. Add
+	// persistent baseline storage if a hijack landing in the restart window
+	// matters more than the complexity of persisting it.
+	knownMu            sync.Mutex
+	knownMoreSpecifics map[string]map[string]bool
 }
 
 func NewBGPChecker() *BGPChecker {
-	return &BGPChecker{baseURL: ripeStatBaseURL}
+	return &BGPChecker{
+		baseURL:            ripeStatBaseURL,
+		knownMoreSpecifics: make(map[string]map[string]bool),
+	}
+}
+
+// observeMoreSpecifics returns the more-specific prefixes not present the last
+// time this check completed a routing-status query, then records the current
+// set as the new baseline. The first observation for a check name returns no
+// new prefixes, so process startup does not flag an established deaggregation.
+func (p *BGPChecker) observeMoreSpecifics(checkName string, current []string) (newPrefixes []string) {
+	p.knownMu.Lock()
+	defer p.knownMu.Unlock()
+
+	known, seenBefore := p.knownMoreSpecifics[checkName]
+	if seenBefore {
+		for _, prefix := range current {
+			if !known[prefix] {
+				newPrefixes = append(newPrefixes, prefix)
+			}
+		}
+	}
+
+	next := make(map[string]bool, len(current))
+	for _, prefix := range current {
+		next[prefix] = true
+	}
+	p.knownMoreSpecifics[checkName] = next
+
+	return newPrefixes
 }
 
 func (p *BGPChecker) Type() config.CheckType {
@@ -62,9 +122,10 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	client := &http.Client{Timeout: timeout}
 	start := time.Now()
 
-	// Query RIPE Stat for network info (origin ASNs for the prefix).
+	// Query RIPE Stat for routing status: the origins of the prefix and the
+	// more-specific prefixes announced inside it.
 	apiURL := fmt.Sprintf(
-		"%s/data/network-info/data.json?resource=%s&sourceapp=technician",
+		"%s/data/routing-status/data.json?resource=%s&sourceapp=technician",
 		p.baseURL, url.QueryEscape(bcfg.Prefix),
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -91,7 +152,7 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		return result
 	}
 
-	var info ripeNetworkInfo
+	var info ripeRoutingStatus
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		result.Duration = time.Since(start)
 		result.InfraError = true
@@ -101,29 +162,65 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 
 	result.Duration = time.Since(start)
 
-	// Check if prefix is visible in the global routing table.
-	if len(info.Data.ASNs) == 0 {
-		result.BGPPrefixVisible = false
+	origins := make([]int, 0, len(info.Data.Origins))
+	for _, o := range info.Data.Origins {
+		origins = append(origins, o.Origin)
+	}
+
+	// A more-specific prefix from an unexpected origin is the classic hijack
+	// shape. The attacker announces a longer prefix, wins longest-prefix-match,
+	// and the origin of the covering prefix never changes. A check of the
+	// covering prefix alone therefore stays green through the hijack.
+	moreSpecificPrefixes := make([]string, 0, len(info.Data.MoreSpecifics))
+	var rogue []string
+	for _, ms := range info.Data.MoreSpecifics {
+		moreSpecificPrefixes = append(moreSpecificPrefixes, ms.Prefix)
+		if ms.Origin != bcfg.ExpectedOrigin {
+			rogue = append(rogue, fmt.Sprintf("%s (AS%d)", ms.Prefix, ms.Origin))
+		}
+	}
+
+	// A more-specific that is new since the last successful query and whose
+	// origin matches expected_origin: origin-correct on paper, but a route
+	// that did not exist a moment ago. See knownMoreSpecifics above.
+	newMoreSpecifics := p.observeMoreSpecifics(cfg.Name, moreSpecificPrefixes)
+
+	// An operator that deaggregates announces no route for the covering prefix
+	// itself, only more-specifics. That prefix is still visible.
+	result.BGPPrefixVisible = len(origins) > 0 || len(info.Data.MoreSpecifics) > 0
+
+	// A rogue more-specific is reported before visibility, because it is the
+	// more urgent finding when both are true.
+	if len(rogue) > 0 {
+		result.BGPOriginMatch = false
+		result.Error = fmt.Sprintf(
+			"more-specific prefix of %s announced by an unexpected origin: %s (possible hijack)",
+			bcfg.Prefix, strings.Join(rogue, ", "),
+		)
+		return result
+	}
+
+	if len(newMoreSpecifics) > 0 {
+		result.BGPOriginMatch = false
+		result.Error = fmt.Sprintf(
+			"new more-specific prefix of %s appeared, announced by the expected origin AS%d: %s "+
+				"(a forged AS path can show the correct origin for a hijacked route; verify this announcement is intentional)",
+			bcfg.Prefix, bcfg.ExpectedOrigin, strings.Join(newMoreSpecifics, ", "),
+		)
+		return result
+	}
+
+	if !result.BGPPrefixVisible {
 		result.Error = fmt.Sprintf("prefix %s not visible in global routing table", bcfg.Prefix)
 		return result
 	}
 
-	result.BGPPrefixVisible = true
-
-	origins := make([]int, 0, len(info.Data.ASNs))
-	for _, raw := range info.Data.ASNs {
-		asn, err := strconv.Atoi(raw)
-		if err != nil {
-			result.InfraError = true
-			result.Error = fmt.Sprintf("invalid ASN in response: %s", raw)
-			return result
-		}
-		origins = append(origins, asn)
+	// The gauge holds one number, so it reports the first origin. It stays 0
+	// for a deaggregated prefix, which announces no route of its own.
+	// Validation below uses the full set.
+	if len(origins) > 0 {
+		result.BGPOriginASN = origins[0]
 	}
-
-	// The gauge holds one number, so it reports the first origin. Validation
-	// below uses the full set.
-	result.BGPOriginASN = origins[0]
 
 	// Every announced origin must match the expected one. A hijacked prefix is
 	// usually announced by the attacker and by its real operator at the same
@@ -165,6 +262,7 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		"name", cfg.Name,
 		"prefix", bcfg.Prefix,
 		"origin_asns", origins,
+		"more_specifics", len(info.Data.MoreSpecifics),
 		"expected_asn", bcfg.ExpectedOrigin,
 		"rpki_status", result.BGPRPKIStatus,
 		"duration", result.Duration,
