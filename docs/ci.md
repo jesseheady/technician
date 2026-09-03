@@ -235,6 +235,20 @@ If your CI environment can't run Chromium (no graphical dependencies, limited RA
 
 `--check-type playwright` does the inverse (browser checks only), which is how the two CI validate jobs split the work.
 
+## Retries in validate
+
+`technician validate` applies each check's `retry:` policy, the same way the scheduler
+does in production. A check that fails and then passes on a retry counts as a pass, so a
+short outage at a third party does not fail the build.
+
+Retries cost time only when a check fails. A run in which all checks pass takes the same
+time as before. A run in which a check fails waits for that check's `delay:` and then runs
+it again, and validate runs checks one after another, so the delays add up. With the
+example config, a run in which every non-browser check fails waits about 53 seconds more
+than a run with no retries.
+
+Set `retry: {count: 0}` on a check to switch this off for that check.
+
 ## Environment variables
 
 Check configs support `${ENV_VAR}` expansion, useful for CI secrets:

@@ -11,6 +11,7 @@ import (
 	"github.com/jesseheady/technician/internal/check"
 	"github.com/jesseheady/technician/internal/config"
 	"github.com/jesseheady/technician/internal/metrics"
+	"github.com/jesseheady/technician/internal/scheduler"
 	"github.com/spf13/cobra"
 )
 
@@ -111,7 +112,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		result := checker.Run(ctx, pc, origin)
+		result := scheduler.RunWithRetry(ctx, checker, pc, origin)
 		metrics.RecordResult(result)
 
 		if result.InfraError {

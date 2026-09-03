@@ -270,6 +270,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### validate applies the retry policy [#363](https://github.com/jesseheady/technician/issues/363)
+
+CI ran the example config against live third-party endpoints with `--fail-on-error`, so main's build status followed the availability of services we do not control. A short RIPE Stat outage failed main; the same commit passed on a re-run. `cmd/validate.go` called `checker.Run` directly and therefore ignored the `retry:` policy, although the scheduler has implemented it all along and the example BGP checks declare it. `RunWithRetry` moves from unexported to exported in `internal/scheduler`, and validate now calls it, so a check behaves the same way in CI and in production. Retries cost time only when a check fails, so a green run takes no longer than before.
+
+Widening the `InfraError` classification, and the question of whether an unavailable dependency should fail a CI build at all, stay with [#333](https://github.com/jesseheady/technician/issues/333).
+
 ### Unit tests no longer use the network [#355](https://github.com/jesseheady/technician/issues/355)
 
 `TestDNSCheckerTXTRecord` and six sibling tests resolved real names against `8.8.8.8`, so a slow network or a dropped UDP packet failed `go test`. Because `.githooks/pre-commit` runs `go test -race` on every commit, that flake blocked all work, including documentation-only changes, and trained contributors to bypass the hook with `SKIP_HOOKS=1`. The tests now query the in-process `miekg/dns` server the file already used for SOA coverage, so they keep real protocol coverage with no external dependency. The full suite passes with outbound network denied; `docs/testing-and-e2e.md` states the invariant and gives the command that proves it.
