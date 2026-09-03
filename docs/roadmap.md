@@ -270,6 +270,14 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Config is mounted by directory [#232](https://github.com/jesseheady/technician/issues/232)
+
+`docker-compose.yml` bind-mounted individual config *files*. Editors, and tools like `sed -i`, save by writing a temp file and renaming it, which swaps the file's inode; a container holding a single-file mount keeps reading the old one, so an edit followed by `docker compose restart` could serve stale or truncated config. This bit us live during multi-target testing, when a `prometheus.yml` edit left a truncated scrape target in place until the container was force-recreated.
+
+The worker and Prometheus now mount `./config` and `./prometheus` as directories, which resolve each path on open. Alertmanager mounts its source directory read-only at `/etc/alertmanager/src` and renders the expanded config to `/tmp`, because its entrypoint writes the rendered file and so its config directory cannot be read-only. Grafana keeps single-file mounts: its provisioning expects `datasources/`, `dashboards/` and `alerting/` subdirectory names the repo layout does not use, and those files are read once at startup.
+
+Verified by swapping a file's inode with `sed -i` and confirming the container saw the new bytes with no restart at all, then that a plain `restart` loaded them. The `--force-recreate` guidance in `README.md`, `AGENTS.md` and `docs/alerting.md` is replaced by `restart`.
+
 ### Git hook images are pinned by digest [#274](https://github.com/jesseheady/technician/issues/274)
 
 `.githooks/pre-commit` and `.githooks/pre-push` ran four images by floating tag, the only images in the repo that were not pinned. A floating tag can change under us with no diff, altering hook behaviour or pulling a compromised image. All four are now pinned as `name:version@sha256:digest`, the form used everywhere else; the Prometheus and Alertmanager pins match `docker-compose.yml`, so the hooks validate config with the versions the stack runs.

@@ -166,10 +166,10 @@ go run . worker --config config/technician.yml
 After changing check configs or `technician.yml` (no rebuild needed):
 
 ```bash
-docker compose up -d --force-recreate technician
+docker compose restart technician
 ```
 
-> Use `--force-recreate`, not `restart`. Config files are bind-mounted individually, and editors that save via write-temp-and-rename swap the file's inode — a running container (and `docker compose restart`) can keep viewing the old version on Docker Desktop. `--force-recreate` re-establishes the mount against the current file.
+> A plain `restart` is enough: config is mounted by directory (`./config`), not by individual file, so an editor that saves by write-temp-and-rename cannot leave the container reading a stale inode.
 
 After changing Go source code (rebuild required):
 

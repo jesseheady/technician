@@ -192,10 +192,10 @@ is the one trailer that is required (the no-Co-Authored-By rule still applies).
 
 ## Config changes vs code changes
 
-- Config changes (`config/`, `technician.yml`, `checks/*.yml`, and the mounted `prometheus/*.yml`): `docker compose up -d --force-recreate <service>`. No rebuild needed; config is volume-mounted.
+- Config changes (`config/`, `technician.yml`, `checks/*.yml`, and the mounted `prometheus/*.yml`): `docker compose restart <service>`. No rebuild needed; config is volume-mounted.
 - Code changes (Go source, Dockerfile): `docker compose build technician && docker compose up`.
 
-> **Use `--force-recreate`, not `restart`, after editing a mounted config.** The stack bind-mounts individual config *files* (not directories). Most editors — and tools like `sed -i` — save by writing a temp file and renaming it, which swaps the file's inode. On Docker Desktop (macOS), a running container keeps viewing the old inode, so `docker compose restart` (and in-place reloads like SIGHUP / `/-/reload`) can load a stale or truncated version. `up -d --force-recreate <service>` creates a new container that re-establishes the mount against the current file. Mounting directories instead of individual files would remove this footgun — tracked separately.
+> **Config is mounted by directory, not by file.** Most editors, and tools like `sed -i`, save by writing a temp file and renaming it, which swaps the file's inode. A container holding a single-file bind mount keeps viewing the old inode, so on Docker Desktop (macOS) an edit followed by `docker compose restart` could load a stale or truncated version. The stack now mounts the parent directories instead — `./config`, `./prometheus` — which resolve each path on open, so a plain `restart` picks up the current bytes. Grafana keeps single-file mounts because its provisioning expects specific subdirectory names (`datasources/`, `dashboards/`, `alerting/`) that the repo layout does not match; those files are read once at startup, so recreate Grafana after editing them.
 
 ## Security
 
