@@ -10,10 +10,14 @@ services:
     ports:
       - "9590:9590"
     volumes:
-      - ./config/technician.yml:/etc/technician/technician.yml:ro
-      - ./config/checks.yml:/etc/technician/checks.yml:ro
-      - ./config/playwright:/etc/technician/playwright:ro
-      - ./config/budgets.yml:/etc/technician/budgets.yml:ro
+      # Mount the directory, not the individual files. Editors and tools that
+      # save by writing a temp file and renaming it swap the file's inode, and
+      # a container holding a single-file bind mount keeps reading the old one,
+      # so an edit plus `docker compose restart` can serve stale config.
+      # The whole tree is visible to the worker, including any per-target
+      # subdirectories. Keep credentials in the environment, as the example
+      # configs do with ${VAR}, rather than in files under config/.
+      - ./config:/etc/technician:ro
       - technician_data:/var/lib/technician
     environment:
       - ORIGIN_ID=local
@@ -53,8 +57,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - ./prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
     deploy:
       resources:
@@ -75,7 +78,7 @@ services:
     ports:
       - "9093:9093"
     volumes:
-      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ./prometheus:/etc/alertmanager/src:ro
       - ./prometheus/templates:/etc/alertmanager/templates:ro
       - alertmanager_data:/alertmanager
     env_file:
@@ -91,9 +94,9 @@ services:
             $$0 = substr($$0, 1, RSTART-1) val substr($$0, RSTART+RLENGTH)
           }
           print
-        }' /etc/alertmanager/alertmanager.yml.tmpl > /etc/alertmanager/alertmanager.yml
+        }' /etc/alertmanager/src/alertmanager.yml > /tmp/alertmanager.yml
         exec /bin/alertmanager \
-          --config.file=/etc/alertmanager/alertmanager.yml \
+          --config.file=/tmp/alertmanager.yml \
           --web.external-url="${ALERTMANAGER_EXTERNAL_URL:-http://localhost:9093}"
     deploy:
       resources:

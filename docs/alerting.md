@@ -141,7 +141,7 @@ Alertmanager is included in `docker-compose.yml`. Receiver configuration lives i
          - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
          - ./prometheus/templates:/etc/alertmanager/templates:ro
    ```
-5. Recreate: `docker compose up -d --force-recreate alertmanager` (use `--force-recreate`, not `restart` — bind-mounted config files can otherwise be served stale after an edit; see the note in [AGENTS.md § Config changes vs code changes](../AGENTS.md#config-changes-vs-code-changes))
+5. Restart: `docker compose restart alertmanager` (the config directory is mounted, so the rendered config is rebuilt from the current file on start)
 
 Environment variables in `config/alertmanager.yml` use `${VAR}` syntax and are substituted automatically at container start — adding new channels requires no changes to `docker-compose.yml`.
 
