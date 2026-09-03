@@ -1115,3 +1115,62 @@ func TestLoadUDPChecks(t *testing.T) {
 		t.Errorf("expected retry backoff=linear, got %s", p2.Retry.Backoff)
 	}
 }
+
+func TestLoadBGPCheckInvalidConfig(t *testing.T) {
+	cases := map[string]string{
+		"prefix is not CIDR": `
+- name: Bare address
+  type: bgp
+  prefix: "203.0.113.0"
+  expected_origin: 64496
+`,
+		"prefix is empty": `
+- name: No prefix
+  type: bgp
+  expected_origin: 64496
+`,
+		"expected_origin is absent": `
+- name: No origin
+  type: bgp
+  prefix: "203.0.113.0/24"
+`,
+	}
+	for name, content := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			checksDir := filepath.Join(dir, "checks")
+			os.MkdirAll(checksDir, 0o755)
+			if err := os.WriteFile(filepath.Join(checksDir, "c.yml"), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadChecks(checksDir); err == nil {
+				t.Fatal("expected error for invalid BGP check config")
+			}
+		})
+	}
+}
+
+func TestLoadBGPChecks(t *testing.T) {
+	dir := t.TempDir()
+	checksDir := filepath.Join(dir, "checks")
+	os.MkdirAll(checksDir, 0o755)
+	content := `
+- name: Example prefix
+  type: bgp
+  prefix: "203.0.113.0/24"
+  expected_origin: 64496
+`
+	if err := os.WriteFile(filepath.Join(checksDir, "c.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checks, err := LoadChecks(checksDir)
+	if err != nil {
+		t.Fatalf("LoadChecks: %v", err)
+	}
+	if len(checks) != 1 || checks[0].BGP == nil {
+		t.Fatal("expected one BGP check")
+	}
+	if checks[0].BGP.Prefix != "203.0.113.0/24" || checks[0].BGP.ExpectedOrigin != 64496 {
+		t.Errorf("unexpected BGP config: %+v", checks[0].BGP)
+	}
+}

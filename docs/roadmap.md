@@ -270,6 +270,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### BGP check validates every origin AS [#378](https://github.com/jesseheady/technician/issues/378)
+
+The check read only the first ASN that RIPE Stat returned for a prefix. A hijacker usually announces a prefix while the real operator still announces it, so RIPE Stat returns two origins. When the expected AS came first, the check reported success and `technician_bgp_origin_match` stayed at 1 through the hijack. The check now compares every announced origin with `expected_origin` and names each unexpected AS in the error. `expected_origin` and a valid CIDR `prefix` are now required at config load, because a BGP check without them reports prefix visibility only and cannot detect a hijack.
+
 ### SQLite persistence layer [#16](https://github.com/jesseheady/technician/issues/16)
 
 Optional long-term history in an embedded SQLite DB (`modernc.org/sqlite`, pure Go) at `${TECHNICIAN_DATA_DIR}/results.db`, beyond the in-memory ring buffer. Off by default (`persistence.enabled`); `persistence.retention` defaults to 30d. Written **asynchronously write-through** from the status store's hot path — results go to a buffered channel and a single writer goroutine batches the inserts, so a slow disk never slows result draining, and a full buffer drops rather than blocks. Infra errors are skipped (the target was never tested). `status.json` keeps its non-series state. [#16](https://github.com/jesseheady/technician/issues/16) stays open for the remaining half — rendering this history on the status page (30-day uptime bars), which is coupled to the status-page redesign (#25) and the public-exposure decision (#39).

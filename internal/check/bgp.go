@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jesseheady/technician/internal/config"
 )
+
+const ripeStatBaseURL = "https://stat.ripe.net"
 
 // ripeNetworkInfo is the response from stat.ripe.net/data/network-info.
 type ripeNetworkInfo struct {
@@ -21,10 +25,12 @@ type ripeNetworkInfo struct {
 	} `json:"data"`
 }
 
-type BGPChecker struct{}
+type BGPChecker struct {
+	baseURL string // ponytail: seam for tests, not a config knob
+}
 
 func NewBGPChecker() *BGPChecker {
-	return &BGPChecker{}
+	return &BGPChecker{baseURL: ripeStatBaseURL}
 }
 
 func (p *BGPChecker) Type() config.CheckType {
@@ -48,10 +54,10 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	client := &http.Client{Timeout: timeout}
 	start := time.Now()
 
-	// Query RIPE Stat for network info (origin ASN for the prefix).
+	// Query RIPE Stat for network info (origin ASNs for the prefix).
 	apiURL := fmt.Sprintf(
-		"https://stat.ripe.net/data/network-info/data.json?resource=%s&sourceapp=technician",
-		bcfg.Prefix,
+		"%s/data/network-info/data.json?resource=%s&sourceapp=technician",
+		p.baseURL, url.QueryEscape(bcfg.Prefix),
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -96,21 +102,36 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 
 	result.BGPPrefixVisible = true
 
-	// Parse the first (primary) origin ASN.
-	originASN, err := strconv.Atoi(info.Data.ASNs[0])
-	if err != nil {
-		result.InfraError = true
-		result.Error = fmt.Sprintf("invalid ASN in response: %s", info.Data.ASNs[0])
-		return result
+	origins := make([]int, 0, len(info.Data.ASNs))
+	for _, raw := range info.Data.ASNs {
+		asn, err := strconv.Atoi(raw)
+		if err != nil {
+			result.InfraError = true
+			result.Error = fmt.Sprintf("invalid ASN in response: %s", raw)
+			return result
+		}
+		origins = append(origins, asn)
 	}
-	result.BGPOriginASN = originASN
 
-	// Validate origin if an expected ASN is configured.
-	if bcfg.ExpectedOrigin > 0 && originASN != bcfg.ExpectedOrigin {
+	// The gauge holds one number, so it reports the first origin. Validation
+	// below uses the full set.
+	result.BGPOriginASN = origins[0]
+
+	// Every announced origin must match the expected one. A hijacked prefix is
+	// usually announced by the attacker and by its real operator at the same
+	// time, so a check of the first origin alone can report a match while the
+	// prefix is hijacked.
+	var unexpected []string
+	for _, asn := range origins {
+		if asn != bcfg.ExpectedOrigin {
+			unexpected = append(unexpected, "AS"+strconv.Itoa(asn))
+		}
+	}
+	if len(unexpected) > 0 {
 		result.BGPOriginMatch = false
 		result.Error = fmt.Sprintf(
-			"origin AS mismatch: expected AS%d, got AS%d (possible hijack)",
-			bcfg.ExpectedOrigin, originASN,
+			"origin AS mismatch for %s: expected AS%d, found %s (possible hijack)",
+			bcfg.Prefix, bcfg.ExpectedOrigin, strings.Join(unexpected, ", "),
 		)
 		return result
 	}
@@ -121,7 +142,7 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	slog.Debug("BGP check completed",
 		"name", cfg.Name,
 		"prefix", bcfg.Prefix,
-		"origin_asn", originASN,
+		"origin_asns", origins,
 		"expected_asn", bcfg.ExpectedOrigin,
 		"duration", result.Duration,
 	)
