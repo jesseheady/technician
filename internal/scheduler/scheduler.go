@@ -145,7 +145,7 @@ func (s *Scheduler) runLoop(ctx context.Context, checker check.Checker, cfg conf
 // metrics, and publishes it. Shared by the recurring cron job and the
 // one-shot startup run so both paths behave identically.
 func (s *Scheduler) execute(ctx context.Context, checker check.Checker, cfg *config.CheckConfig) {
-	result := runWithRetry(ctx, checker, cfg, s.origin)
+	result := RunWithRetry(ctx, checker, cfg, s.origin)
 	result.Group = cfg.Group
 	result.Target = cfg.Target()
 
@@ -195,8 +195,10 @@ func (s *Scheduler) Results() <-chan *check.Result {
 	return s.results
 }
 
-// runWithRetry executes a check with optional retry policy.
-func runWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, origin *config.Origin) *check.Result {
+// RunWithRetry runs a check, then applies the check's retry policy while the
+// check fails. The scheduler and `technician validate` both call it, so a check
+// behaves the same way in production and in CI.
+func RunWithRetry(ctx context.Context, checker check.Checker, cfg *config.CheckConfig, origin *config.Origin) *check.Result {
 	result := checker.Run(ctx, cfg, origin)
 	if result.Success || cfg.Retry == nil || cfg.Retry.Count <= 0 {
 		return result

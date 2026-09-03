@@ -39,7 +39,7 @@ func TestRunWithRetryNoRetryOnSuccess(t *testing.T) {
 		},
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if !result.Success {
 		t.Error("expected success")
@@ -63,7 +63,7 @@ func TestRunWithRetryRecordsRetryCount(t *testing.T) {
 		Retry: &config.RetryPolicy{Count: 3, Delay: time.Millisecond},
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if !result.Success {
 		t.Fatalf("expected eventual success, got error: %s", result.Error)
@@ -83,7 +83,7 @@ func TestRunWithRetryZeroOnFirstTrySuccess(t *testing.T) {
 		Retry: &config.RetryPolicy{Count: 2, Delay: time.Millisecond},
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if result.Retries != 0 {
 		t.Errorf("expected 0 retries on first-try success, got %d", result.Retries)
@@ -101,7 +101,7 @@ func TestRunWithRetryNoConfig(t *testing.T) {
 		Retry: nil,
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if result.Success {
 		t.Error("expected failure")
@@ -126,7 +126,7 @@ func TestRunWithRetryEventualSuccess(t *testing.T) {
 		},
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if !result.Success {
 		t.Errorf("expected success, got error: %s", result.Error)
@@ -152,7 +152,7 @@ func TestRunWithRetryAllFail(t *testing.T) {
 		},
 	}
 
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 
 	if result.Success {
 		t.Error("expected failure")
@@ -180,7 +180,7 @@ func TestRunWithRetryExponentialBackoff(t *testing.T) {
 	}
 
 	start := time.Now()
-	result := runWithRetry(context.Background(), m, cfg, nil)
+	result := RunWithRetry(context.Background(), m, cfg, nil)
 	elapsed := time.Since(start)
 
 	if !result.Success {
