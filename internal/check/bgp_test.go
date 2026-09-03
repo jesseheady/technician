@@ -2,6 +2,8 @@ package check
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -62,5 +64,90 @@ func TestBGPCheckerCancelledContext(t *testing.T) {
 	}
 	if result.Duration == 0 {
 		t.Error("expected non-zero duration")
+	}
+}
+
+// bgpTestChecker returns a checker pointed at a stub RIPE Stat that answers
+// with the given origin ASNs.
+func bgpTestChecker(t *testing.T, asns string) *BGPChecker {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("resource"); got != "203.0.113.0/24" {
+			t.Errorf("unexpected resource parameter: %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"asns":[` + asns + `],"prefix":"203.0.113.0/24"}}`))
+	}))
+	t.Cleanup(srv.Close)
+	return &BGPChecker{baseURL: srv.URL}
+}
+
+func bgpTestConfig() *config.CheckConfig {
+	return &config.CheckConfig{
+		Name:    "test-bgp",
+		Type:    config.CheckTypeBGP,
+		Timeout: 5 * time.Second,
+		BGP: &config.BGPCheckConfig{
+			Prefix:         "203.0.113.0/24",
+			ExpectedOrigin: 64496,
+		},
+	}
+}
+
+func TestBGPCheckerExpectedOrigin(t *testing.T) {
+	result := bgpTestChecker(t, `"64496"`).Run(context.Background(), bgpTestConfig(), nil)
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+	if !result.BGPPrefixVisible || !result.BGPOriginMatch {
+		t.Error("expected prefix visible and origin match")
+	}
+	if result.BGPOriginASN != 64496 {
+		t.Errorf("expected origin AS64496, got AS%d", result.BGPOriginASN)
+	}
+}
+
+// A hijacker announces the prefix while the real operator still announces it.
+// RIPE Stat then lists both origins. The check must fail, whichever origin
+// comes first in the list.
+func TestBGPCheckerMultiOriginHijack(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		asns string
+	}{
+		{"legitimate origin first", `"64496","64511"`},
+		{"hijacker first", `"64511","64496"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := bgpTestChecker(t, tc.asns).Run(context.Background(), bgpTestConfig(), nil)
+
+			if result.Success {
+				t.Error("expected failure when an unexpected origin announces the prefix")
+			}
+			if result.BGPOriginMatch {
+				t.Error("expected BGPOriginMatch=false")
+			}
+			if !result.BGPPrefixVisible {
+				t.Error("expected BGPPrefixVisible=true — the prefix is announced")
+			}
+			if !strings.Contains(result.Error, "AS64511") {
+				t.Errorf("expected error to name the unexpected origin, got: %s", result.Error)
+			}
+			if result.InfraError {
+				t.Error("a hijack is a check failure, not an infrastructure error")
+			}
+		})
+	}
+}
+
+func TestBGPCheckerPrefixNotVisible(t *testing.T) {
+	result := bgpTestChecker(t, "").Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success || result.BGPPrefixVisible {
+		t.Error("expected failure when the prefix is not announced")
+	}
+	if !strings.Contains(result.Error, "not visible") {
+		t.Errorf("unexpected error: %s", result.Error)
 	}
 }

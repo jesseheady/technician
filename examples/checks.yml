@@ -573,8 +573,11 @@
     delay: 5s
 
 # ── BGP route checks ─────────────────────────────────────────────
-# Validates that a prefix is visible in the global routing table and
-# originated by the expected ASN. Useful for detecting route hijacks.
+# Queries RIPE Stat for the ASNs that announce a prefix. The check fails if
+# the prefix is not visible, or if any ASN that announces it is not
+# expected_origin. A hijacker usually announces a prefix while the real
+# operator still announces it, so all origins are compared, not the first one.
+# Both prefix and expected_origin are required.
 - name: "cloudflare-1.1.1.1"
   type: bgp
   group: Infrastructure
