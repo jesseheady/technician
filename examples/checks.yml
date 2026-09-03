@@ -573,12 +573,18 @@
     delay: 5s
 
 # ── BGP route checks ─────────────────────────────────────────────
-# Queries RIPE Stat for the ASNs that announce a prefix. The check fails if
-# the prefix is not visible, or if any ASN that announces it is not
-# expected_origin. A hijacker usually announces a prefix while the real
-# operator still announces it, so all origins are compared, not the first one.
-# The check then asks RPKI whether a ROA authorizes the announcement. It fails
-# on an invalid verdict. A prefix with no ROA gives "unknown", which passes.
+# Queries RIPE Stat for the routing status of a prefix. The check fails if:
+#   - the prefix is not visible in the global routing table;
+#   - any ASN that announces it is not expected_origin. A hijacker usually
+#     announces a prefix while the real operator still announces it, so all
+#     origins are compared, not the first one;
+#   - any more-specific prefix inside it comes from an ASN that is not
+#     expected_origin. A hijacker announces a longer prefix to win
+#     longest-prefix-match, and the origin of this prefix never changes;
+#   - RPKI reports that no ROA authorizes the announcement. A prefix with no
+#     ROA gives "unknown", which passes.
+# More-specifics that expected_origin announces itself are normal
+# deaggregation, and they pass.
 # Both prefix and expected_origin are required.
 - name: "cloudflare-1.1.1.1"
   type: bgp
