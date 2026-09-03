@@ -37,6 +37,27 @@ Coverage HTML:
 go tool cover -html=coverage.out -o coverage.html
 ```
 
+### No network access
+
+Unit tests must not use the network. DNS checker tests query an in-process resolver
+(`newFakeDNS` / `newRecordDNS` in `internal/check/dns_test.go`), and HTTP tests use
+`httptest` servers. Keep it that way: `.githooks/pre-commit` runs `go test -race` on
+every commit, so a test that queries a public resolver or a live site stops all work
+when the network is slow.
+
+To prove the suite stays offline on macOS, deny outbound traffic and run it again:
+
+```bash
+cat > /tmp/nonet.sb <<'EOF'
+(version 1)
+(allow default)
+(deny network-outbound)
+(allow network-outbound (remote ip "localhost:*"))
+(allow network-outbound (remote unix-socket))
+EOF
+GOPROXY=off sandbox-exec -f /tmp/nonet.sb go test ./...
+```
+
 ## Lint and vet
 
 ```bash
