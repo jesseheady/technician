@@ -16,6 +16,14 @@ import (
 
 const ripeStatBaseURL = "https://stat.ripe.net"
 
+// ripeRPKIValidation is the response from stat.ripe.net/data/rpki-validation.
+// status is "valid", "invalid_asn", "invalid_length" or "unknown".
+type ripeRPKIValidation struct {
+	Data struct {
+		Status string `json:"status"`
+	} `json:"data"`
+}
+
 // ripeNetworkInfo is the response from stat.ripe.net/data/network-info.
 type ripeNetworkInfo struct {
 	Status string `json:"status"`
@@ -137,6 +145,20 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 	}
 
 	result.BGPOriginMatch = true
+
+	// The origin is the expected one. Ask RPKI whether that origin holds a ROA
+	// that authorizes this announcement. An "invalid" verdict is the strongest
+	// hijack signal available, because it does not depend on the operator
+	// keeping expected_origin current.
+	result.BGPRPKIStatus = p.rpkiStatus(ctx, client, bcfg.Prefix, bcfg.ExpectedOrigin)
+	if strings.HasPrefix(result.BGPRPKIStatus, "invalid") {
+		result.Error = fmt.Sprintf(
+			"RPKI %s for %s announced by AS%d: no ROA authorizes this announcement",
+			result.BGPRPKIStatus, bcfg.Prefix, bcfg.ExpectedOrigin,
+		)
+		return result
+	}
+
 	result.Success = true
 
 	slog.Debug("BGP check completed",
@@ -144,8 +166,58 @@ func (p *BGPChecker) Run(ctx context.Context, cfg *config.CheckConfig, origin *c
 		"prefix", bcfg.Prefix,
 		"origin_asns", origins,
 		"expected_asn", bcfg.ExpectedOrigin,
+		"rpki_status", result.BGPRPKIStatus,
 		"duration", result.Duration,
 	)
 
 	return result
+}
+
+// rpkiStatus returns the RIPE Stat RPKI verdict for the prefix and origin.
+// It returns "unknown" when the prefix has no ROA, and also when the query
+// fails: the origin comparison already succeeded, so a failed second query
+// must not turn a good result into a failure. "unknown" is visible in
+// technician_bgp_rpki_valid as -1.
+//
+// RPKI ROV validates the origin AS and prefix length against a ROA. It does
+// not validate the rest of the AS path. An attacker who can inject a route
+// (a compromised or complicit AS) can forge the path so it ends in the real
+// origin AS, which this check will call "valid" if the resource holder's ROA
+// permits the announced length — exactly what happened to the
+// Softaculous/Virtualizor hijack in August 2026, via a loose ROA on Hetzner
+// Online's announcing AS. See
+// https://www.kentik.com/blog/latest-bgp-hijack-targets-hosting-software-vendor/
+// A "valid" verdict here is not proof the announcement is legitimate; it is
+// proof the resource holder's ROA does not forbid it.
+func (p *BGPChecker) rpkiStatus(ctx context.Context, client *http.Client, prefix string, asn int) string {
+	apiURL := fmt.Sprintf(
+		"%s/data/rpki-validation/data.json?resource=AS%d&prefix=%s&sourceapp=technician",
+		p.baseURL, asn, url.QueryEscape(prefix),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		slog.Debug("RPKI validation request failed", "prefix", prefix, "error", err)
+		return "unknown"
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.Debug("RPKI validation query failed", "prefix", prefix, "error", err)
+		return "unknown"
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("RPKI validation returned non-OK", "prefix", prefix, "status", resp.StatusCode)
+		return "unknown"
+	}
+
+	var v ripeRPKIValidation
+	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+		slog.Debug("RPKI validation parse failed", "prefix", prefix, "error", err)
+		return "unknown"
+	}
+	if v.Data.Status == "" {
+		return "unknown"
+	}
+	return v.Data.Status
 }

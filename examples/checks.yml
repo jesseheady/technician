@@ -577,6 +577,8 @@
 # the prefix is not visible, or if any ASN that announces it is not
 # expected_origin. A hijacker usually announces a prefix while the real
 # operator still announces it, so all origins are compared, not the first one.
+# The check then asks RPKI whether a ROA authorizes the announcement. It fails
+# on an invalid verdict. A prefix with no ROA gives "unknown", which passes.
 # Both prefix and expected_origin are required.
 - name: "cloudflare-1.1.1.1"
   type: bgp

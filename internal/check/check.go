@@ -78,9 +78,10 @@ type Result struct {
 	WSMessageDuration time.Duration // send-to-response round trip
 
 	// BGP-specific
-	BGPOriginASN     int  // observed origin AS number
-	BGPPrefixVisible bool // prefix visible in global routing table
-	BGPOriginMatch   bool // origin ASN matches expected
+	BGPOriginASN     int    // observed origin AS number
+	BGPPrefixVisible bool   // prefix visible in global routing table
+	BGPOriginMatch   bool   // origin ASN matches expected
+	BGPRPKIStatus    string // RPKI verdict: valid, invalid_asn, invalid_length, unknown
 
 	// Domain expiration-specific
 	DomainExpiryDate  time.Time // when the domain registration expires

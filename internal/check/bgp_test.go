@@ -67,11 +67,24 @@ func TestBGPCheckerCancelledContext(t *testing.T) {
 	}
 }
 
-// bgpTestChecker returns a checker pointed at a stub RIPE Stat that answers
-// with the given origin ASNs.
-func bgpTestChecker(t *testing.T, asns string) *BGPChecker {
+// bgpTestChecker returns a checker pointed at a stub RIPE Stat. The stub
+// answers network-info with the given origin ASNs and rpki-validation with the
+// given status. An empty rpkiStatus makes the RPKI endpoint fail, which the
+// checker must treat as "unknown".
+func bgpTestChecker(t *testing.T, asns, rpkiStatus string) *BGPChecker {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "rpki-validation") {
+			if got := r.URL.Query().Get("resource"); got != "AS64496" {
+				t.Errorf("unexpected RPKI resource parameter: %q", got)
+			}
+			if rpkiStatus == "" {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_, _ = w.Write([]byte(`{"data":{"status":"` + rpkiStatus + `"}}`))
+			return
+		}
 		if got := r.URL.Query().Get("resource"); got != "203.0.113.0/24" {
 			t.Errorf("unexpected resource parameter: %q", got)
 		}
@@ -95,7 +108,7 @@ func bgpTestConfig() *config.CheckConfig {
 }
 
 func TestBGPCheckerExpectedOrigin(t *testing.T) {
-	result := bgpTestChecker(t, `"64496"`).Run(context.Background(), bgpTestConfig(), nil)
+	result := bgpTestChecker(t, `"64496"`, "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 	if !result.Success {
 		t.Fatalf("expected success, got error: %s", result.Error)
@@ -120,7 +133,7 @@ func TestBGPCheckerMultiOriginHijack(t *testing.T) {
 		{"hijacker first", `"64511","64496"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := bgpTestChecker(t, tc.asns).Run(context.Background(), bgpTestConfig(), nil)
+			result := bgpTestChecker(t, tc.asns, "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 			if result.Success {
 				t.Error("expected failure when an unexpected origin announces the prefix")
@@ -142,12 +155,64 @@ func TestBGPCheckerMultiOriginHijack(t *testing.T) {
 }
 
 func TestBGPCheckerPrefixNotVisible(t *testing.T) {
-	result := bgpTestChecker(t, "").Run(context.Background(), bgpTestConfig(), nil)
+	result := bgpTestChecker(t, "", "valid").Run(context.Background(), bgpTestConfig(), nil)
 
 	if result.Success || result.BGPPrefixVisible {
 		t.Error("expected failure when the prefix is not announced")
 	}
 	if !strings.Contains(result.Error, "not visible") {
 		t.Errorf("unexpected error: %s", result.Error)
+	}
+}
+
+// RPKI is checked after the origin comparison passes. An invalid verdict means
+// no ROA authorizes the announcement, which is a hijack signal that does not
+// depend on expected_origin being current.
+func TestBGPCheckerRPKI(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		rpkiStatus string
+		wantOK     bool
+		wantStatus string
+	}{
+		{"valid ROA", "valid", true, "valid"},
+		{"origin not authorized", "invalid_asn", false, "invalid_asn"},
+		{"prefix longer than ROA allows", "invalid_length", false, "invalid_length"},
+		{"no ROA published", "unknown", true, "unknown"},
+		{"RPKI query fails", "", true, "unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := bgpTestChecker(t, `"64496"`, tc.rpkiStatus).
+				Run(context.Background(), bgpTestConfig(), nil)
+
+			if result.Success != tc.wantOK {
+				t.Errorf("Success = %v, want %v (error: %s)", result.Success, tc.wantOK, result.Error)
+			}
+			if result.BGPRPKIStatus != tc.wantStatus {
+				t.Errorf("BGPRPKIStatus = %q, want %q", result.BGPRPKIStatus, tc.wantStatus)
+			}
+			// The origin matched in every case, so an RPKI failure must not
+			// look like an origin mismatch.
+			if !result.BGPOriginMatch {
+				t.Error("expected BGPOriginMatch=true")
+			}
+			if result.InfraError {
+				t.Error("expected InfraError=false")
+			}
+		})
+	}
+}
+
+// A prefix that fails the origin comparison must not be reported as RPKI
+// invalid, because the RPKI query never runs.
+func TestBGPCheckerRPKISkippedOnOriginMismatch(t *testing.T) {
+	result := bgpTestChecker(t, `"64511"`, "valid").
+		Run(context.Background(), bgpTestConfig(), nil)
+
+	if result.Success {
+		t.Error("expected failure on origin mismatch")
+	}
+	if result.BGPRPKIStatus != "" {
+		t.Errorf("expected no RPKI verdict, got %q", result.BGPRPKIStatus)
 	}
 }
