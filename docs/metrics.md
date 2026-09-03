@@ -93,8 +93,9 @@ which carries `metric` (the budget metric key) instead.
 | Metric | Type | Description |
 |---|---|---|
 | `technician_bgp_prefix_visible` | Gauge | Whether the prefix is visible in the global routing table (1=visible) |
-| `technician_bgp_origin_asn` | Gauge | Observed origin AS number for the prefix |
-| `technician_bgp_origin_match` | Gauge | Whether the origin ASN matches the expected value (1=match) |
+| `technician_bgp_origin_asn` | Gauge | Observed origin AS number for the prefix (0 when the prefix announces no route of its own) |
+| `technician_bgp_origin_match` | Gauge | Whether the prefix and every more-specific inside it are announced by the expected origin AS, with no newly-appeared more-specific since the last check (1=match) |
+| `technician_bgp_rpki_valid` | Gauge | RPKI origin validation verdict for the prefix (1=valid, 0=invalid, -1=unknown/no ROA) |
 
 ## Browser (Playwright)
 

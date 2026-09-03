@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -629,6 +630,12 @@ func convertCheck(r checkYAML, sourcePath string) (CheckConfig, error) {
 		}
 
 	case CheckTypeBGP:
+		if _, err := netip.ParsePrefix(r.Prefix); err != nil {
+			return c, fmt.Errorf("check %q: invalid prefix %q (want CIDR notation, for example 203.0.113.0/24)", r.Name, r.Prefix)
+		}
+		if r.ExpectedOrigin <= 0 {
+			return c, fmt.Errorf("check %q: expected_origin is required. Without it the check reports prefix visibility only, and it cannot detect a hijack", r.Name)
+		}
 		c.BGP = &BGPCheckConfig{
 			Prefix:         r.Prefix,
 			ExpectedOrigin: r.ExpectedOrigin,

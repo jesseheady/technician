@@ -3,6 +3,7 @@ package metrics
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -224,12 +225,17 @@ var (
 
 	bgpOriginASN = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_bgp_origin_asn",
-		Help: "Observed origin AS number for the prefix",
+		Help: "Observed origin AS number for the prefix (0 when the prefix announces no route of its own)",
 	}, []string{"name", "region", "city", "country"})
 
 	bgpOriginMatch = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "technician_bgp_origin_match",
-		Help: "Whether the origin ASN matches the expected value (1=match, 0=mismatch)",
+		Help: "Whether the prefix and every more-specific inside it are announced by the expected origin AS, with no newly-appeared more-specific since the last check (1=match, 0=mismatch)",
+	}, []string{"name", "region", "city", "country"})
+
+	bgpRPKIValid = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "technician_bgp_rpki_valid",
+		Help: "RPKI origin validation verdict for the prefix (1=valid, 0=invalid, -1=unknown/no ROA)",
 	}, []string{"name", "region", "city", "country"})
 
 	// Domain expiration metrics
@@ -319,6 +325,7 @@ func init() {
 		bgpPrefixVisible,
 		bgpOriginASN,
 		bgpOriginMatch,
+		bgpRPKIValid,
 		domainExpiryDays,
 		domainRegistered,
 		checkInfraError,
@@ -529,6 +536,16 @@ func recordBGPMetrics(result *check.Result, labels labelSet) {
 		match = 1
 	}
 	bgpOriginMatch.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(match)
+
+	// -1 means unknown: the prefix has no ROA, or the RPKI query did not answer.
+	rpki := float64(-1)
+	switch {
+	case result.BGPRPKIStatus == "valid":
+		rpki = 1
+	case strings.HasPrefix(result.BGPRPKIStatus, "invalid"):
+		rpki = 0
+	}
+	bgpRPKIValid.WithLabelValues(result.Name, labels.code, labels.city, labels.country).Set(rpki)
 }
 
 func recordDomainExpiryMetrics(result *check.Result, labels labelSet) {
