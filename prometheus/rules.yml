@@ -386,6 +386,19 @@ groups:
           summary: "BGP origin AS mismatch for {{ $labels.name }}"
           description: "Origin ASN for {{ $labels.name }} does not match expected value (possible hijack)."
 
+      # RPKI says no ROA authorizes this announcement. This does not depend on
+      # expected_origin, so it still fires if that value is stale. -1 is
+      # "unknown" (no ROA published, or the RPKI query did not answer) and must
+      # not alert.
+      - alert: BGPRPKIInvalid
+        expr: technician_bgp_rpki_valid == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP announcement is RPKI invalid for {{ $labels.name }}"
+          description: "No ROA authorizes the announcement of the prefix monitored by {{ $labels.name }} (possible hijack)."
+
   # ── TCP ───────────────────────────────────────────────────────────
   # Note: network/timing rules (TCP, DNS, ICMP, NTP, UDP) can produce
   # false alerts after data gaps (process restart, connectivity loss,

@@ -270,6 +270,10 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### RPKI origin validation in the BGP check [#380](https://github.com/jesseheady/technician/issues/380)
+
+After the origin comparison passes, the BGP check queries RIPE Stat for the RPKI verdict on the prefix and its origin AS. An `invalid_asn` or `invalid_length` verdict fails the check, because no ROA authorizes that announcement. This signal does not depend on `expected_origin`, so it still detects a hijack when that value is stale. A prefix with no ROA returns `unknown`, which passes. A failed RPKI query also returns `unknown`, so it cannot turn a good origin result into a failure. The verdict is exported as `technician_bgp_rpki_valid` (1 valid, 0 invalid, -1 unknown) and alerts through `BGPRPKIInvalid`. No new config field: the check needs only the `prefix` and `expected_origin` it already has.
+
 ### BGP check validates every origin AS [#378](https://github.com/jesseheady/technician/issues/378)
 
 The check read only the first ASN that RIPE Stat returned for a prefix. A hijacker usually announces a prefix while the real operator still announces it, so RIPE Stat returns two origins. When the expected AS came first, the check reported success and `technician_bgp_origin_match` stayed at 1 through the hijack. The check now compares every announced origin with `expected_origin` and names each unexpected AS in the error. `expected_origin` and a valid CIDR `prefix` are now required at config load, because a BGP check without them reports prefix visibility only and cannot detect a hijack.
