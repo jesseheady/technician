@@ -384,7 +384,7 @@ groups:
           severity: critical
         annotations:
           summary: "BGP origin AS mismatch for {{ $labels.name }}"
-          description: "An AS that is not the expected origin announces the prefix monitored by {{ $labels.name }}, or announces a more-specific prefix inside it (possible hijack). The check result names the AS and the prefix."
+          description: "An AS that is not the expected origin announces the prefix monitored by {{ $labels.name }}, or announces a more-specific prefix inside it, or a more-specific prefix appeared that was not announced a moment ago even though its origin looks correct (possible hijack — a forged AS path can show the correct origin for a hijacked route). The check result names the AS and the prefix."
 
       # RPKI says no ROA authorizes this announcement. This does not depend on
       # expected_origin, so it still fires if that value is stale. -1 is
