@@ -29,7 +29,7 @@ else
     docker run --rm \
         -v "$REPO_ROOT:/work" \
         -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-        -w /work aquasec/trivy:latest \
+        -w /work aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
         fs --scanners vuln --severity CRITICAL,HIGH \
            --exit-code 1 --quiet --skip-dirs node_modules .
 fi
@@ -49,7 +49,7 @@ else
     require_docker
     docker run --rm --entrypoint promtool \
         -v "$REPO_ROOT/prometheus:/work" -w /work \
-        prom/prometheus:latest check config prometheus.yml
+        prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0 check config prometheus.yml
 fi
 
 echo "==> amtool check-config"
@@ -61,7 +61,7 @@ else
     require_docker
     docker run --rm --entrypoint amtool \
         -v "$REPO_ROOT/prometheus:/work" -w /work \
-        prom/alertmanager:latest check-config alertmanager.yml
+        prom/alertmanager:v0.34.0@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d check-config alertmanager.yml
 fi
 
 if command -v go-licenses >/dev/null 2>&1; then

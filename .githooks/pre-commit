@@ -71,12 +71,12 @@ if staged | grep -q '^prometheus/.*\.yml$'; then
         require_docker
         docker run --rm --entrypoint promtool \
             -v "$REPO_ROOT/prometheus:/work" -w /work \
-            prom/prometheus:latest check rules rules.yml
+            prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0 check rules rules.yml
         if [ -f "$REPO_ROOT/prometheus/rules_test.yml" ]; then
             echo "==> promtool test rules"
             docker run --rm --entrypoint promtool \
                 -v "$REPO_ROOT/prometheus:/work" -w /work \
-                prom/prometheus:latest test rules rules_test.yml
+                prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0 test rules rules_test.yml
         fi
     fi
 fi
@@ -90,7 +90,7 @@ trivy_fs() {
         docker run --rm \
             -v "$REPO_ROOT:/work" \
             -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-            -w /work aquasec/trivy:latest \
+            -w /work aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
             fs "$@" --exit-code 1 --quiet --skip-dirs node_modules .
     fi
 }
@@ -129,7 +129,7 @@ if [ -n "$SH_FILES" ]; then
         require_docker
         # shellcheck disable=SC2086  # intentional word-splitting on file list
         docker run --rm -v "$REPO_ROOT:/work" -w /work \
-            koalaman/shellcheck:stable $SH_FILES
+            koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d $SH_FILES
     fi
 fi
 

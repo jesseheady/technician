@@ -270,6 +270,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### Git hook images are pinned by digest [#274](https://github.com/jesseheady/technician/issues/274)
+
+`.githooks/pre-commit` and `.githooks/pre-push` ran four images by floating tag, the only images in the repo that were not pinned. A floating tag can change under us with no diff, altering hook behaviour or pulling a compromised image. All four are now pinned as `name:version@sha256:digest`, the form used everywhere else; the Prometheus and Alertmanager pins match `docker-compose.yml`, so the hooks validate config with the versions the stack runs.
+
+Pinning alone would have made the problem worse, because no standard Renovate manager reads shell scripts and the digests would never have been updated again. A `customManagers` regex entry now tracks them, grouped with the other image updates. The pinned digests are the ones the floating tags resolved to at the time, so no hook behaviour changed.
+
 ### A broken container image blocks merge [#304](https://github.com/jesseheady/technician/issues/304)
 
 `Scan container image` could fail while every required context passed, so a pull request that broke the image reached a green merge button. The half of this that runs `Docker build` on pull requests touching image inputs already shipped, and it feeds `CI Passed`. The scan itself was still advisory. A `Container scan passed` aggregator now gates the Trivy jobs and is a required status check on main. It runs with `if: always()`, the same way `CI Passed` does, because the image scan is skipped on most pull requests by design and a required context that never reports would leave those pull requests unmergeable.
