@@ -141,3 +141,26 @@ tests:
       - eval_time: 12m
         alertname: SustainedInfraError
         exp_alerts: []
+
+  - name: BGPRPKIInvalid fires on an invalid verdict and ignores unknown
+    interval: 1m
+    input_series:
+      # An announcement no ROA authorizes.
+      - series: 'technician_bgp_rpki_valid{name="hijacked-prefix",region="local",city="Test",country="XX"}'
+        values: '0+0x20'
+      # No ROA published. This must never alert.
+      - series: 'technician_bgp_rpki_valid{name="no-roa-prefix",region="local",city="Test",country="XX"}'
+        values: '-1+0x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: BGPRPKIInvalid
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              name: hijacked-prefix
+              region: local
+              city: Test
+              country: XX
+            exp_annotations:
+              summary: "BGP announcement is RPKI invalid for hijacked-prefix"
+              description: "No ROA authorizes the announcement of the prefix monitored by hijacked-prefix (possible hijack)."
