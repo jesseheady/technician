@@ -151,6 +151,56 @@ cp -r examples/ config/
 
 Docker Compose mounts config and checks from `config/`. To use the examples directly, change the volume paths in `docker-compose.yml` to `./examples/`. `ORIGIN_ID` only affects metric labels (`region`, `city`, `country`); Compose sets `ORIGIN_ID=local` so the config's "local" origin is used and labels stay distinct from real regions.
 
+## When config is read
+
+Technician reads its configuration once, at startup. There is no file watcher and no `SIGHUP`
+handler, so a rewritten file or ConfigMap has no effect until the process restarts. This is
+deliberate: a reload of a partially written or invalid config on a running worker has failure
+modes of its own.
+
+To apply a change, restart the process.
+
+**Compose.** `docker compose restart <service>`. The stack mounts the parent directories
+(`./config`, `./prometheus`), so an editor that saves by write-temp-and-rename cannot leave the
+container reading an old file. Grafana still keeps single-file mounts for its provisioning, so
+recreate that one: `docker compose up -d --force-recreate grafana`.
+
+**Kubernetes.** A rewritten ConfigMap does not restart the pod. For chart-managed config the
+`checksum/config` pod annotation changes with the values and rolls the deployment. That
+annotation hashes `.Values.config`, so it cannot see a ConfigMap the chart does not own: with an
+externally managed ConfigMap, triggering the rollout is the owner's responsibility, for example
+`kubectl rollout restart deployment/technician` after writing it.
+
+**Bare binary.** Restart the process.
+
+### Generated check files: the checks directory
+
+`checks.yml` and a `checks/` directory are both accepted. A single file wins if it is present;
+otherwise every check file in the directory is merged.
+
+```
+config/
+  technician.yml
+  checks/
+    acme.yml
+    globex.yml
+```
+
+Use the directory when something else generates the checks. Adding or removing a target becomes
+writing or deleting a file, rather than editing one shared file, which is safer for a generator
+and gives a clearer diff.
+
+Rules worth knowing:
+
+- Only `.yml` and `.yaml` files are read. Any other extension is ignored, which is a convenient
+  way to park a file.
+- The directory is **not** searched recursively. Subdirectories are skipped.
+- Files are read in filename order and their checks are concatenated. Names are not deduplicated,
+  so the same check name in two files produces two checks. Keep names unique across the
+  directory.
+- `checks.yml` takes precedence. If both exist, the directory is never read, which is easy to
+  miss when a generator writes the directory.
+
 ## Check configuration
 
 Checks are defined in YAML files under the checks directory (see `examples/checks/` for reference). Each check type has its own file:
