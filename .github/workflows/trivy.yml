@@ -136,9 +136,7 @@ jobs:
   scan-passed:
     name: Container scan passed
     runs-on: ubuntu-latest
-    # Always runs, so the required status check always reports. The container
-    # job is skipped on most PRs by design, and a required context that never
-    # reports leaves a PR unmergeable.
+    # Always reports, so a skipped scan cannot leave the required check pending.
     if: always()
     needs: [filesystem, container-changes, container]
     steps:
