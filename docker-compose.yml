@@ -10,13 +10,7 @@ services:
     ports:
       - "9590:9590"
     volumes:
-      # Mount the directory, not the individual files. Editors and tools that
-      # save by writing a temp file and renaming it swap the file's inode, and
-      # a container holding a single-file bind mount keeps reading the old one,
-      # so an edit plus `docker compose restart` can serve stale config.
-      # The whole tree is visible to the worker, including any per-target
-      # subdirectories. Keep credentials in the environment, as the example
-      # configs do with ${VAR}, rather than in files under config/.
+      # Mount the directory. A single-file mount can show an old version after an edit.
       - ./config:/etc/technician:ro
       - technician_data:/var/lib/technician
     environment:
