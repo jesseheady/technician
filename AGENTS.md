@@ -96,7 +96,7 @@ Docker: `docker compose up` (Technician + Prometheus + Grafana). Rebuild after c
 
 - `docs/metrics.md` – Reference for every exported metric: type, labels, meaning. Generated from the `Name`/`Help` pairs in `internal/metrics/`; update it when you add a metric.
 - `docs/alerting.md` – Native webhooks, Grafana alerting (recommended), Alertmanager.
-- `docs/getting-started.md` – Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, and check configuration.
+- `docs/getting-started.md` – Three onboarding paths (evaluate via Docker, contribute via `init.sh`, run in production), prerequisites, check configuration, when config is read, and the checks-directory layout for generated config.
 - `docs/ci.md` – GitHub Actions workflow, generic CI pipelines, budget validation, Playwright in CI.
 - `docs/playwright-scaling.md` – Browser check resource analysis, concurrency controls (`max_browsers`), dedicated runner architecture.
 - `docs/deployment-sizing.md` – Resource requirements, VPS/Docker/Lambda/Workers sizing, worker-only deployment guide.

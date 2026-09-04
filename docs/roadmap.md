@@ -270,6 +270,12 @@ See `docs/internal/` for full feature gap analyses against specific tools.
 
 ## Recently completed
 
+### The config reload contract is written down [#351](https://github.com/jesseheady/technician/issues/351)
+
+Config is read once, at startup. There is no watcher and no `SIGHUP` handler, so a rewritten file or ConfigMap does nothing until the process restarts. That was true but stated only in passing, and anyone wiring Technician into a system that regenerates config would have found out in production. `docs/getting-started.md` now states the contract and what a restart means for Compose, Kubernetes and a bare binary, including that the chart's `checksum/config` annotation hashes `.Values.config` and so cannot cover an externally managed ConfigMap.
+
+The checks-directory layout is documented alongside it, since that is the shape a generator wants: adding or removing a target becomes a file operation. Its four sharp edges are recorded and were each verified against the binary — only `.yml` and `.yaml` are read, subdirectories are skipped, files merge in filename order with no name deduplication, and a `checks.yml` suppresses the directory completely.
+
 ### Config is mounted by directory [#232](https://github.com/jesseheady/technician/issues/232)
 
 `docker-compose.yml` bind-mounted individual config *files*. Editors, and tools like `sed -i`, save by writing a temp file and renaming it, which swaps the file's inode; a container holding a single-file mount keeps reading the old one, so an edit followed by `docker compose restart` could serve stale or truncated config. This bit us live during multi-target testing, when a `prometheus.yml` edit left a truncated scrape target in place until the container was force-recreated.
