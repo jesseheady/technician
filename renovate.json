@@ -136,6 +136,31 @@
         "(?<depName>[a-z0-9]+(?:[._/-][a-z0-9]+)*):(?<currentValue>v?[0-9][^@\\s\"']*)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Go tools pinned in `go install` commands.",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\//",
+        "/^\\.githooks\\//",
+        "/(^|\\/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "go install \"?(?<depName>[^@\\s\"]+?)(?:\\/cmd\\/[^@\\s\"]+)?@(?:\\$\\{[A-Z_]+:-)?(?<currentValue>v[0-9][^\\s\"'}]*)"
+      ],
+      "datasourceTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "description": "go-licenses default version in the license script.",
+      "managerFilePatterns": [
+        "/^scripts\\/gen-licenses\\.sh$/"
+      ],
+      "matchStrings": [
+        "GOLICENSES_VERSION:-(?<currentValue>v[0-9][^}\"]*)"
+      ],
+      "depNameTemplate": "github.com/google/go-licenses",
+      "datasourceTemplate": "go"
     }
   ]
 }
