@@ -20,7 +20,9 @@ RUN go install github.com/google/go-licenses@v1.6.0 && \
 
 FROM node:24-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS runtime
 
+# Upgrade picks up Debian security fixes before the node image is rebuilt.
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     mtr-tiny \
     ca-certificates \
