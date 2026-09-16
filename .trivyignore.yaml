@@ -3,7 +3,8 @@
 # ── vulnerabilities ──────────────────────────────────────────────────
 # Only for FIXABLE CVEs that we cannot resolve yet because the fix has not
 # reached our base image. Unfixable upstream CVEs are handled by
-# `ignore-unfixed: true` in the trivy workflow, not here.
+# `ignore-unfixed: true` in the trivy workflow, not here. Debian fixes come
+# from `apt-get upgrade` in the Dockerfile.
 #
 # Every entry MUST have `expired_at` and a `statement`. When the date passes,
 # the suppression lapses and the CVE fails CI again (a re-triage tripwire).

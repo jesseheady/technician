@@ -121,6 +121,7 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=min
+          no-cache-filters: runtime
 
   release:
     name: Create Release

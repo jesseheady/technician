@@ -125,8 +125,7 @@ jobs:
           severity: CRITICAL,HIGH
           # Gate on fixable CVEs only. Unfixed upstream Debian/Node base CVEs
           # (no patch available) are ignored so they can't block CI; a fixable
-          # CRITICAL/HIGH fails the build so a base-image bump (Renovate keeps
-          # the digest current) is required to clear it.
+          # non-Debian CRITICAL/HIGH needs a base-image bump to clear.
           ignore-unfixed: true
           exit-code: '1'
           # Fixable CVEs we can't clear yet (fix not in the base image) are
