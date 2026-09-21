@@ -21,7 +21,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Install go-licenses
-        run: go install github.com/google/go-licenses@v1.6.0
+        run: go install github.com/google/go-licenses@v2.0.1
 
       # Fail if any dependency carries a copyleft / non-permissive license
       # (restricted = GPL/AGPL/LGPL, reciprocal = MPL/EPL, forbidden = e.g. WTFPL).

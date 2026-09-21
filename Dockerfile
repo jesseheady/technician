@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /technician .
 
 # Generate the third-party license notice from the build's own module cache,
 # so it always matches the binary being shipped (no committed bundle to drift).
-RUN go install github.com/google/go-licenses@v1.6.0 && \
+RUN go install github.com/google/go-licenses@v2.0.1 && \
     PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh /THIRD_PARTY_LICENSES.txt
 
 FROM node:24-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS runtime

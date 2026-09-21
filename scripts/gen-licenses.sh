@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 OUT="${1:-THIRD_PARTY_LICENSES.txt}"
 OWN=github.com/jesseheady/technician
 # Pin for reproducible output — bumping this may legitimately change the result.
-GOLICENSES_VERSION="${GOLICENSES_VERSION:-v1.6.0}"
+GOLICENSES_VERSION="${GOLICENSES_VERSION:-v2.0.1}"
 
 # (Re)install when missing or when the binary's build-Go differs from the active
 # toolchain: go-licenses resolves stdlib module info with build-time logic, so a
