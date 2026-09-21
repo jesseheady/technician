@@ -90,16 +90,42 @@
       "groupName": "aws-sdk-go-v2"
     },
     {
-      "description": "Group base image updates, weekly Monday. Covers docker-compose and the git hooks as well as the Dockerfile, since the observability stack images live in compose and the hooks run the same tools locally",
+      "description": "Group base image updates, weekly Monday. Covers docker-compose and the git hooks as well as the Dockerfile, since the observability stack images live in compose and the hooks run the same tools locally. Scoped by datasource because the regex managers carry Go tool pins too, and those are not images",
       "matchManagers": [
         "dockerfile",
         "docker-compose",
         "custom.regex"
       ],
+      "matchDatasources": [
+        "docker"
+      ],
       "groupName": "docker base images",
       "schedule": [
         "before 9am on monday"
       ]
+    },
+    {
+      "description": "Group the Go tools pinned in `go install` commands, so the workflows, hooks and Dockerfile move together",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "groupName": "go tools"
+    },
+    {
+      "description": "Hold major bumps of those Go tools on the dependency dashboard instead of opening a PR. A regex manager substitutes the version string and nothing else, so it cannot add the /vN path segment a Go major requires: the PR it opens is unbuildable by construction. The dashboard still surfaces the major, and the path edit is made by hand",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
     },
     {
       "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Placed after the generic groups: later rules win on groupName",
@@ -123,7 +149,8 @@
     "labels": [
       "security"
     ],
-    "minimumReleaseAge": "0 days"
+    "minimumReleaseAge": "0 days",
+    "dependencyDashboardApproval": false
   },
   "customManagers": [
     {
@@ -159,7 +186,7 @@
       "matchStrings": [
         "GOLICENSES_VERSION:-(?<currentValue>v[0-9][^}\"]*)"
       ],
-      "depNameTemplate": "github.com/google/go-licenses",
+      "depNameTemplate": "github.com/google/go-licenses/v2",
       "datasourceTemplate": "go"
     }
   ]
