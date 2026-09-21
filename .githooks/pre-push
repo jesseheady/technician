@@ -74,7 +74,7 @@ if command -v go-licenses >/dev/null 2>&1; then
     have="$(go version -m "$(command -v go-licenses)" 2>/dev/null | awk 'NR==1{print $2}')"
     if [ "$have" != "$want" ]; then
         echo "    go-licenses built with ${have:-unknown}; rebuilding for ${want}..."
-        go install "github.com/google/go-licenses@${GOLICENSES_VERSION:-v1.6.0}"
+        go install "github.com/google/go-licenses/v2@${GOLICENSES_VERSION:-v2.0.1}"
         PATH="$PATH:$(go env GOPATH)/bin"
     fi
     # Capture stderr and surface it only on failure: go-licenses is noisy about

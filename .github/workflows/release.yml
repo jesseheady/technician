@@ -33,7 +33,7 @@ jobs:
 
       - name: Generate 3rd Party Licenses
         run: |
-          go install github.com/google/go-licenses@v1.6.0
+          go install github.com/google/go-licenses/v2@v2.0.1
           PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh THIRD_PARTY_LICENSES-${{ matrix.goos }}.txt
 
       - name: Upload artifact
