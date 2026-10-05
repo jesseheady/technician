@@ -1,5 +1,5 @@
-github.com/adhocore/gronx v1.20.4 h1:vE2UKHC3mRH4DF+tKiq/kOnENTuKaEois2aD0McyHiU=
-github.com/adhocore/gronx v1.20.4/go.mod h1:7oUY1WAU8rEJWmAxXR2DN0JaO4gi9khSgKjiRypqteg=
+github.com/adhocore/gronx v1.20.5 h1:UgXvkD97Hovm7yA1TTRTd309o9F1h7C8gX04rktaxnE=
+github.com/adhocore/gronx v1.20.5/go.mod h1:7oUY1WAU8rEJWmAxXR2DN0JaO4gi9khSgKjiRypqteg=
 github.com/aws/aws-sdk-go-v2 v1.47.1 h1:uOIZnp4PK3ZhKI0dNrJrhTEsLxbpXHTAJlwoS1pvAtw=
 github.com/aws/aws-sdk-go-v2 v1.47.1/go.mod h1:bttEH6JqnUL8LepvDVfdrds/fZ5bCIxzpe3abyUrhDU=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 h1:GPRlPwz40I2B2VrBEASOA3Bi77NyeqejNLkifosX0rs=
