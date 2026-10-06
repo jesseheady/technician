@@ -71,12 +71,12 @@ if staged | grep -q '^prometheus/.*\.yml$'; then
         require_docker
         docker run --rm --entrypoint promtool \
             -v "$REPO_ROOT/prometheus:/work" -w /work \
-            prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0 check rules rules.yml
+            prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e check rules rules.yml
         if [ -f "$REPO_ROOT/prometheus/rules_test.yml" ]; then
             echo "==> promtool test rules"
             docker run --rm --entrypoint promtool \
                 -v "$REPO_ROOT/prometheus:/work" -w /work \
-                prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0 test rules rules_test.yml
+                prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e test rules rules_test.yml
         fi
     fi
 fi
