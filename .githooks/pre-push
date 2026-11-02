@@ -29,7 +29,7 @@ else
     docker run --rm \
         -v "$REPO_ROOT:/work" \
         -v "$HOME/.cache/trivy:/root/.cache/trivy" \
-        -w /work aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
+        -w /work aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
         fs --scanners vuln --severity CRITICAL,HIGH \
            --exit-code 1 --quiet --skip-dirs node_modules .
 fi
@@ -49,7 +49,7 @@ else
     require_docker
     docker run --rm --entrypoint promtool \
         -v "$REPO_ROOT/prometheus:/work" -w /work \
-        prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e check config prometheus.yml
+        prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2 check config prometheus.yml
 fi
 
 echo "==> amtool check-config"
