@@ -128,16 +128,40 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Go point releases carry stdlib security fixes that no vulnerability alert covers, so skip the release-age soak and the Monday schedule. Placed after the generic groups: later rules win on groupName",
+      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Placed after the generic groups: later rules win on groupName",
       "matchDepNames": [
         "go",
         "golang"
       ],
       "groupName": "go toolchain",
+      "separateMinorPatch": true
+    },
+    {
+      "description": "Go point releases carry stdlib security fixes that no vulnerability alert covers, so skip the release-age soak and the Monday schedule",
+      "matchDepNames": [
+        "go",
+        "golang"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
       "minimumReleaseAge": "0 days",
       "schedule": [
         "at any time"
       ]
+    },
+    {
+      "description": "A new Go minor moves the supported release line, so it waits for review instead of automerging",
+      "matchDepNames": [
+        "go",
+        "golang"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "automerge": false
     },
     {
       "description": "Renovate leaves the go directive alone by default; bump it so the go toolchain group moves both halves",
