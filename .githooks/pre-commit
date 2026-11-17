@@ -116,6 +116,21 @@ if staged | grep -qE '^(docker-compose.*\.yml|\.dockerignore|Dockerfile.*)$'; th
     docker compose config -q
 fi
 
+echo "==> renovate-config-validator"
+if staged | grep -qx 'renovate\.json'; then
+    if skip_slow; then
+        echo "    SKIP_HOOKS=1 — skipped"
+    elif command -v renovate-config-validator >/dev/null 2>&1; then
+        renovate-config-validator --strict renovate.json
+    else
+        echo "    renovate-config-validator not installed, using Docker (install to skip the daemon: npm i -g renovate)"
+        require_docker
+        docker run --rm -v "$REPO_ROOT:/work" -w /work \
+            ghcr.io/renovatebot/renovate:44.222.5@sha256:8a4c49ef19bb71bedf4eaa4d1087a31a1793bd53de41478753d2d648e53eed19 \
+            renovate-config-validator --strict renovate.json
+    fi
+fi
+
 echo "==> shellcheck"
 SH_FILES=$(staged | grep -E '(\.sh$|^\.githooks/)' || true)
 if [ -n "$SH_FILES" ]; then
