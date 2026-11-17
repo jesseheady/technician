@@ -128,12 +128,29 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Placed after the generic groups: later rules win on groupName",
+      "description": "Update the go.mod go directive and the golang builder image together, so the pinned toolchain and the base image never drift into a build break. Go point releases carry stdlib security fixes that no vulnerability alert covers, so skip the release-age soak and the Monday schedule. Placed after the generic groups: later rules win on groupName",
       "matchDepNames": [
         "go",
         "golang"
       ],
-      "groupName": "go toolchain"
+      "groupName": "go toolchain",
+      "minimumReleaseAge": "0 days",
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "description": "Renovate leaves the go directive alone by default; bump it so the go toolchain group moves both halves",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepNames": [
+        "go"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "rangeStrategy": "bump"
     },
     {
       "description": "Update the playwright npm client and the playwright sidecar image together. In managed mode they are two ends of one connection: a mismatch fails the handshake and breaks every browser check, so they must never be bumped separately. Placed last for the same ordering reason as go toolchain",
