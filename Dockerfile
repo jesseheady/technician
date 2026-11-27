@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /technician .
 RUN go install github.com/google/go-licenses/v2@v2.0.1 && \
     PATH="$PATH:$(go env GOPATH)/bin" ./scripts/gen-licenses.sh /THIRD_PARTY_LICENSES.txt
 
-FROM node:24-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS runtime
+FROM node:26-slim@sha256:abe7e5a82b61a8ef67b315b85497c9e65173387ccf2f4a029248184b8e020be5 AS runtime
 
 # Upgrade picks up Debian security fixes before the node image is rebuilt.
 RUN apt-get update && \
